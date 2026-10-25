@@ -9,7 +9,7 @@ Branch `feat/cadastros-agenda-docs` (saída de `develop`). Escopo: fornecedores,
 - [x] HTML dos modelos sanitizado no servidor (`nh3`, allowlist), pré-visualização com dados de exemplo, duplicar modelo
 - [x] Telas: fornecedores, categorias (abas categorias/subcategorias), horários (abas funcionamento/studio legado), bloqueios, termos (lista + editor), modelos (hub + contrato com editor + evolução)
 - [x] Menu: as 6 entradas de Cadastros que são minhas estão `planejado: false`
-- [x] Testes: 145 testes novos em `tests/cadastros_agenda_docs` + 39 em `tests/domain/test_modelos_documento.py`; `npm run lint` e `npm run build` limpos
+- [x] Testes: 150 testes novos em `tests/cadastros_agenda_docs` + 39 em `tests/domain/test_modelos_documento.py`; `npm run lint` e `npm run build` limpos
 - [ ] Conferir a tela no navegador com um usuário real (o editor `contenteditable` não foi exercitado em navegador nesta máquina; ver "Pontos de atenção")
 
 ## Arquivos
