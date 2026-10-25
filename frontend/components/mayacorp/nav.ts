@@ -68,7 +68,7 @@ export const NAV: NavGrupo[] = [
   },
   {
     titulo: "Alunos",
-    itens: [{ label: "Alunos", href: "/alunos", icone: UsersRound, permissao: "alunos.ver", planejado: true }],
+    itens: [{ label: "Alunos", href: "/alunos", icone: UsersRound, permissao: "alunos.ver" }],
   },
   {
     titulo: "Contratos",
