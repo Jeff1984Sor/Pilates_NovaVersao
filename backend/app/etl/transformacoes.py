@@ -206,3 +206,25 @@ def hash_token(token: str) -> str:
 
 def semente_estavel(*partes: Any) -> int:
     return int(hashlib.sha256("|".join(map(str, partes)).encode()).hexdigest()[:8], 16)
+
+
+def gerar_login(username: str | None, email: str | None, usados: set[str]) -> str:
+    """Login curto para o sistema novo (ninguém entra mais com e-mail).
+
+    Parte do trecho antes do "@" do e-mail (no antigo o usuário era o próprio e-mail), minúsculas,
+    só letras/números/ponto/hífen/sublinhado, 3 a 30 caracteres, único (acrescenta 2, 3... se repetir).
+    """
+    import re
+    import unicodedata
+
+    base = (email or username or "").strip().lower().split("@", 1)[0]
+    base = unicodedata.normalize("NFKD", base).encode("ascii", "ignore").decode("ascii")
+    base = re.sub(r"[^a-z0-9._-]+", ".", base).strip("._-")[:26] or "usuario"
+    if len(base) < 3:
+        base = (base + "usuario")[:6]
+    candidato, n = base, 1
+    while candidato in usados:
+        n += 1
+        candidato = f"{base}{n}"
+    usados.add(candidato)
+    return candidato

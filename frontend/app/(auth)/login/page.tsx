@@ -18,7 +18,7 @@ import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 const schema = z.object({
-  identificador: z.string().trim().min(1, "Informe seu e-mail ou usuário"),
+  identificador: z.string().trim().min(1, "Informe seu login"),
   senha: z.string().min(1, "Informe a senha"),
 });
 
@@ -52,7 +52,7 @@ function Login() {
 
   return (
     <form onSubmit={enviar} className="space-y-4">
-      <Field label="E-mail ou usuário" erro={form.formState.errors.identificador?.message}>
+      <Field label="Login" erro={form.formState.errors.identificador?.message}>
         <ComIcone icone={UserRound}>
           <Input
             {...form.register("identificador")}
@@ -60,7 +60,7 @@ function Login() {
             autoComplete="username"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder="voce@exemplo.com ou seu.usuario"
+            placeholder="seu login"
             className="h-11 pl-9"
             autoFocus
           />

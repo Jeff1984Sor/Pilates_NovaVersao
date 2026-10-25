@@ -14,13 +14,18 @@ HASH_DJANGO = "pbkdf2_sha256$1000000$p6WMopiB93ebHJSnXyJQvH$fQBEpXRU6tv9B7L4pMh8
 
 
 # ---------------------------------------------------------------------------------------------- login
-def test_login_por_email_e_por_usuario(client, admin):
-    assert entrar(client, "admin@exemplo.com").status_code == 200
-    assert entrar(client, "ADMIN").status_code == 200  # usuário, sem diferenciar maiúsculas
+def test_login_so_pelo_login(client, admin):
+    assert entrar(client, "ADMIN").status_code == 200  # login sem diferenciar maiúsculas
     r = entrar(client, "admin")
     corpo = r.json()
     assert corpo["usuario"]["administrador"] is True
     assert corpo["token_type"] == "bearer" and corpo["refresh_token"]
+
+
+def test_login_por_email_nao_funciona(client, admin):
+    """Decisão do Jefferson: ninguém entra com e-mail, só com o login."""
+    r = client.post("/api/auth/login", json={"identificador": "admin@exemplo.com", "senha": SENHA})
+    assert r.status_code == 401
 
 
 def test_login_nao_revela_se_a_conta_existe(client, admin):
@@ -177,8 +182,8 @@ def test_desativar_ou_trocar_perfil_derruba_a_sessao(client, db, token_admin):
 
 # ---------------------------------------------------------------------------------------------- recuperação por e-mail
 def test_forgot_resposta_igual_exista_ou_nao(client, admin, emails):
-    a = client.post("/api/auth/forgot", json={"identificador": "admin@exemplo.com"})
-    b = client.post("/api/auth/forgot", json={"identificador": "ninguem@exemplo.com"})
+    a = client.post("/api/auth/forgot", json={"identificador": "admin"})
+    b = client.post("/api/auth/forgot", json={"identificador": "ninguem"})
     assert a.status_code == b.status_code == 200 and a.json() == b.json()
     assert len(emails) == 1 and emails[0][0] == ["admin@exemplo.com"]
 
@@ -237,51 +242,51 @@ def _codigo(zap) -> str:
 
 def test_codigo_whatsapp_fluxo_completo(client, db, zap):
     criar_usuario(db, "Secretária", email="rec@exemplo.com", telefone="(11) 98888-7777")
-    r = client.post("/api/auth/forgot-codigo", json={"identificador": "rec@exemplo.com"})
+    r = client.post("/api/auth/forgot-codigo", json={"identificador": "rec"})
     assert r.status_code == 200
     fone, _ = zap.enviadas[0]
     assert fone == "5511988887777"
     codigo = _codigo(zap)
-    r = client.post("/api/auth/reset-codigo", json={"identificador": "rec@exemplo.com", "codigo": codigo, "senha": "Zap@Senha77"})
+    r = client.post("/api/auth/reset-codigo", json={"identificador": "rec", "codigo": codigo, "senha": "Zap@Senha77"})
     assert r.status_code == 200
     assert entrar(client, "rec@exemplo.com", "Zap@Senha77").status_code == 200
     # código de uso único
-    r = client.post("/api/auth/reset-codigo", json={"identificador": "rec@exemplo.com", "codigo": codigo, "senha": "Zap@Senha78"})
+    r = client.post("/api/auth/reset-codigo", json={"identificador": "rec", "codigo": codigo, "senha": "Zap@Senha78"})
     assert r.status_code == 400
 
 
 def test_codigo_whatsapp_limite_de_tentativas(client, db, zap):
     criar_usuario(db, "Secretária", email="rec@exemplo.com", telefone="11988887777")
-    client.post("/api/auth/forgot-codigo", json={"identificador": "rec@exemplo.com"})
+    client.post("/api/auth/forgot-codigo", json={"identificador": "rec"})
     certo = _codigo(zap)
     errado = "000000" if certo != "000000" else "111111"
     for _ in range(5):
-        r = client.post("/api/auth/reset-codigo", json={"identificador": "rec@exemplo.com", "codigo": errado, "senha": "Zap@Senha77"})
+        r = client.post("/api/auth/reset-codigo", json={"identificador": "rec", "codigo": errado, "senha": "Zap@Senha77"})
         assert r.status_code == 400
     # esgotadas as tentativas, nem o código certo funciona mais
-    r = client.post("/api/auth/reset-codigo", json={"identificador": "rec@exemplo.com", "codigo": certo, "senha": "Zap@Senha77"})
+    r = client.post("/api/auth/reset-codigo", json={"identificador": "rec", "codigo": certo, "senha": "Zap@Senha77"})
     assert r.status_code == 400
 
 
 def test_codigo_whatsapp_expirado(client, db, zap):
     criar_usuario(db, "Secretária", email="rec@exemplo.com", telefone="11988887777")
-    client.post("/api/auth/forgot-codigo", json={"identificador": "rec@exemplo.com"})
+    client.post("/api/auth/forgot-codigo", json={"identificador": "rec"})
     codigo = _codigo(zap)
     linha = db.scalar(select(RecuperacaoSenha))
     linha.expira_em = agora() - timedelta(seconds=1)
     db.commit()
-    r = client.post("/api/auth/reset-codigo", json={"identificador": "rec@exemplo.com", "codigo": codigo, "senha": "Zap@Senha77"})
+    r = client.post("/api/auth/reset-codigo", json={"identificador": "rec", "codigo": codigo, "senha": "Zap@Senha77"})
     assert r.status_code == 400
 
 
 def test_codigo_whatsapp_nao_revela_conta_nem_telefone(client, db, zap):
     criar_usuario(db, "Secretária", email="semfone@exemplo.com")
-    a = client.post("/api/auth/forgot-codigo", json={"identificador": "semfone@exemplo.com"})
-    b = client.post("/api/auth/forgot-codigo", json={"identificador": "nao.existe@exemplo.com"})
+    a = client.post("/api/auth/forgot-codigo", json={"identificador": "semfone"})
+    b = client.post("/api/auth/forgot-codigo", json={"identificador": "nao.existe"})
     assert a.status_code == b.status_code == 200 and a.json() == b.json()
     assert zap.enviadas == []
-    r1 = client.post("/api/auth/reset-codigo", json={"identificador": "nao.existe@exemplo.com", "codigo": "123456", "senha": "Zap@Senha77"})
-    r2 = client.post("/api/auth/reset-codigo", json={"identificador": "semfone@exemplo.com", "codigo": "123456", "senha": "Zap@Senha77"})
+    r1 = client.post("/api/auth/reset-codigo", json={"identificador": "nao.existe", "codigo": "123456", "senha": "Zap@Senha77"})
+    r2 = client.post("/api/auth/reset-codigo", json={"identificador": "semfone", "codigo": "123456", "senha": "Zap@Senha77"})
     assert r1.status_code == r2.status_code == 400 and r1.json() == r2.json()
 
 

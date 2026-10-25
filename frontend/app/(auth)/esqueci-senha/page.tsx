@@ -134,7 +134,7 @@ export default function EsqueciSenhaPage() {
     <form onSubmit={pedir} className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Recuperar acesso</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Informe seu e-mail ou usuário e escolha como receber as instruções.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Informe seu login e escolha como receber as instruções.</p>
       </div>
       <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm font-medium" role="tablist">
         {(
@@ -164,7 +164,7 @@ export default function EsqueciSenhaPage() {
           required
           autoCapitalize="none"
           spellCheck={false}
-          placeholder="voce@exemplo.com ou seu.usuario"
+          placeholder="seu login"
           className="h-11 pl-9"
           autoFocus
         />

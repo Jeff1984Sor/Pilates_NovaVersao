@@ -70,6 +70,7 @@ def emails(monkeypatch):
 def criar_usuario(db, perfil: str = "Full", *, email="user@exemplo.com", login=None, senha=SENHA,
                   telefone=None, **extra) -> Usuario:
     p = perfis.garantir_padrao(db)[perfil]
+    login = login or email.split("@")[0]  # ninguém entra com e-mail: todo usuário tem um login
     u = Usuario(nome=f"Usuário {perfil}", email=email, login=login, telefone=telefone, perfil_acesso_id=p.id,
                 senha_hash=hash_senha(senha) if senha else None, **extra)
     db.add(u)
@@ -78,8 +79,10 @@ def criar_usuario(db, perfil: str = "Full", *, email="user@exemplo.com", login=N
 
 
 def entrar(client, identificador, senha=SENHA):
-    r = client.post("/api/auth/login", json={"identificador": identificador, "senha": senha})
-    return r
+    """Entra pelo LOGIN. Por conveniência dos testes, um "x@y" vira "x" (o login criado por `criar_usuario`);
+    o teste `test_login_por_email_nao_funciona` prova que a API recusa o e-mail de verdade."""
+    login = identificador.split("@")[0] if "@" in identificador else identificador
+    return client.post("/api/auth/login", json={"identificador": login, "senha": senha})
 
 
 def auth(token: str) -> dict:

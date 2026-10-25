@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 LOGIN_RE = r"^[a-z0-9._-]{3,60}$"
 
@@ -124,6 +124,12 @@ class UsuarioIn(BaseModel):
     perfil_acesso_id: int | None = None
     senha: str | None = Field(default=None, max_length=256)  # opcional: já define a senha (sem e-mail de convite)
     acesso_sistema: bool = True  # False = profissional sem login (não recebe convite)
+
+    @model_validator(mode="after")
+    def _login_obrigatorio_com_acesso(self):
+        if self.acesso_sistema and not self.login:
+            raise ValueError("Informe o login (ninguém entra com e-mail).")
+        return self
 
 
 class UsuarioPatch(BaseModel):

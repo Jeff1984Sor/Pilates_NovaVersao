@@ -387,6 +387,7 @@ class Carga:
         profs = {p["user_id"]: p for p in self.fonte.linhas("core_profissional") if p["user_id"] is not None}
         existentes = {str(e).lower(): i for i, e in conn.execute(select(t.c.id, t.c.email))}
         usados = set(existentes)
+        logins_usados = {str(x).lower() for (x,) in conn.execute(select(t.c.login)) if x}
         self.mapas["auth_user"] = {}
         algoritmos: Counter = Counter()
         for u in users:
@@ -431,13 +432,15 @@ class Carga:
             ) or username
             ativo = tf.booleano(u["is_active"], True)
             ts = tf.como_instante(u["date_joined"]) or self._agora
+            login_novo = tf.gerar_login(username, email, logins_usados)
+            self.conc.alerta("logins_gerados", f"{username or u['id']} → login '{login_novo}' (revisar e trocar na tela se quiser)")
             novo = self._inserir_core(
                 conn,
                 "usuario",
                 {
                     "nome": nome,
                     "email": email,
-                    "login": username or None,
+                    "login": login_novo,
                     "senha_hash": senha if usavel else None,
                     "ativo": ativo,
                     "acesso_sistema": ativo and usavel,

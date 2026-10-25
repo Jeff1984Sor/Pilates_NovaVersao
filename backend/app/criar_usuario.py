@@ -20,7 +20,7 @@ from app.core.security import hash_senha, validar_politica_senha
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--login", help="opcional; senão entra só pelo e-mail")
+    ap.add_argument("--login", required=True, help="como a pessoa entra no sistema (não é o e-mail)")
     ap.add_argument("--email", required=True)
     ap.add_argument("--nome", required=True)
     ap.add_argument("--telefone")

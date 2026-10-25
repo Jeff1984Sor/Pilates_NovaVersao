@@ -82,7 +82,7 @@ def test_crud_de_usuario_com_e_sem_login(client, db, token_admin, emails):
     h = auth(token_admin)
     perfil = client.get("/api/config/perfis", headers=h).json()
     pid = next(p["id"] for p in perfil if p["nome"] == "Professor")
-    r = client.post("/api/config/usuarios", headers=h, json={"nome": "Ana Prof", "email": "ana@exemplo.com", "perfil_acesso_id": pid})
+    r = client.post("/api/config/usuarios", headers=h, json={"nome": "Ana Prof", "email": "ana@exemplo.com", "login": "ana", "perfil_acesso_id": pid})
     assert r.status_code == 201 and r.json()["convite_pendente"] is True
     assert emails and "redefinir-senha?token=" in emails[0][2]  # convite por link
     # profissional sem login: não recebe convite e não consegue entrar
@@ -91,10 +91,10 @@ def test_crud_de_usuario_com_e_sem_login(client, db, token_admin, emails):
     assert r.status_code == 201 and len(emails) == 1
     assert db.scalar(select(Usuario.senha_hash).where(Usuario.email == "bia@exemplo.com")) is None
     # e-mail duplicado
-    assert client.post("/api/config/usuarios", headers=h, json={"nome": "Dup", "email": "ANA@exemplo.com",
+    assert client.post("/api/config/usuarios", headers=h, json={"nome": "Dup", "email": "ANA@exemplo.com", "login": "dup",
                                                                 "perfil_acesso_id": pid}).status_code == 409
     # perfil obrigatório e existente
-    assert client.post("/api/config/usuarios", headers=h, json={"nome": "Sem", "email": "s@exemplo.com"}).status_code == 404
+    assert client.post("/api/config/usuarios", headers=h, json={"nome": "Sem", "email": "s@exemplo.com", "login": "sem"}).status_code == 404
     lista = client.get("/api/config/usuarios", headers=h).json()
     assert {u["email"] for u in lista} >= {"ana@exemplo.com", "bia@exemplo.com"}
 
@@ -141,3 +141,13 @@ def test_worker_executa_tarefas_vencidas_e_isola_falhas():
         assert worker.executar_pendentes(agora_s=11) == ["a"]
     finally:
         worker.TAREFAS[:] = antes
+
+
+def test_criar_usuario_com_acesso_exige_login(client, db, token_admin):
+    h = auth(token_admin)
+    pid = next(p["id"] for p in client.get("/api/config/perfis", headers=h).json() if p["nome"] == "Professor")
+    r = client.post("/api/config/usuarios", headers=h, json={"nome": "Sem Login", "email": "sl@exemplo.com", "perfil_acesso_id": pid})
+    assert r.status_code == 422
+    # login com "@" é recusado
+    r = client.post("/api/config/usuarios", headers=h, json={"nome": "Email", "email": "e@exemplo.com", "login": "e@exemplo.com", "perfil_acesso_id": pid})
+    assert r.status_code == 422

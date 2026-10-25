@@ -397,8 +397,7 @@ def test_falha_com_codigo_de_saida_quando_total_diverge(engine, tmp_path, monkey
             "--simular",
             "--relatorio",
             str(rel),
-            "--master-key",
-            Fernet.generate_key().decode(),
+            "--master-key=" + Fernet.generate_key().decode(),  # "=" evita que uma chave começada por "-" vire opção
         ]
     )
     assert codigo == 1
@@ -507,3 +506,22 @@ def test_classificar_perfil():
     assert classificar_perfil("Professor") == "Professor" and classificar_perfil("PROFESSORA de pilates") == "Professor"
     assert classificar_perfil("Administrador") == "Full" and classificar_perfil("Padrao") == "Full"
     assert classificar_perfil("Coordenação") == "Full" and classificar_perfil("") == "Full"
+
+
+def test_gerar_login_curto_unico_e_sem_email():
+    from app.etl.transformacoes import gerar_login
+
+    usados: set[str] = set()
+    assert gerar_login("ana@x.com", "ana@x.com", usados) == "ana"
+    assert gerar_login("ana@y.com", "ana@y.com", usados) == "ana2"  # repetido: acrescenta número
+    assert gerar_login("Flávia", "Flávia.Barros@x.com", usados) == "flavia.barros"  # sem acento, minúsculo
+    assert gerar_login(None, "a@x.com", usados) == "a" + "usuario"[:5]  # curto demais: completa
+    assert "@" not in gerar_login("x", "joao silva@x.com", usados)
+
+
+def test_logins_gerados_no_relatorio_e_no_banco(ensaio):
+    eng, conc, *_ = ensaio
+    logins = [r[0] for r in q(eng, "select login from usuario")]
+    assert logins and all(l and "@" not in l and l == l.lower() for l in logins)
+    assert len(set(logins)) == len(logins)
+    assert len(conc.alertas["logins_gerados"]) == len(logins)

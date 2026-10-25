@@ -7,7 +7,7 @@ from datetime import timedelta
 
 import jwt
 from fastapi import HTTPException, status
-from sqlalchemy import or_, select, update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core import audit
@@ -34,8 +34,11 @@ JANELA_REUSO_REFRESH_S = 15  # duas abas renovando juntas não derrubam a sessã
 
 
 def localizar(db: Session, identificador: str) -> Usuario | None:
+    """Acha o usuário pelo LOGIN. Decisão do Jefferson: ninguém entra com e-mail."""
     ident = identificador.strip().lower()
-    return db.scalar(select(Usuario).where(or_(Usuario.email == ident, Usuario.login == ident)))
+    if not ident:
+        return None
+    return db.scalar(select(Usuario).where(Usuario.login == ident))
 
 
 def pode_entrar(u: Usuario | None) -> bool:
