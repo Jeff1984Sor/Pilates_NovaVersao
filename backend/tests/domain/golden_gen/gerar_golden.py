@@ -974,6 +974,71 @@ def sec_receita():
     escrever("receita_saude", CASOS=casos, SLUGS=nomes, MAX_LINHAS=rs.MAX_LINHAS, OCUPACOES=rs.OCUPACOES)
 
 
+def sec_tokens():
+    from unittest import mock
+
+    from django.core import signing
+    from django.test import override_settings
+    from studiopilates.core import services
+
+    chave = os.environ["DJANGO_SECRET_KEY"]
+    t0 = 1_761_400_000
+
+    def com_tempo(agora):
+        return mock.patch("django.core.signing.time.time", lambda: float(agora))
+
+    emitidos = []
+    for pk in [1, 123, 99999999, 7]:
+        for ts in [t0, 1_700_000_000, 1_000_000_000, 4_000_000_000]:
+            with com_tempo(ts):
+                tc = services.gerar_token_contrato(SimpleNamespace(pk=pk))
+                tt = services.gerar_token_termo(SimpleNamespace(pk=pk))
+            emitidos.append((pk, ts, tc, tt))
+
+    def tentar(fn, token):
+        try:
+            return ("ok", fn(token))
+        except signing.SignatureExpired:
+            return ("erro", "SignatureExpired")
+        except signing.BadSignature:
+            return ("erro", "BadSignature")
+        except Exception as exc:  # noqa: BLE001
+            return ("erro", type(exc).__name__)
+
+    with com_tempo(t0):
+        token_contrato = services.gerar_token_contrato(SimpleNamespace(pk=123))
+        token_termo = services.gerar_token_termo(SimpleNamespace(pk=4567))
+    dia = 86400
+    validacoes = []
+    for rotulo, agora in [("na_hora", t0), ("seis_dias", t0 + 6 * dia), ("sete_dias_exatos", t0 + 7 * dia), ("sete_dias_mais_1s", t0 + 7 * dia + 1),
+                          ("trinta_dias_exatos", t0 + 30 * dia), ("trinta_dias_mais_1s", t0 + 30 * dia + 1), ("futuro_100s", t0 - 100), ("um_ano", t0 + 365 * dia)]:
+        with com_tempo(agora):
+            validacoes.append((rotulo, agora, tentar(services.validar_token_contrato, token_contrato), tentar(services.validar_token_termo, token_termo),
+                               tentar(services.validar_token_termo, token_contrato), tentar(services.validar_token_contrato, token_termo)))
+    adulterados = []
+    with com_tempo(t0 + 10):
+        variacoes = {
+            "ultimo_char": token_contrato[:-1] + ("A" if token_contrato[-1] != "A" else "B"),
+            "valor_trocado": "124" + token_contrato[3:],
+            "timestamp_trocado": token_contrato.split(":")[0] + ":" + "zzzzzz" + ":" + token_contrato.split(":")[2],
+            "sem_assinatura": token_contrato.rsplit(":", 1)[0],
+            "vazio": "",
+            "lixo": "lixo",
+            "so_valor": "123",
+            "assinatura_truncada": token_contrato[:-5],
+            "dois_pontos_extra": token_contrato + ":x",
+        }
+        for nome, tok in variacoes.items():
+            adulterados.append((nome, tok, tentar(services.validar_token_contrato, tok)))
+    chave_errada = []
+    with override_settings(SECRET_KEY="outra-chave-qualquer"), com_tempo(t0 + 10):
+        chave_errada.append(tentar(services.validar_token_contrato, token_contrato))
+    escrever(
+        "tokens", CHAVE=chave, T0=t0, EMITIDOS=emitidos, TOKEN_CONTRATO=token_contrato, TOKEN_TERMO=token_termo, VALIDACOES=validacoes,
+        ADULTERADOS=adulterados, CHAVE_ERRADA=chave_errada,
+    )
+
+
 SECOES = {
     "precos": sec_precos,
     "parcelas": sec_parcelas,
@@ -986,6 +1051,7 @@ SECOES = {
     "financeiro": sec_financeiro,
     "avulsa": sec_avulsa,
     "receita": sec_receita,
+    "tokens": sec_tokens,
 }
 
 
