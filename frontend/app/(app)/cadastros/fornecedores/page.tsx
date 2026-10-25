@@ -17,12 +17,13 @@ import { PageHeader } from "@/components/mayacorp/page-header";
 import { Pill } from "@/components/mayacorp/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Fornecedor } from "@/lib/tipos-cadastros-docs";
 import { cn } from "@/lib/utils";
 
-type Uso = "todos" | "em_uso" | "sem_uso";
+type Situacao = "todos" | "ativos" | "inativos";
 
 const schema = z.object({
   nome: z.string().trim().min(2, "Informe o nome (mínimo de 2 letras).").max(120, "Máximo de 120 caracteres."),
@@ -68,9 +69,17 @@ function Conteudo() {
   const { pode } = useAuth();
   const editar = pode("cadastros_fornecedores.editar");
   const excluir = pode("cadastros_fornecedores.excluir");
-  const lista = useLista<Fornecedor>("fornecedores", "/cadastros/fornecedores", { uso: "todos" }, 15, "nome");
+  const lista = useLista<Fornecedor>("fornecedores", "/cadastros/fornecedores", { situacao: "todos" }, 15, "nome");
   const [dialogo, setDialogo] = useState<Fornecedor | "novo" | null>(null);
   const [apagar, setApagar] = useState<Fornecedor | null>(null);
+
+  const alternar = useMutation({
+    mutationFn: (f: Fornecedor) => api.patch(`/cadastros/fornecedores/${f.id}/ativo?ativo=${!f.ativo}`),
+    onSuccess: (_r, f) => {
+      toast.success(f.ativo ? "Fornecedor inativado" : "Fornecedor reativado");
+      qc.invalidateQueries({ queryKey: ["fornecedores"] });
+    },
+  });
 
   const remover = useMutation({
     mutationFn: (f: Fornecedor) => api.del(`/cadastros/fornecedores/${f.id}`),
@@ -82,8 +91,8 @@ function Conteudo() {
     },
   });
 
-  const uso = (lista.filtros.uso as Uso) ?? "todos";
-  const filtrando = !!lista.q || uso !== "todos";
+  const situacao = (lista.filtros.situacao as Situacao) ?? "todos";
+  const filtrando = !!lista.q || situacao !== "todos";
   const novo = editar && (
     <Button onClick={() => setDialogo("novo")}>
       <Plus /> Novo fornecedor
@@ -103,19 +112,19 @@ function Conteudo() {
         <Toolbar>
           <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <SearchInput value={lista.q} onChange={lista.setQ} placeholder="Buscar por nome" />
-            <Segmented<Uso>
-              value={uso}
-              onChange={(v) => lista.setFiltro("uso", v)}
+            <Segmented<Situacao>
+              value={situacao}
+              onChange={(v) => lista.setFiltro("situacao", v)}
               opcoes={[
                 { value: "todos", label: "Todos", contagem: lista.contagens.todos },
-                { value: "em_uso", label: "Com contas a pagar", contagem: lista.contagens.em_uso },
-                { value: "sem_uso", label: "Sem uso", contagem: lista.contagens.sem_uso },
+                { value: "ativos", label: "Ativos", contagem: lista.contagens.ativos, tom: "success" },
+                { value: "inativos", label: "Inativos", contagem: lista.contagens.inativos },
               ]}
             />
           </div>
         </Toolbar>
         {lista.isPending ? (
-          <TableSkeleton colunas={4} />
+          <TableSkeleton colunas={5} />
         ) : lista.itens.length === 0 ? (
           <EmptyState
             icone={Truck}
@@ -146,16 +155,20 @@ function Conteudo() {
                     <Th coluna="contas" atual={lista.ordenar} direcao={lista.direcao} onOrdenar={lista.ordenarPor}>
                       Contas a pagar
                     </Th>
+                    <Th>Ativo</Th>
                     <Th className="w-28" />
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {lista.itens.map((f) => (
-                    <tr key={f.id} className="transition-colors hover:bg-accent/40">
+                    <tr key={f.id} className={cn("transition-colors hover:bg-accent/40", !f.ativo && "opacity-60")}>
                       <td className="py-3 pl-4 text-xs text-muted-foreground tabular-nums">{f.codigo ?? "—"}</td>
                       <td className="px-3 py-3 font-medium">{f.nome}</td>
                       <td className="px-3 py-3">
                         {f.contas_a_pagar ? <Pill tom="info">{plural(f.contas_a_pagar, "conta", "contas")}</Pill> : <span className="text-xs text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-3 py-3">
+                        <Switch size="sm" checked={f.ativo} disabled={!editar || alternar.isPending} onCheckedChange={() => alternar.mutate(f)} aria-label={f.ativo ? "Inativar" : "Reativar"} />
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex justify-end gap-1">
@@ -187,7 +200,7 @@ function Conteudo() {
         titulo={`Excluir ${apagar?.nome ?? "fornecedor"}?`}
         descricao={
           apagar?.contas_a_pagar
-            ? `Este fornecedor tem ${plural(apagar.contas_a_pagar, "conta a pagar", "contas a pagar")}; a exclusão será recusada.`
+            ? `Este fornecedor tem ${plural(apagar.contas_a_pagar, "conta a pagar", "contas a pagar")}; a exclusão será recusada. Inative-o para não usá-lo mais.`
             : "Esta ação não pode ser desfeita."
         }
         carregando={remover.isPending}

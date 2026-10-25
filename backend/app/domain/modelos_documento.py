@@ -12,6 +12,7 @@ Diferenças deliberadas em relação ao antigo (todas para melhor, nenhuma muda 
   trocado de novo); o resultado é igual para dados normais;
 - os valores são ESCAPADOS como HTML por padrão (``escapar=True``): um nome de aluno com ``<script>`` não vira
   marcação no documento. Com ``escapar=False`` a saída é idêntica à do antigo (usado no teste de caracterização);
+- a moeda usa separador de milhar (``R$ 1.234,50``); o antigo gerava ``R$ 1234,50`` (decisão do Jefferson);
 - variável desconhecida continua literal (como no antigo), mas ``variaveis_desconhecidas`` permite avisar quem edita
   o modelo, e ``marcador_desconhecida`` permite trocá-la por um aviso visível.
 
@@ -136,11 +137,19 @@ def formatar_data(valor: date | None) -> str:
 
 
 def formatar_moeda(valor: Decimal | float | int | str | None) -> str:
-    """``R$ 360,00`` como o antigo ``_currency`` (SEM separador de milhar: ``R$ 1234,50``); inválido vira ``R$ 0,00``."""
+    """``R$ 1.234,50`` (ponto no milhar, vírgula nos centavos); vazio/inválido vira ``R$ 0,00``.
+
+    DIVERGÊNCIA INTENCIONAL do antigo (``_currency``), que gerava ``R$ 1234,50`` sem separador de milhar.
+    Decisão do Jefferson: o documento fica no formato brasileiro usual.
+    """
     try:
-        return f"R$ {float(valor):.2f}".replace(".", ",")  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+        numero = Decimal(str(valor)).quantize(Decimal("0.01"))
+        if not numero.is_finite():
+            raise ValueError
+    except (TypeError, ValueError, ArithmeticError):
         return "R$ 0,00"
+    texto = f"{numero:,.2f}"  # 1,234.50
+    return "R$ " + texto.replace(",", "_").replace(".", ",").replace("_", ".")
 
 
 def variaveis_usadas(html: str | None) -> list[str]:

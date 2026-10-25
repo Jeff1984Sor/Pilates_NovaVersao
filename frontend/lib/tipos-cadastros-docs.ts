@@ -15,6 +15,7 @@ export interface Fornecedor {
   id: number;
   codigo: number | null;
   nome: string;
+  ativo: boolean;
   contas_a_pagar: number;
   criado_em: string | null;
 }
@@ -24,6 +25,7 @@ export interface Categoria {
   codigo: number | null;
   nome: string;
   tipo: TipoCategoria;
+  ativo: boolean;
   subcategorias: number;
   contas_a_pagar: number;
   planos: number;
@@ -36,6 +38,7 @@ export interface Subcategoria {
   categoria_nome: string;
   categoria_tipo: TipoCategoria;
   nome: string;
+  ativo: boolean;
   contas_a_pagar: number;
   planos: number;
 }
@@ -147,6 +150,7 @@ export interface TermoLista {
   id: number;
   codigo: number | null;
   nome: string;
+  ativo: boolean;
   previa: string;
   alunos_com_aceite: number;
   atualizado_em: string | null;

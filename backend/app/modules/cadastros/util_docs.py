@@ -99,3 +99,15 @@ def foto(obj: Any, excluir: tuple[str, ...] = ()) -> dict[str, Any]:
 
 def nao_encontrado(rotulo: str) -> HTTPException:
     return HTTPException(404, f"{rotulo} não encontrado(a).")
+
+
+def filtrar_situacao(stmt, coluna: Any, situacao: str, somente_ativos: bool = False):
+    """`situacao` = todos|ativos|inativos; `somente_ativos` (usado pelos seletores de outras telas) vale mais."""
+    if somente_ativos or situacao == "ativos":
+        return stmt.where(coluna.is_(True))
+    if situacao == "inativos":
+        return stmt.where(coluna.is_(False))
+    return stmt
+
+
+SITUACAO = Annotated[str, Query(pattern="^(todos|ativos|inativos)$")]

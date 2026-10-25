@@ -59,7 +59,7 @@ def test_fornecedor_lista_busca_ordem_paginacao_e_chips(client, db, full):
 
     r = client.get(F, headers=full).json()
     assert [i["nome"] for i in r["itens"]] == ["Alfa Limpeza", "Alfa Manutenção", "Beta Papel", "Zeta Material"]
-    assert r["contagens"] == {"todos": 4, "em_uso": 1, "sem_uso": 3}
+    assert r["contagens"] == {"todos": 4, "ativos": 4, "inativos": 0, "em_uso": 1, "sem_uso": 3}
     assert [i["nome"] for i in client.get(F, params={"q": "alfa"}, headers=full).json()["itens"]] == ["Alfa Limpeza", "Alfa Manutenção"]
     assert client.get(F, params={"q": "alfa"}, headers=full).json()["contagens"]["todos"] == 2
     uso = client.get(F, params={"uso": "em_uso"}, headers=full).json()
@@ -133,12 +133,12 @@ def test_listas_de_categoria_e_subcategoria_com_chips_por_tipo(client, full):
         client.post(S, json={"categoria_id": cat, "nome": nome}, headers=full)
     lista = client.get(C, headers=full).json()
     assert [i["nome"] for i in lista["itens"]] == ["Despesas", "Receitas"]
-    assert lista["contagens"] == {"todos": 2, "RECEITA": 1, "DESPESA": 1}
+    assert lista["contagens"] == {"todos": 2, "RECEITA": 1, "DESPESA": 1, "ativos": 2, "inativos": 0}
     assert [i["nome"] for i in client.get(C, params={"tipo": "RECEITA"}, headers=full).json()["itens"]] == ["Receitas"]
 
     subs = client.get(S, headers=full).json()
     assert [i["nome"] for i in subs["itens"]] == ["Gás", "Luz", "Aulas avulsas"]  # por categoria e nome
-    assert subs["contagens"] == {"todos": 3, "RECEITA": 1, "DESPESA": 2}
+    assert subs["contagens"] == {"todos": 3, "RECEITA": 1, "DESPESA": 2, "ativos": 3, "inativos": 0}
     assert len(client.get(S, params={"categoria_id": d}, headers=full).json()["itens"]) == 2
     assert [i["nome"] for i in client.get(S, params={"q": "avuls"}, headers=full).json()["itens"]] == ["Aulas avulsas"]
     assert [i["nome"] for i in client.get(S, params={"tipo": "DESPESA", "ordenar": "nome", "direcao": "desc"}, headers=full).json()["itens"]] == ["Luz", "Gás"]

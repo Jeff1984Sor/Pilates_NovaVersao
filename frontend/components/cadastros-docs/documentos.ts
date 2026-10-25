@@ -19,6 +19,8 @@ export interface ConfigDocumento {
   permissao: string;
   nomeMax: number;
   temAtivo: boolean;
+  /** texto do interruptor "Ativo" no editor */
+  descAtivo: string;
   /** chave do cache (TanStack Query) da lista */
   chave: string;
   vinculo: { campo: "alunos_com_aceite" | "planos"; singular: string; plural: string; rotulo: string };
@@ -38,7 +40,8 @@ export const DOCUMENTOS: Record<TipoDocumento, ConfigDocumento> = {
     rota: "/cadastros/termos",
     permissao: "cadastros_termos",
     nomeMax: 80,
-    temAtivo: false,
+    temAtivo: true,
+    descAtivo: "Inativo não é oferecido para novos aceites; os aceites já feitos continuam valendo.",
     chave: "termos",
     vinculo: { campo: "alunos_com_aceite", singular: "aluno aceitou", plural: "alunos aceitaram", rotulo: "Aceites" },
   },
@@ -56,6 +59,7 @@ export const DOCUMENTOS: Record<TipoDocumento, ConfigDocumento> = {
     permissao: "cadastros_modelos",
     nomeMax: 120,
     temAtivo: true,
+    descAtivo: "Inativo não é oferecido em novos planos.",
     chave: "modelos-contrato",
     vinculo: { campo: "planos", singular: "plano", plural: "planos", rotulo: "Planos" },
   },

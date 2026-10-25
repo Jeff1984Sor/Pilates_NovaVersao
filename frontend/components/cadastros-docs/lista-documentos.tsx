@@ -55,7 +55,7 @@ function Conteudo({ tipo }: { tipo: TipoDocumento }) {
   const alternar = useMutation({
     mutationFn: (i: Item) => api.patch(`${cfg.api}/${i.id}/ativo?ativo=${!i.ativo}`),
     onSuccess: (_r, i) => {
-      toast.success(i.ativo ? "Modelo inativado" : "Modelo ativado");
+      toast.success(i.ativo ? "Inativado" : "Reativado");
       qc.invalidateQueries({ queryKey: [cfg.chave] });
     },
   });

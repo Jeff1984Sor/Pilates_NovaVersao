@@ -162,6 +162,7 @@ def listar_contratos(
     ctx: Ctx,
     pedido: Annotated[Pedido, Depends(parametros_lista)],
     situacao: Annotated[str, Query(pattern="^(todos|ativos|inativos)$")] = "todos",
+    somente_ativos: Annotated[bool, Query()] = False,
 ):
     base = select(ModeloContrato, _planos_do_modelo().label("planos"))
     if pedido.q:
@@ -171,6 +172,8 @@ def listar_contratos(
         contagens["todos"] += 1
         contagens["ativos" if m.ativo else "inativos"] += 1
     stmt = base
+    if somente_ativos:
+        situacao = "ativos"
     if situacao != "todos":
         stmt = stmt.where(ModeloContrato.ativo.is_(situacao == "ativos"))
     colunas = {
@@ -325,6 +328,7 @@ def listar_evolucao(
     ctx: Ctx,
     pedido: Annotated[Pedido, Depends(parametros_lista)],
     situacao: Annotated[str, Query(pattern="^(todos|ativos|inativos)$")] = "todos",
+    somente_ativos: Annotated[bool, Query()] = False,
 ):
     base = select(ModeloEvolucao)
     if pedido.q:
@@ -334,6 +338,8 @@ def listar_evolucao(
         contagens["todos"] += 1
         contagens["ativos" if m.ativo else "inativos"] += 1
     stmt = base
+    if somente_ativos:
+        situacao = "ativos"
     if situacao != "todos":
         stmt = stmt.where(ModeloEvolucao.ativo.is_(situacao == "ativos"))
     colunas = {

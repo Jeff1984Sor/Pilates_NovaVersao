@@ -67,10 +67,23 @@ def test_secretaria_consulta(client, secretaria, url):
     assert client.get(url, headers=secretaria).status_code == 200
 
 
-@pytest.mark.parametrize("metodo,url,corpo", ESCRITAS)
-def test_secretaria_nao_edita_nem_exclui_cadastros(client, secretaria, metodo, url, corpo):
-    """Decisão atual do perfil Secretária: cadastros só para consulta (ver docs/progresso-fundacao.md)."""
+FINANCEIRAS = ("/api/cadastros/fornecedores", "/api/cadastros/categorias")
+FIN = [e for e in ESCRITAS if e[1].startswith(FINANCEIRAS)]
+AGENDA_DOCS = [e for e in ESCRITAS if not e[1].startswith(FINANCEIRAS) and e[0] != "DELETE"]
+
+
+@pytest.mark.parametrize("metodo,url,corpo", FIN)
+def test_secretaria_nao_mexe_em_fornecedores_e_categorias(client, secretaria, metodo, url, corpo):
+    """Cadastros financeiros continuam fora do alcance da Secretária (decisão do Jefferson)."""
     assert _pede(client, metodo, url, secretaria, corpo).status_code == 403
+
+
+@pytest.mark.xfail(strict=False, reason="aguarda catálogo do coordenador: Secretária edita horários, bloqueios, termos e modelos")
+@pytest.mark.parametrize("metodo,url,corpo", AGENDA_DOCS)
+def test_secretaria_edita_horarios_bloqueios_termos_e_modelos(client, secretaria, metodo, url, corpo):
+    """Decisão do Jefferson: a Secretária edita horários (funcionamento e studio), bloqueios, termos e modelos.
+    Aqui basta NÃO levar 403 (o recurso pode não existir ou o corpo ser recusado por outra regra)."""
+    assert _pede(client, metodo, url, secretaria, corpo).status_code != 403
 
 
 @pytest.mark.parametrize("url", LEITURAS)

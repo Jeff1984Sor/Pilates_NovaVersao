@@ -4,6 +4,7 @@ Caracterização contra ``services.render_contrato_html`` / ``render_termo_html`
 ``tests/cadastros_agenda_docs/golden_modelos.py``, gerados por ``gerar_golden_modelos.py`` com o Django real)."""
 from __future__ import annotations
 
+import re
 from datetime import date
 from decimal import Decimal
 
@@ -78,10 +79,22 @@ def test_contexto_de_exemplo_cobre_o_escopo():
 # ------------------------------------------------------------------------- caracterização (golden do antigo)
 
 
+def _sem_milhar(texto: str) -> str:
+    """DIVERGÊNCIA INTENCIONAL (moeda): o antigo gerava ``R$ 1234,50``; o novo gera ``R$ 1.234,50``.
+    Só esse campo é normalizado antes de comparar com o golden do antigo."""
+    return re.sub(r"R\$ (\d{1,3})\.(\d{3}),", lambda m: f"R$ {m[1]}{m[2]},", texto)
+
+
 @pytest.mark.parametrize("completo,modelo,esperado", g.CONTRATOS)
 def test_contrato_igual_ao_render_contrato_html_antigo(completo, modelo, esperado):
     html = md.MODELO_CONTRATO_PADRAO if modelo is None else modelo
-    assert md.renderizar(html, _contexto(completo), escapar=False) == esperado
+    assert _sem_milhar(md.renderizar(html, _contexto(completo), escapar=False)) == esperado
+
+
+def test_moeda_do_contrato_diverge_do_antigo_so_no_separador_de_milhar():
+    saida = md.renderizar("{CONTRATO_VALOR_TOTAL}", {"CONTRATO_VALOR_TOTAL": md.formatar_moeda(1234.5)})
+    assert saida == "R$ 1.234,50"
+    assert "R$ 1234,50" in g.CONTRATOS[0][2]  # o golden do antigo continua sem separador
 
 
 @pytest.mark.parametrize("completo,modelo,esperado", g.TERMOS)
@@ -164,9 +177,12 @@ def test_chaves_faltando():
     assert md.chaves_faltando({"ALUNO_NOME": "x"}, "{ALUNO_NOME} {ALUNO_CPF} {FOO}") == ["ALUNO_CPF"]
 
 
-def test_formatar_moeda_como_o_antigo():
+def test_formatar_moeda_com_milhar():
     assert md.formatar_moeda(Decimal("360")) == "R$ 360,00"
-    assert md.formatar_moeda(1234.5) == "R$ 1234,50"
+    assert md.formatar_moeda(1234.5) == "R$ 1.234,50"
+    assert md.formatar_moeda("1234567.891") == "R$ 1.234.567,89"
+    assert md.formatar_moeda(0) == "R$ 0,00"
+    assert md.formatar_moeda(float("nan")) == "R$ 0,00"
     assert md.formatar_moeda(None) == "R$ 0,00"
     assert md.formatar_moeda("abc") == "R$ 0,00"
 

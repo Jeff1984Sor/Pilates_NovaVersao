@@ -17,6 +17,7 @@ from sqlalchemy import (
     Table,
     Text,
     Time,
+    true,
     update,
 )
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
@@ -98,6 +99,7 @@ class Categoria(Base, Timestamped, CodigoLegado):
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(120))
     tipo: Mapped[TipoCategoria] = mapped_column(coluna_enum(TipoCategoria, 10), default=TipoCategoria.DESPESA)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
 
 class Subcategoria(Base, Timestamped, CodigoLegado):
@@ -106,6 +108,7 @@ class Subcategoria(Base, Timestamped, CodigoLegado):
     id: Mapped[int] = mapped_column(primary_key=True)
     categoria_id: Mapped[int] = mapped_column(ForeignKey("categoria.id"), index=True)
     nome: Mapped[str] = mapped_column(String(120))
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
 
 class Fornecedor(Base, Timestamped, CodigoLegado):
@@ -113,6 +116,7 @@ class Fornecedor(Base, Timestamped, CodigoLegado):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(120))
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
 
 class ModeloContrato(Base, Timestamped, CodigoLegado):
@@ -143,6 +147,7 @@ class TermoUso(Base, Timestamped, CodigoLegado):
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(80))
     conteudo_html: Mapped[str] = mapped_column(Text)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
 
 class Plano(Base, Timestamped, CodigoLegado):

@@ -13,10 +13,12 @@ from app.core.deps import Ctx
 from app.core.schemas import Mensagem, Schema
 from app.modules.cadastros.models import Categoria, Plano, Subcategoria, TipoCategoria, proximo_codigo
 from app.modules.cadastros.util_docs import (
+    SITUACAO,
     PaginaContagens,
     Pedido,
     Texto,
     contem,
+    filtrar_situacao,
     foto,
     nao_encontrado,
     ordem,
@@ -40,6 +42,7 @@ class CategoriaOut(Schema):
     codigo: int | None
     nome: str
     tipo: TipoCategoria
+    ativo: bool
     subcategorias: int
     contas_a_pagar: int
     planos: int
@@ -58,6 +61,7 @@ class SubcategoriaOut(Schema):
     categoria_nome: str
     categoria_tipo: TipoCategoria
     nome: str
+    ativo: bool
     contas_a_pagar: int
     planos: int
 
@@ -91,7 +95,7 @@ def _n_planos_sub():
 
 def _cat_out(c: Categoria, subs: int, contas: int, planos: int) -> CategoriaOut:
     return CategoriaOut(
-        id=c.id, codigo=c.codigo_legado, nome=c.nome, tipo=c.tipo, subcategorias=subs, contas_a_pagar=contas,
+        id=c.id, codigo=c.codigo_legado, nome=c.nome, tipo=c.tipo, ativo=c.ativo, subcategorias=subs, contas_a_pagar=contas,
         planos=planos, criado_em=c.criado_em,
     )
 
@@ -99,7 +103,7 @@ def _cat_out(c: Categoria, subs: int, contas: int, planos: int) -> CategoriaOut:
 def _sub_out(s: Subcategoria, c: Categoria, contas: int, planos: int) -> SubcategoriaOut:
     return SubcategoriaOut(
         id=s.id, codigo=s.codigo_legado, categoria_id=c.id, categoria_nome=c.nome, categoria_tipo=c.tipo,
-        nome=s.nome, contas_a_pagar=contas, planos=planos,
+        nome=s.nome, ativo=s.ativo, contas_a_pagar=contas, planos=planos,
     )
 
 
@@ -122,8 +126,10 @@ def listar_subcategorias(
     pedido: Annotated[Pedido, Depends(parametros_lista)],
     categoria_id: Annotated[int | None, Query()] = None,
     tipo: Annotated[TipoCategoria | None, Query()] = None,
+    situacao: SITUACAO = "todos",
+    somente_ativos: Annotated[bool, Query()] = False,
 ):
-    """Chips por tipo da categoria (contagens só com a busca/categoria, sem o filtro de tipo)."""
+    """Chips por tipo e situação da categoria (contagens só com a busca/categoria, sem o filtro de tipo)."""
     base = select(Subcategoria, Categoria, _n_contas_sub().label("contas"), _n_planos_sub().label("planos")).join(
         Categoria, Subcategoria.categoria_id == Categoria.id
     )
@@ -131,11 +137,15 @@ def listar_subcategorias(
         base = base.where(contem(Subcategoria.nome, pedido.q) | contem(Categoria.nome, pedido.q))
     if categoria_id:
         base = base.where(Subcategoria.categoria_id == categoria_id)
-    contagens = {"todos": 0, "RECEITA": 0, "DESPESA": 0}
-    for _s, c, _a, _b in ctx.db.execute(base).all():
+    contagens = {"todos": 0, "RECEITA": 0, "DESPESA": 0, "ativos": 0, "inativos": 0}
+    for s, c, _a, _b in ctx.db.execute(base).all():
         contagens["todos"] += 1
         contagens[c.tipo.value] += 1
+        contagens["ativos" if s.ativo else "inativos"] += 1
     stmt = base.where(Categoria.tipo == tipo) if tipo else base
+    stmt = filtrar_situacao(stmt, Subcategoria.ativo, situacao, somente_ativos)
+    if somente_ativos:  # seletor: subcategoria de categoria inativa também não é oferecida
+        stmt = stmt.where(Categoria.ativo.is_(True))
     colunas = {
         "nome": func.lower(Subcategoria.nome), "categoria": func.lower(Categoria.nome), "codigo": Subcategoria.codigo_legado,
     }
@@ -172,6 +182,8 @@ def _checar_nome_sub(ctx, categoria_id: int, nome: str, exceto: int | None = Non
 @router.post("/subcategorias", response_model=SubcategoriaOut, status_code=201)
 def criar_subcategoria(dados: SubcategoriaIn, ctx: Ctx):
     cat = _categoria_existente(ctx, dados.categoria_id)
+    if not cat.ativo:
+        raise HTTPException(409, "Esta categoria está inativa. Reative-a antes de criar subcategorias nela.")
     _checar_nome_sub(ctx, cat.id, dados.nome)
     s = Subcategoria(categoria_id=cat.id, nome=dados.nome, codigo_legado=proximo_codigo(ctx.db, "subcategoria"))
     ctx.db.add(s)
@@ -201,6 +213,16 @@ def alterar_subcategoria(sid: int, dados: SubcategoriaIn, ctx: Ctx):
     return _subcategoria_out(ctx, s)
 
 
+@router.patch("/subcategorias/{sid}/ativo", response_model=SubcategoriaOut)
+def ativar_subcategoria(sid: int, ctx: Ctx, ativo: Annotated[bool, Query()]):
+    s = _buscar_sub(ctx, sid)
+    if s.ativo != ativo:
+        s.ativo = ativo
+        ctx.auditar("subcategoria.reativar" if ativo else "subcategoria.inativar", "subcategoria", s.id, descricao=s.nome)
+        ctx.db.commit()
+    return _subcategoria_out(ctx, s)
+
+
 @router.delete("/subcategorias/{sid}", response_model=Mensagem)
 def excluir_subcategoria(sid: int, ctx: Ctx):
     s = _buscar_sub(ctx, sid)
@@ -211,7 +233,9 @@ def excluir_subcategoria(sid: int, ctx: Ctx):
             partes.append(plural(uso.contas_a_pagar, "conta a pagar", "contas a pagar"))
         if uso.planos:
             partes.append(plural(uso.planos, "plano", "planos"))
-        raise HTTPException(409, f"Não é possível excluir: a subcategoria {s.nome} está em uso por {' e '.join(partes)}.")
+        raise HTTPException(
+            409, f"Não é possível excluir: a subcategoria {s.nome} está em uso por {' e '.join(partes)}. Inative-a para não usá-la mais."
+        )
     antes = foto(s)
     ctx.db.delete(s)
     ctx.auditar("subcategoria.excluir", "subcategoria", sid, descricao=s.nome, antes=antes)
@@ -240,15 +264,19 @@ def listar(
     ctx: Ctx,
     pedido: Annotated[Pedido, Depends(parametros_lista)],
     tipo: Annotated[TipoCategoria | None, Query()] = None,
+    situacao: SITUACAO = "todos",
+    somente_ativos: Annotated[bool, Query()] = False,
 ):
     base = select(Categoria, _n_subs().label("subs"), _n_contas_cat().label("contas"), _n_planos_cat().label("planos"))
     if pedido.q:
         base = base.where(contem(Categoria.nome, pedido.q))
-    contagens = {"todos": 0, "RECEITA": 0, "DESPESA": 0}
+    contagens = {"todos": 0, "RECEITA": 0, "DESPESA": 0, "ativos": 0, "inativos": 0}
     for c, *_ in ctx.db.execute(base).all():
         contagens["todos"] += 1
         contagens[c.tipo.value] += 1
+        contagens["ativos" if c.ativo else "inativos"] += 1
     stmt = base.where(Categoria.tipo == tipo) if tipo else base
+    stmt = filtrar_situacao(stmt, Categoria.ativo, situacao, somente_ativos)
     colunas = {"nome": func.lower(Categoria.nome), "tipo": Categoria.tipo, "codigo": Categoria.codigo_legado}
     stmt = stmt.order_by(ordem(pedido, colunas, "nome"), Categoria.id)
     linhas, total = pagina_de(ctx.db, stmt, pedido)
@@ -294,6 +322,17 @@ def alterar(cid: int, dados: CategoriaIn, ctx: Ctx):
     return _categoria_out(ctx, c)
 
 
+@router.patch("/{cid}/ativo", response_model=CategoriaOut)
+def ativar(cid: int, ctx: Ctx, ativo: Annotated[bool, Query()]):
+    """Inativar a categoria não mexe nas subcategorias: elas só deixam de ser oferecidas enquanto ela estiver inativa."""
+    c = _buscar(ctx, cid)
+    if c.ativo != ativo:
+        c.ativo = ativo
+        ctx.auditar("categoria.reativar" if ativo else "categoria.inativar", "categoria", c.id, descricao=c.nome)
+        ctx.db.commit()
+    return _categoria_out(ctx, c)
+
+
 @router.delete("/{cid}", response_model=Mensagem)
 def excluir(cid: int, ctx: Ctx):
     c = _buscar(ctx, cid)
@@ -309,7 +348,7 @@ def excluir(cid: int, ctx: Ctx):
         raise HTTPException(
             409,
             f"Não é possível excluir: a categoria {c.nome} tem {', '.join(partes)}. "
-            "Exclua ou mova os vínculos antes.",
+            "Exclua ou mova os vínculos antes, ou apenas inative a categoria.",
         )
     antes = foto(c)
     ctx.db.delete(c)

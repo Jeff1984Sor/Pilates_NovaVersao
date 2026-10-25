@@ -15,6 +15,7 @@ import { Field, NativeSelect } from "@/components/mayacorp/form";
 import { FormDialog } from "@/components/mayacorp/form-dialog";
 import { PageHeader } from "@/components/mayacorp/page-header";
 import { Pill } from "@/components/mayacorp/status-badge";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, ApiError } from "@/lib/api";
@@ -23,6 +24,7 @@ import type { Categoria, PaginaContagens, Subcategoria, TipoCategoria } from "@/
 import { cn } from "@/lib/utils";
 
 type FiltroTipo = "todos" | TipoCategoria;
+type Situacao = "todos" | "ativos" | "inativos";
 const ABAS = ["categorias", "subcategorias"] as const;
 
 const tomTipo = (t: TipoCategoria) => (t === "RECEITA" ? "success" : "warning");
@@ -91,9 +93,18 @@ function AbaCategorias() {
   const { pode } = useAuth();
   const editar = pode("cadastros_categorias.editar");
   const excluir = pode("cadastros_categorias.excluir");
-  const lista = useLista<Categoria>("categorias", "/cadastros/categorias", { tipo: "" }, 15, "nome");
+  const lista = useLista<Categoria>("categorias", "/cadastros/categorias", { tipo: "", situacao: "todos" }, 15, "nome");
   const [dialogo, setDialogo] = useState<Categoria | "novo" | null>(null);
   const [apagar, setApagar] = useState<Categoria | null>(null);
+  const alternar = useMutation({
+    mutationFn: (c: Categoria) => api.patch(`/cadastros/categorias/${c.id}/ativo?ativo=${!c.ativo}`),
+    onSuccess: (_r, c) => {
+      toast.success(c.ativo ? "Categoria inativada" : "Categoria reativada");
+      qc.invalidateQueries({ queryKey: ["categorias"] });
+      qc.invalidateQueries({ queryKey: ["subcategorias"] });
+      qc.invalidateQueries({ queryKey: ["categorias-opcoes"] });
+    },
+  });
   const remover = useMutation({
     mutationFn: (c: Categoria) => api.del(`/cadastros/categorias/${c.id}`),
     meta: { silencioso: true },
@@ -105,7 +116,7 @@ function AbaCategorias() {
     },
   });
   const tipo = ((lista.filtros.tipo as string) || "todos") as FiltroTipo;
-  const filtrando = !!lista.q || tipo !== "todos";
+  const filtrando = !!lista.q || tipo !== "todos" || lista.filtros.situacao !== "todos";
   const novo = editar && (
     <Button onClick={() => setDialogo("novo")}>
       <Plus /> Nova categoria
@@ -126,11 +137,20 @@ function AbaCategorias() {
                 { value: "DESPESA", label: "Despesa", contagem: lista.contagens.DESPESA, tom: "warning" },
               ]}
             />
+            <Segmented<Situacao>
+              value={(lista.filtros.situacao as Situacao) ?? "todos"}
+              onChange={(v) => lista.setFiltro("situacao", v)}
+              opcoes={[
+                { value: "todos", label: "Todas", contagem: lista.contagens.todos },
+                { value: "ativos", label: "Ativas", contagem: lista.contagens.ativos, tom: "success" },
+                { value: "inativos", label: "Inativas", contagem: lista.contagens.inativos },
+              ]}
+            />
           </div>
           {novo}
         </Toolbar>
         {lista.isPending ? (
-          <TableSkeleton colunas={4} />
+          <TableSkeleton colunas={5} />
         ) : lista.itens.length === 0 ? (
           <EmptyState
             icone={FolderTree}
@@ -148,16 +168,20 @@ function AbaCategorias() {
                     <Th coluna="nome" atual={lista.ordenar} direcao={lista.direcao} onOrdenar={lista.ordenarPor}>Nome</Th>
                     <Th coluna="tipo" atual={lista.ordenar} direcao={lista.direcao} onOrdenar={lista.ordenarPor}>Tipo</Th>
                     <Th className="hidden md:table-cell">Em uso</Th>
+                    <Th>Ativo</Th>
                     <Th className="w-28" />
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {lista.itens.map((c) => (
-                    <tr key={c.id} className="transition-colors hover:bg-accent/40">
+                    <tr key={c.id} className={cn("transition-colors hover:bg-accent/40", !c.ativo && "opacity-60")}>
                       <td className="py-3 pl-4 text-xs text-muted-foreground tabular-nums">{c.codigo ?? "—"}</td>
                       <td className="px-3 py-3 font-medium">{c.nome}</td>
                       <td className="px-3 py-3"><Pill tom={tomTipo(c.tipo)}>{rotuloTipo(c.tipo)}</Pill></td>
                       <td className="hidden px-3 py-3 text-xs text-muted-foreground md:table-cell">{usos(c).join(" · ") || "—"}</td>
+                      <td className="px-3 py-3">
+                        <Switch size="sm" checked={c.ativo} disabled={!editar || alternar.isPending} onCheckedChange={() => alternar.mutate(c)} aria-label={c.ativo ? "Inativar" : "Reativar"} />
+                      </td>
                       <td className="px-3 py-3">
                         <div className="flex justify-end gap-1">
                           {editar && <Button variant="ghost" size="icon-sm" onClick={() => setDialogo(c)} aria-label={`Editar ${c.nome}`}><Pencil /></Button>}
@@ -202,7 +226,7 @@ function SubcategoriaDialog({ alvo, onClose }: { alvo: Subcategoria | "novo" | n
   const editando = alvo && alvo !== "novo" ? alvo : null;
   const cats = useQuery({
     queryKey: ["categorias-opcoes"],
-    queryFn: () => api.get<PaginaContagens<Categoria>>("/cadastros/categorias", { por_pagina: 200, ordenar: "nome" }),
+    queryFn: () => api.get<PaginaContagens<Categoria>>("/cadastros/categorias", { por_pagina: 200, ordenar: "nome", somente_ativos: true }),
     enabled: !!alvo,
   });
   const form = useForm<DadosSub>({ resolver: zodResolver(schemaSub), defaultValues: { categoria_id: "", nome: "" } });
@@ -256,9 +280,16 @@ function AbaSubcategorias() {
   const { pode } = useAuth();
   const editar = pode("cadastros_categorias.editar");
   const excluir = pode("cadastros_categorias.excluir");
-  const lista = useLista<Subcategoria>("subcategorias", "/cadastros/categorias/subcategorias", { tipo: "" }, 15, "categoria");
+  const lista = useLista<Subcategoria>("subcategorias", "/cadastros/categorias/subcategorias", { tipo: "", situacao: "todos" }, 15, "categoria");
   const [dialogo, setDialogo] = useState<Subcategoria | "novo" | null>(null);
   const [apagar, setApagar] = useState<Subcategoria | null>(null);
+  const alternar = useMutation({
+    mutationFn: (s: Subcategoria) => api.patch(`/cadastros/categorias/subcategorias/${s.id}/ativo?ativo=${!s.ativo}`),
+    onSuccess: (_r, s) => {
+      toast.success(s.ativo ? "Subcategoria inativada" : "Subcategoria reativada");
+      qc.invalidateQueries({ queryKey: ["subcategorias"] });
+    },
+  });
   const remover = useMutation({
     mutationFn: (s: Subcategoria) => api.del(`/cadastros/categorias/subcategorias/${s.id}`),
     meta: { silencioso: true },
@@ -270,7 +301,7 @@ function AbaSubcategorias() {
     },
   });
   const tipo = ((lista.filtros.tipo as string) || "todos") as FiltroTipo;
-  const filtrando = !!lista.q || tipo !== "todos";
+  const filtrando = !!lista.q || tipo !== "todos" || lista.filtros.situacao !== "todos";
   const novo = editar && (
     <Button onClick={() => setDialogo("novo")}>
       <Plus /> Nova subcategoria
@@ -291,11 +322,20 @@ function AbaSubcategorias() {
                 { value: "DESPESA", label: "Despesa", contagem: lista.contagens.DESPESA, tom: "warning" },
               ]}
             />
+            <Segmented<Situacao>
+              value={(lista.filtros.situacao as Situacao) ?? "todos"}
+              onChange={(v) => lista.setFiltro("situacao", v)}
+              opcoes={[
+                { value: "todos", label: "Todas", contagem: lista.contagens.todos },
+                { value: "ativos", label: "Ativas", contagem: lista.contagens.ativos, tom: "success" },
+                { value: "inativos", label: "Inativas", contagem: lista.contagens.inativos },
+              ]}
+            />
           </div>
           {novo}
         </Toolbar>
         {lista.isPending ? (
-          <TableSkeleton colunas={4} />
+          <TableSkeleton colunas={5} />
         ) : lista.itens.length === 0 ? (
           <EmptyState
             icone={FolderTree}
@@ -313,12 +353,13 @@ function AbaSubcategorias() {
                     <Th coluna="nome" atual={lista.ordenar} direcao={lista.direcao} onOrdenar={lista.ordenarPor}>Subcategoria</Th>
                     <Th coluna="categoria" atual={lista.ordenar} direcao={lista.direcao} onOrdenar={lista.ordenarPor}>Categoria</Th>
                     <Th className="hidden md:table-cell">Em uso</Th>
+                    <Th>Ativo</Th>
                     <Th className="w-28" />
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {lista.itens.map((s) => (
-                    <tr key={s.id} className="transition-colors hover:bg-accent/40">
+                    <tr key={s.id} className={cn("transition-colors hover:bg-accent/40", !s.ativo && "opacity-60")}>
                       <td className="py-3 pl-4 text-xs text-muted-foreground tabular-nums">{s.codigo ?? "—"}</td>
                       <td className="px-3 py-3 font-medium">{s.nome}</td>
                       <td className="px-3 py-3">
@@ -326,6 +367,9 @@ function AbaSubcategorias() {
                         <Pill tom={tomTipo(s.categoria_tipo)}>{rotuloTipo(s.categoria_tipo)}</Pill>
                       </td>
                       <td className="hidden px-3 py-3 text-xs text-muted-foreground md:table-cell">{usos(s).join(" · ") || "—"}</td>
+                      <td className="px-3 py-3">
+                        <Switch size="sm" checked={s.ativo} disabled={!editar || alternar.isPending} onCheckedChange={() => alternar.mutate(s)} aria-label={s.ativo ? "Inativar" : "Reativar"} />
+                      </td>
                       <td className="px-3 py-3">
                         <div className="flex justify-end gap-1">
                           {editar && <Button variant="ghost" size="icon-sm" onClick={() => setDialogo(s)} aria-label={`Editar ${s.nome}`}><Pencil /></Button>}

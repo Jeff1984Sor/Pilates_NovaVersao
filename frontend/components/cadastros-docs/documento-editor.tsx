@@ -156,7 +156,7 @@ function Formulario({ tipo, id, doc, variaveis }: { tipo: TipoDocumento; id: str
               control={form.control}
               name="ativo"
               render={({ field }) => (
-                <SwitchRow titulo="Ativo" descricao="Inativo não é oferecido em novos planos.">
+                <SwitchRow titulo="Ativo" descricao={cfg.descAtivo}>
                   <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!podeEditar} />
                 </SwitchRow>
               )}

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
 from sqlalchemy import func, select
 
@@ -25,10 +25,12 @@ from app.modules.cadastros.modelos_documentos import (
 )
 from app.modules.cadastros.models import TermoUso, proximo_codigo
 from app.modules.cadastros.util_docs import (
+    SITUACAO,
     PaginaContagens,
     Pedido,
     Texto,
     contem,
+    filtrar_situacao,
     foto,
     nao_encontrado,
     ordem,
@@ -45,12 +47,14 @@ ESCOPO = md.ESCOPO_TERMO
 class TermoIn(Schema):
     nome: Texto = Field(min_length=2, max_length=80)
     conteudo_html: str = Field(min_length=1)
+    ativo: bool = True
 
 
 class TermoLista(Schema):
     id: int
     codigo: int | None
     nome: str
+    ativo: bool
     previa: str
     alunos_com_aceite: int
     atualizado_em: datetime | None = None
@@ -68,7 +72,7 @@ def _alunos():
 
 def _lista(t: TermoUso, alunos: int) -> TermoLista:
     return TermoLista(
-        id=t.id, codigo=t.codigo_legado, nome=t.nome, previa=html_seguro.texto_puro(t.conteudo_html),
+        id=t.id, codigo=t.codigo_legado, nome=t.nome, ativo=t.ativo, previa=html_seguro.texto_puro(t.conteudo_html),
         alunos_com_aceite=alunos, atualizado_em=t.atualizado_em,
     )
 
@@ -107,10 +111,20 @@ def previa_termo(dados: PreviaIn, ctx: Ctx):
 
 
 @router.get("", response_model=PaginaContagens[TermoLista])
-def listar(ctx: Ctx, pedido: Annotated[Pedido, Depends(parametros_lista)]):
+def listar(
+    ctx: Ctx,
+    pedido: Annotated[Pedido, Depends(parametros_lista)],
+    situacao: SITUACAO = "todos",
+    somente_ativos: Annotated[bool, Query()] = False,
+):
     base = select(TermoUso, _alunos().label("alunos"))
     if pedido.q:
         base = base.where(contem(TermoUso.nome, pedido.q))
+    contagens = {"todos": 0, "ativos": 0, "inativos": 0}
+    for termo, _a in ctx.db.execute(base).all():
+        contagens["todos"] += 1
+        contagens["ativos" if termo.ativo else "inativos"] += 1
+    base = filtrar_situacao(base, TermoUso.ativo, situacao, somente_ativos)
     colunas = {
         "nome": func.lower(TermoUso.nome), "codigo": TermoUso.codigo_legado, "atualizado": TermoUso.atualizado_em,
         "alunos": _alunos(),
@@ -119,7 +133,7 @@ def listar(ctx: Ctx, pedido: Annotated[Pedido, Depends(parametros_lista)]):
     linhas, total = pagina_de(ctx.db, stmt, pedido)
     return PaginaContagens(
         itens=[_lista(t, a) for t, a in linhas], total=total, pagina=pedido.pagina, por_pagina=pedido.por_pagina,
-        contagens={"todos": total},
+        contagens=contagens,
     )
 
 
@@ -132,7 +146,7 @@ def ler(tid: int, ctx: Ctx):
 def criar(dados: TermoIn, ctx: Ctx):
     _checar_nome(ctx, dados.nome)
     t = TermoUso(
-        nome=dados.nome, conteudo_html=sanear_ou_422(dados.conteudo_html), codigo_legado=proximo_codigo(ctx.db, "termo_uso")
+        nome=dados.nome, conteudo_html=sanear_ou_422(dados.conteudo_html), ativo=dados.ativo, codigo_legado=proximo_codigo(ctx.db, "termo_uso")
     )
     ctx.db.add(t)
     ctx.db.flush()
@@ -147,7 +161,7 @@ def alterar(tid: int, dados: TermoIn, ctx: Ctx):
     _checar_nome(ctx, dados.nome, exceto=tid)
     novo = sanear_ou_422(dados.conteudo_html)
     antes = foto(t, ("conteudo_html",))
-    t.nome, t.conteudo_html = dados.nome, novo
+    t.nome, t.conteudo_html, t.ativo = dados.nome, novo, dados.ativo
     ctx.db.flush()
     ctx.auditar("termo.alterar", "termo_uso", t.id, descricao=t.nome, antes=antes, depois=foto(t, ("conteudo_html",)))
     ctx.db.commit()
@@ -166,6 +180,16 @@ def duplicar(tid: int, ctx: Ctx):
     return _detalhe(ctx, c)
 
 
+@router.patch("/{tid}/ativo", response_model=TermoOut)
+def ativar(tid: int, ctx: Ctx, ativo: Annotated[bool, Query()]):
+    t = _termo(ctx, tid)
+    if t.ativo != ativo:
+        t.ativo = ativo
+        ctx.auditar("termo.reativar" if ativo else "termo.inativar", "termo_uso", t.id, descricao=t.nome)
+        ctx.db.commit()
+    return _detalhe(ctx, t)
+
+
 @router.delete("/{tid}", response_model=Mensagem)
 def excluir(tid: int, ctx: Ctx):
     t = _termo(ctx, tid)
@@ -174,7 +198,7 @@ def excluir(tid: int, ctx: Ctx):
         raise HTTPException(
             409,
             f"Não é possível excluir: {plural(alunos, 'aluno aceitou', 'alunos aceitaram')} o termo {t.nome}. "
-            "O registro do aceite deve ser preservado; crie um novo termo e use-o daqui para frente.",
+            "O registro do aceite deve ser preservado: inative este termo e crie um novo para usar daqui para frente.",
         )
     antes = foto(t, ("conteudo_html",))
     ctx.db.delete(t)

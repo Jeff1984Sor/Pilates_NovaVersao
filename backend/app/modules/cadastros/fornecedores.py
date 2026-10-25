@@ -13,10 +13,12 @@ from app.core.deps import Ctx
 from app.core.schemas import Mensagem, Schema
 from app.modules.cadastros.models import Fornecedor, proximo_codigo
 from app.modules.cadastros.util_docs import (
+    SITUACAO,
     PaginaContagens,
     Pedido,
     Texto,
     contem,
+    filtrar_situacao,
     foto,
     nao_encontrado,
     ordem,
@@ -37,6 +39,7 @@ class FornecedorOut(Schema):
     id: int
     codigo: int | None
     nome: str
+    ativo: bool
     contas_a_pagar: int
     criado_em: datetime | None = None
 
@@ -51,7 +54,7 @@ def _contas_a_pagar():
 
 
 def _out(f: Fornecedor, contas: int) -> FornecedorOut:
-    return FornecedorOut(id=f.id, codigo=f.codigo_legado, nome=f.nome, contas_a_pagar=contas, criado_em=f.criado_em)
+    return FornecedorOut(id=f.id, codigo=f.codigo_legado, nome=f.nome, ativo=f.ativo, contas_a_pagar=contas, criado_em=f.criado_em)
 
 
 def _buscar(ctx, fid: int) -> Fornecedor:
@@ -76,6 +79,8 @@ def listar(
     ctx: Ctx,
     pedido: Annotated[Pedido, Depends(parametros_lista)],
     uso: Annotated[str, Query(pattern="^(todos|em_uso|sem_uso)$")] = "todos",
+    situacao: SITUACAO = "todos",
+    somente_ativos: Annotated[bool, Query()] = False,
 ):
     """`uso`: em_uso = tem contas a pagar; sem_uso = nenhuma (pode ser excluído)."""
     n = _contas_a_pagar()
@@ -83,11 +88,12 @@ def listar(
     if pedido.q:
         base = base.where(contem(Fornecedor.nome, pedido.q))
     # contagens dos chips: só com a busca
-    contagens = {"todos": 0, "em_uso": 0, "sem_uso": 0}
-    for _f, contas in ctx.db.execute(base).all():
+    contagens = {"todos": 0, "ativos": 0, "inativos": 0, "em_uso": 0, "sem_uso": 0}
+    for forn, contas in ctx.db.execute(base).all():
         contagens["todos"] += 1
+        contagens["ativos" if forn.ativo else "inativos"] += 1
         contagens["em_uso" if contas else "sem_uso"] += 1
-    stmt = base
+    stmt = filtrar_situacao(base, Fornecedor.ativo, situacao, somente_ativos)
     if uso == "em_uso":
         stmt = stmt.where(n > 0)
     elif uso == "sem_uso":
@@ -130,6 +136,16 @@ def alterar(fid: int, dados: FornecedorIn, ctx: Ctx):
     return _out(f, _contas_de(ctx, fid))
 
 
+@router.patch("/{fid}/ativo", response_model=FornecedorOut)
+def ativar(fid: int, ctx: Ctx, ativo: Annotated[bool, Query()]):
+    f = _buscar(ctx, fid)
+    if f.ativo != ativo:
+        f.ativo = ativo
+        ctx.auditar("fornecedor.reativar" if ativo else "fornecedor.inativar", "fornecedor", f.id, descricao=f.nome)
+        ctx.db.commit()
+    return _out(f, _contas_de(ctx, fid))
+
+
 @router.delete("/{fid}", response_model=Mensagem)
 def excluir(fid: int, ctx: Ctx):
     f = _buscar(ctx, fid)
@@ -138,7 +154,7 @@ def excluir(fid: int, ctx: Ctx):
         raise HTTPException(
             409,
             f"Não é possível excluir: {f.nome} tem {plural(contas, 'conta a pagar', 'contas a pagar')} lançada(s). "
-            "Mantenha o fornecedor para preservar o histórico financeiro.",
+            "Para preservar o histórico financeiro, inative o fornecedor em vez de excluir.",
         )
     antes = foto(f)
     ctx.db.delete(f)
