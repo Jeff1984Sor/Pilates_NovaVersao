@@ -68,3 +68,25 @@ def cab(tokens: dict) -> dict:
 @pytest.fixture
 def ana_logada(client, zap, cenario):
     return cab(entrar_aluno(client, zap, cenario.ana))
+
+
+def _token_equipe(client, db, perfil: str, email: str) -> str:
+    from tests.conftest import criar_usuario, entrar
+
+    criar_usuario(db, perfil, email=email)
+    return entrar(client, email).json()["access_token"]
+
+
+@pytest.fixture
+def full(client, db):
+    return _token_equipe(client, db, "Full", "full@exemplo.com")
+
+
+@pytest.fixture
+def secretaria(client, db):
+    return _token_equipe(client, db, "Secretária", "sec@exemplo.com")
+
+
+@pytest.fixture
+def professor(client, db):
+    return _token_equipe(client, db, "Professor", "prof@exemplo.com")

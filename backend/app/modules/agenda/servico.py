@@ -449,29 +449,73 @@ def criar_reserva(
     return reserva
 
 
-def desmarcar_reserva(db: Session, reserva_id: int, *, agora: datetime | None = None, eh_professor: bool = False) -> Reserva:
+def inicio_da_sessao(sessao: AulaSessao) -> datetime:
+    return status_aula.momento_da_sessao(sessao.data, sessao.hora_inicio)
+
+
+def limite_para_desmarcar(sessao: AulaSessao) -> datetime:
+    """Último instante em que dá para desmarcar: ``HORAS_AVISO_CONTRATO`` horas antes do início da aula (fuso de Brasília)."""
+    return status_aula.para_fuso_negocio(inicio_da_sessao(sessao) - timedelta(hours=repos.HORAS_AVISO_CONTRATO))
+
+
+def prazo_de_desmarcar_cumprido(sessao: AulaSessao, momento: datetime) -> bool:
+    """Regra das 6 horas LIGADA (decisão do Jefferson, 25/10/2026): vale ``antecedência >= 6 h`` (limite exato passa)."""
+    return repos.aviso_minimo_cumprido(inicio_da_sessao(sessao), momento, ativo=True)
+
+
+def mensagem_prazo_desmarcar(sessao: AulaSessao) -> str:
+    lim = limite_para_desmarcar(sessao)
+    return (
+        f"Só é possível desmarcar com pelo menos {repos.HORAS_AVISO_CONTRATO} horas de antecedência "
+        f"(o prazo desta aula terminou em {lim:%d/%m/%Y} às {lim:%H:%M}). Fale com a recepção."
+    )
+
+
+def desmarcar_reserva(
+    db: Session,
+    reserva_id: int,
+    *,
+    agora: datetime | None = None,
+    eh_professor: bool = False,
+    excecao_prazo: bool = False,
+    motivo: str | None = None,
+) -> Reserva:
     """Desmarcar com reposição (R4): CANCELADA, ``confirmada_em=None``, ``desmarcada_em=agora`` e
-    ``reposicao_ate = data da aula + 30 dias``. Professor não desmarca. Libera a vaga se a reserva ocupava uma."""
+    ``reposicao_ate = data da aula + 30 dias``. Professor não desmarca. Libera a vaga se a reserva ocupava uma.
+
+    Regra das 6 horas: só com 6 h ou mais de antecedência (``Conflito`` 409 com o horário limite). ``excecao_prazo=True``
+    (quem chama garante que é o perfil Full) dispensa o prazo e EXIGE ``motivo`` (``Invalido`` 422 sem ele); o motivo fica em
+    ``reserva.motivo_excecao_prazo``."""
     reserva = _reserva(db, reserva_id)
     sessao = _sessao(db, reserva.aula_sessao_id)
     if StatusReserva(reserva.status) == StatusReserva.CANCELADA:
         # COMPORTAMENTO ANTIGO (não replicado): a equipe podia "desmarcar" uma aula já desmarcada e o sistema
         # reescrevia desmarcada_em/reposicao_ate, estendendo a reposição. Aqui recusamos.
         raise Conflito("Esta aula já está desmarcada.")
+    momento = _agora(agora)
+    fora_do_prazo = not prazo_de_desmarcar_cumprido(sessao, momento)
+    motivo_limpo = (motivo or "").strip()
+    if fora_do_prazo and not eh_professor:
+        if not excecao_prazo:
+            raise Conflito(mensagem_prazo_desmarcar(sessao), dados={"prazo_6h": True})
+        if len(motivo_limpo) < 3:
+            raise Invalido("Informe o motivo da exceção ao prazo de desmarcar.")
     try:
-        r = repos.desmarcar(sessao.data, _agora(agora), eh_professor=eh_professor)
+        r = repos.desmarcar(sessao.data, momento, eh_professor=eh_professor)
     except repos.SemPermissao as exc:
         raise SemPermissao(str(exc)) from exc
     _trocar_status(db, reserva, StatusReserva.CANCELADA)
     reserva.confirmada_em = r.confirmada_em
     reserva.desmarcada_em = r.desmarcada_em
     reserva.reposicao_ate = r.reposicao_ate
+    reserva.motivo_excecao_prazo = motivo_limpo[:300] if (fora_do_prazo and excecao_prazo) else None
     db.flush()
     return reserva
 
 
 def desmarcar_reserva_do_aluno(db: Session, aluno_id: int, reserva_id: int, *, agora: datetime | None = None) -> Reserva:
-    """Desmarcar pelo app do aluno (R15/R4): só a própria reserva, recusa aula já desmarcada e aula que já passou."""
+    """Desmarcar pelo app do aluno (R15/R4): só a própria reserva, recusa aula já desmarcada, aula que já passou e
+    desmarcação com menos de 6 horas de antecedência (sem exceção para o aluno)."""
     reserva = _reserva(db, reserva_id)
     if reserva.aluno_id != aluno_id:
         raise NaoEncontrado("Reserva não encontrada.")
@@ -481,10 +525,13 @@ def desmarcar_reserva_do_aluno(db: Session, aluno_id: int, reserva_id: int, *, a
         r = repos.desmarcar_pelo_aluno(StatusReserva(reserva.status).value, sessao.data, hoje_de_negocio(momento), momento)
     except repos.AcaoInvalida as exc:
         raise Conflito(str(exc)) from exc
+    if not prazo_de_desmarcar_cumprido(sessao, momento):
+        raise Conflito(mensagem_prazo_desmarcar(sessao), dados={"prazo_6h": True})
     _trocar_status(db, reserva, StatusReserva.CANCELADA)
     reserva.confirmada_em = r.confirmada_em
     reserva.desmarcada_em = r.desmarcada_em
     reserva.reposicao_ate = r.reposicao_ate
+    reserva.motivo_excecao_prazo = None
     db.flush()
     return reserva
 

@@ -203,7 +203,7 @@ def test_detalhe_da_gaveta_traz_permissoes_do_usuario(client, aula_cheia, full, 
     d = client.get(f"/api/aulas/reservas/{rid}", headers=auth(full)).json()
     assert d["aluno"]["nome"] == "Ana Paula" and all(d["permite"].values())
     prof = client.get(f"/api/aulas/reservas/{rid}", headers=auth(professor)).json()
-    assert prof["permite"] == {"chegou": True, "finalizar": True, "faltou": True, "remarcar": False, "desmarcar": False, "excluir": False,
+    assert prof["permite"] == {"chegou": True, "finalizar": True, "faltou": True, "remarcar": False, "desmarcar": False, "desmarcar_excecao": False, "excluir": False,
                                "confirmar": False, "evolucao": True, "avaliacao": True, "cobranca": False}
     assert prof["flags"]["cobranca_pendente"] is None
 

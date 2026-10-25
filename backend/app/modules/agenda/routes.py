@@ -39,6 +39,7 @@ from app.modules.agenda.schemas import (
     AvaliacaoIn,
     AvaliativaIn,
     AvulsaIn,
+    DesmarcarIn,
     EvolucaoIn,
     FichaAvaliativaIn,
     GerarSessoesIn,
@@ -379,6 +380,7 @@ def _permite(ctx: Ctx) -> dict[str, bool]:
         "faltou": ctx.pode("aulas.operar") or ctx.pode("aulas.evoluir"),
         "remarcar": ctx.pode("aulas.operar") and not prof,
         "desmarcar": ctx.pode("aulas.operar") and not prof,
+        "desmarcar_excecao": bool(ctx.usuario.administrador) and not prof,  # só o Full abre exceção ao prazo de 6 h
         "excluir": ctx.pode("aulas.operar") and not prof,
         "confirmar": ctx.pode("aulas.operar"),
         "evolucao": ctx.pode("aulas.evoluir"),
@@ -397,6 +399,13 @@ def detalhe_reserva(reserva_id: int, ctx: Ctx):
     if item is None:
         raise _nao_achou()
     item["permite"] = _permite(ctx)
+    # aviso do prazo de 6 h (None = dentro do prazo ou aula não desmarcável)
+    sessao = ctx.db.get(AulaSessao, r.aula_sessao_id)
+    item["aviso_prazo_desmarcar"] = (
+        srv.mensagem_prazo_desmarcar(sessao)
+        if sessao and StatusReserva(r.status) != StatusReserva.CANCELADA and not srv.prazo_de_desmarcar_cumprido(sessao, _agora())
+        else None
+    )
     return item
 
 
@@ -440,15 +449,27 @@ def confirmar(reserva_id: int, ctx: Ctx):
 
 
 @router.post("/aulas/reservas/{reserva_id}/desmarcar")
-def desmarcar(reserva_id: int, ctx: Ctx):
-    """Desmarcar com reposição (R4): reposição até a data da aula + 30 dias. Professor não desmarca."""
+def desmarcar(reserva_id: int, ctx: Ctx, dados: DesmarcarIn | None = None):
+    """Desmarcar com reposição (R4): reposição até a data da aula + 30 dias. Professor não desmarca.
+
+    Regra das 6 horas: com menos de 6 h de antecedência responde 409 (``prazo_6h``). Só o perfil Full (administrador) pode
+    abrir EXCEÇÃO enviando ``excecao_prazo=true`` e um ``motivo`` (gravado na reserva e na auditoria); a Secretária não."""
     _nao_professor(ctx, "desmarcar")
+    dados = dados or DesmarcarIn()
+    if dados.excecao_prazo and not ctx.usuario.administrador:
+        raise HTTPException(403, "Só a gerência (perfil Full) pode desmarcar fora do prazo de 6 horas.")
     r = _reserva_do_escopo(ctx, reserva_id)
     with _erros(ctx):
         antes = _snap(r)
-        r = srv.desmarcar_reserva(ctx.db, r.id, agora=_agora(), eh_professor=ctx.somente_proprias_aulas())
+        r = srv.desmarcar_reserva(
+            ctx.db, r.id, agora=_agora(), eh_professor=ctx.somente_proprias_aulas(),
+            excecao_prazo=dados.excecao_prazo, motivo=dados.motivo,
+        )
         a, d = audit.diff(antes, _snap(r))
-        ctx.auditar("aula.desmarcar", "reserva", r.id, descricao=_descricao_reserva(ctx, r), antes=a, depois=d)
+        desc = _descricao_reserva(ctx, r)
+        if r.motivo_excecao_prazo:
+            desc += f" | EXCEÇÃO ao prazo de 6 h: {r.motivo_excecao_prazo}"
+        ctx.auditar("aula.desmarcar_excecao" if r.motivo_excecao_prazo else "aula.desmarcar", "reserva", r.id, descricao=desc, antes=a, depois=d)
         ctx.db.commit()
     return _reserva_dict(ctx, r)
 

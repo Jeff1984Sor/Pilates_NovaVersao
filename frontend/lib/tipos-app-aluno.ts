@@ -22,6 +22,8 @@ export interface AulaAluno {
   confirmada_em: string | null;
   pode_confirmar: boolean;
   pode_desmarcar: boolean;
+  /** Regra das 6 horas: "26/10 às 03:00" (último momento para desmarcar). */
+  desmarcar_ate: string | null;
 }
 
 export interface DesmarcarResp {
@@ -29,8 +31,19 @@ export interface DesmarcarResp {
   reposicao_ate: string | null;
 }
 
+export type StatusPedidoReposicao = "PENDENTE" | "APROVADO" | "RECUSADO";
+
+export interface PedidoReposicaoAluno {
+  status: StatusPedidoReposicao;
+  preferencia: string | null;
+  pedido_em: string;
+  aprovado_data: string | null;
+  aprovado_hora: string | null;
+  motivo_recusa: string | null;
+}
+
 export interface ReposicaoAluno {
-  id: number; // id da reserva desmarcada
+  id: number; // id da reserva desmarcada (é o que se usa para pedir)
   data: string;
   hora_inicio: string;
   servico: string | null;
@@ -39,6 +52,8 @@ export interface ReposicaoAluno {
   reposicao_ate: string;
   dias_restantes: number;
   dentro_do_prazo: boolean;
+  pode_pedir: boolean;
+  pedido: PedidoReposicaoAluno | null;
 }
 
 export interface OpcaoReposicao {
@@ -89,4 +104,31 @@ export interface StatusIA {
   disponivel: boolean;
   provedor: string | null;
   mensagem: string | null;
+}
+
+// ------------------------------------------------------------------------------- reposições (tela da gerência)
+export interface PedidoReposicaoEquipe {
+  id: number;
+  status: StatusPedidoReposicao;
+  aluno: { id: number; nome: string } | null;
+  reserva_id: number;
+  aula_original: { data: string; hora_inicio: string; servico: string | null; profissional: string | null };
+  reposicao_ate: string;
+  dias_restantes: number;
+  prazo_vencido: boolean;
+  aula_desmarcada: boolean;
+  preferencia: string | null;
+  pedido_em: string;
+  decidido_em: string | null;
+  decidido_por: string | null;
+  motivo_recusa: string | null;
+  aprovado_data: string | null;
+  aprovado_hora: string | null;
+  ignorou_prazo: boolean;
+  motivo_ignorar_prazo: string | null;
+}
+
+export interface ListaPedidosReposicao {
+  contagens: Record<StatusPedidoReposicao, number>;
+  itens: PedidoReposicaoEquipe[];
 }

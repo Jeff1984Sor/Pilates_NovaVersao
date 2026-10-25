@@ -52,6 +52,11 @@ function CartaoAula({ aula, onConfirmar, onDesmarcar, ocupado }: { aula: AulaAlu
         </p>
       )}
 
+      {!aula.pode_desmarcar && aula.desmarcar_ate && (
+        <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+          O prazo para desmarcar (6 horas antes da aula) terminou em {aula.desmarcar_ate}. Para cancelar, fale com a recepção.
+        </p>
+      )}
       {(aula.pode_confirmar || aula.pode_desmarcar) && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           {aula.pode_confirmar ? (
@@ -168,8 +173,8 @@ export function ListaAulas() {
                 {diaSemana(alvo.data)}, {dataBr(alvo.data)} às {hora(alvo.hora_inicio)}
               </span>
               <span className="block">
-                Sua vaga será liberada para outros alunos. Você poderá <strong>repor esta aula até {prazo}</strong> (30 dias após a data da aula) na aba
-                Reposições.
+                Sua vaga será liberada para outros alunos. Você poderá <strong>pedir a reposição até {prazo}</strong> (30 dias após a data da aula) na
+                aba Reposições; a gerência escolhe o novo horário. {alvo.desmarcar_ate ? `Dá para desmarcar até ${alvo.desmarcar_ate}.` : ""}
               </span>
             </span>
           )

@@ -46,6 +46,7 @@ class AulaOut(BaseModel):
     confirmada_em: datetime | None = None
     pode_confirmar: bool
     pode_desmarcar: bool
+    desmarcar_ate: str | None = None  # regra das 6 horas: "26/10 às 03:00"
 
 
 class DesmarcarOut(BaseModel):
@@ -53,8 +54,17 @@ class DesmarcarOut(BaseModel):
     reposicao_ate: date | None = None
 
 
+class PedidoAlunoOut(BaseModel):
+    status: str  # PENDENTE | APROVADO | RECUSADO
+    preferencia: str | None = None
+    pedido_em: datetime
+    aprovado_data: date | None = None
+    aprovado_hora: time | None = None
+    motivo_recusa: str | None = None
+
+
 class ReposicaoOut(BaseModel):
-    id: int  # id da reserva desmarcada
+    id: int  # id da reserva desmarcada (é o que se usa para pedir)
     data: date
     hora_inicio: time
     servico: str | None = None
@@ -63,6 +73,8 @@ class ReposicaoOut(BaseModel):
     reposicao_ate: date
     dias_restantes: int
     dentro_do_prazo: bool
+    pode_pedir: bool
+    pedido: PedidoAlunoOut | None = None
 
 
 class OpcaoReposicaoOut(BaseModel):
@@ -74,5 +86,15 @@ class OpcaoReposicaoOut(BaseModel):
     vagas: int
 
 
-class RemarcarIn(BaseModel):
+class PedirIn(BaseModel):
+    preferencia: str | None = Field(default=None, max_length=300)  # dias/horários que o aluno prefere, texto livre
+
+
+class AprovarIn(BaseModel):
     aula_id: int
+    ignorar_prazo: bool = False
+    motivo: str | None = Field(default=None, max_length=300)
+
+
+class RecusarIn(BaseModel):
+    motivo: str = Field(max_length=300)

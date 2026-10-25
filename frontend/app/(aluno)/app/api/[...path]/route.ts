@@ -14,7 +14,7 @@ import { ACCESS, REFRESH, aplicarCookies, limparCookies, renovar, type Par } fro
 const API = (process.env.INTERNAL_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
 const REPASSAR = ["content-type", "cache-control", "retry-after"];
 // rotas aceitas (o resto é 404): nada de repassar caminho livre
-const PERMITIDAS = /^(auth\/(codigo|verificar)|me|aulas|aulas\/\d+\/(confirmar|desmarcar)|reposicoes|reposicoes\/\d+\/(opcoes|remarcar))$/;
+const PERMITIDAS = /^(auth\/(codigo|verificar)|me|aulas|aulas\/\d+\/(confirmar|desmarcar)|reposicoes|reposicoes\/\d+\/pedir)$/;
 const SEM_SESSAO = new Set(["auth/codigo", "auth/verificar"]);
 
 function origemValida(req: NextRequest): boolean {

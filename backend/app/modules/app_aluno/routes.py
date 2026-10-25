@@ -20,24 +20,30 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app.core import notificador
+from app.core import audit, notificador
 from app.core.db import agora as agora_utc
 from app.core.db import get_db
+from app.core.deps import Ctx
 from app.core.models import Auditoria
+from app.core.permissoes import adicionar_regras
 from app.core.ratelimit import ip_do_cliente, limitar, verificar
 from app.core.security import hash_token
 from app.domain import documentos
+from app.domain.financeiro import hoje_de_negocio
 from app.modules.alunos.models import Aluno
+from app.modules.app_aluno import reposicoes as reposicoes_srv
 from app.modules.app_aluno import servico as srv
+from app.modules.app_aluno.models import ReposicaoPedido
 from app.modules.app_aluno.schemas import (
+    AprovarIn,
     AulaOut,
     CodigoIn,
     DesmarcarOut,
     Mensagem,
     MeOut,
-    OpcaoReposicaoOut,
+    PedirIn,
+    RecusarIn,
     RefreshIn,
-    RemarcarIn,
     ReposicaoOut,
     TokensOut,
     VerificarIn,
@@ -182,17 +188,85 @@ def desmarcar(reserva_id: int, aluno: AlunoLogado, request: Request, db: DB) -> 
 # ------------------------------------------------------------------------------------------------------- reposições
 @router_publico.get("/reposicoes", response_model=list[ReposicaoOut], dependencies=[_geral])
 def reposicoes(aluno: AlunoLogado, db: DB) -> list[dict]:
-    return srv.listar_reposicoes(db, aluno, agora=_agora())
+    return reposicoes_srv.listar_reposicoes(db, aluno, agora=_agora())
 
 
-@router_publico.get("/reposicoes/{reserva_id}/opcoes", response_model=list[OpcaoReposicaoOut], dependencies=[_geral])
-def opcoes(reserva_id: int, aluno: AlunoLogado, db: DB) -> list[dict]:
-    return _executar(db, srv.opcoes_reposicao, aluno, reserva_id, agora=_agora())
-
-
-@router_publico.post("/reposicoes/{reserva_id}/remarcar", response_model=AulaOut, dependencies=[_geral])
-def remarcar(reserva_id: int, dados: RemarcarIn, aluno: AlunoLogado, request: Request, db: DB) -> dict:
-    r = _executar(db, srv.remarcar_reposicao, aluno, reserva_id, dados.aula_id, agora=_agora())
-    _auditar(db, aluno, "aluno_app.reposicao", "reserva", reserva_id, ip_do_cliente(request), f"nova aula em {r['data']:%d/%m/%Y}")
+@router_publico.post("/reposicoes/{reserva_id}/pedir", response_model=ReposicaoOut, dependencies=[_geral])
+def pedir(reserva_id: int, dados: PedirIn, aluno: AlunoLogado, request: Request, db: DB) -> dict:
+    """O aluno só PEDE a reposição (com preferência em texto livre); a gerência decide. Idempotente enquanto pendente."""
+    r = _executar(db, reposicoes_srv.pedir_reposicao, aluno, reserva_id, dados.preferencia, agora=_agora())
+    _auditar(db, aluno, "aluno_app.reposicao_pedir", "reserva", reserva_id, ip_do_cliente(request), "pedido de reposição")
     db.commit()
     return r
+
+
+# ====================================================================================================== EQUIPE (gerência)
+router = APIRouter(tags=["reposicoes"])
+
+adicionar_regras([("*", r"/reposicoes", "reposicoes.*")])  # GET = ver, POST (aprovar/recusar) = editar; só o perfil Full tem
+
+
+def _equipe(db: Session, fn, *args, **kw):
+    try:
+        return fn(db, *args, **kw)
+    except srv.ErroAluno as e:
+        db.rollback()
+        raise HTTPException(e.status, e.mensagem) from None
+
+
+def _avisar(db: Session, aluno_id: int, texto: str) -> None:
+    """WhatsApp ao aluno pelo notificador do core (ponto de extensão; falha nunca desfaz a decisão)."""
+    try:
+        tel = srv.telefone_do_aluno(db, aluno_id)
+        if tel:
+            notificador.get_notificador().enviar_texto(tel, texto)
+    except Exception:  # noqa: BLE001
+        log.warning("Falha ao avisar o aluno da decisão da reposição.")
+
+
+@router.get("/reposicoes")
+def listar_pedidos(ctx: Ctx, status: str | None = None, q: str | None = None) -> dict:
+    """Pedidos de reposição, com as contagens dos chips Pendentes/Aprovados/Recusados."""
+    return _equipe(ctx.db, reposicoes_srv.listar_pedidos, status=status, busca=q, agora=_agora())
+
+
+@router.get("/reposicoes/{pedido_id}/opcoes")
+def opcoes_do_pedido(pedido_id: int, ctx: Ctx, ignorar_prazo: bool = False) -> list[dict]:
+    """Aulas com vaga real do mesmo serviço e unidade (sugestão para aprovar)."""
+    return _equipe(ctx.db, reposicoes_srv.opcoes_do_pedido, pedido_id, ignorar_prazo=ignorar_prazo, agora=_agora())
+
+
+def _snap_pedido(p: ReposicaoPedido) -> dict:
+    return audit.snapshot(p)
+
+
+@router.post("/reposicoes/{pedido_id}/aprovar")
+def aprovar(pedido_id: int, dados: AprovarIn, ctx: Ctx) -> dict:
+    p = _equipe(ctx.db, reposicoes_srv._pedido, pedido_id)
+    antes = _snap_pedido(p)
+    p = _equipe(
+        ctx.db, reposicoes_srv.aprovar, pedido_id, dados.aula_id, ctx.usuario,
+        ignorar_prazo=dados.ignorar_prazo, motivo=dados.motivo, agora=_agora(),
+    )
+    a, d = audit.diff(antes, _snap_pedido(p))
+    aluno = ctx.db.get(Aluno, p.aluno_id)
+    desc = f"{aluno.nome}: aula de {p.data_origem:%d/%m/%Y} para {p.aprovado_data:%d/%m/%Y} {p.aprovado_hora:%H:%M}"
+    if p.ignorou_prazo:
+        desc += f" | PRAZO IGNORADO: {p.motivo_ignorar_prazo}"
+    ctx.auditar("reposicao.aprovar", "reposicao_pedido", p.id, descricao=desc, antes=a, depois=d)
+    ctx.db.commit()
+    _avisar(ctx.db, p.aluno_id, reposicoes_srv.texto_aprovado(aluno, p))
+    return reposicoes_srv._item_equipe(ctx.db, p, hoje_de_negocio(_agora()))
+
+
+@router.post("/reposicoes/{pedido_id}/recusar")
+def recusar(pedido_id: int, dados: RecusarIn, ctx: Ctx) -> dict:
+    p = _equipe(ctx.db, reposicoes_srv._pedido, pedido_id)
+    antes = _snap_pedido(p)
+    p = _equipe(ctx.db, reposicoes_srv.recusar, pedido_id, ctx.usuario, dados.motivo, agora=_agora())
+    a, d = audit.diff(antes, _snap_pedido(p))
+    aluno = ctx.db.get(Aluno, p.aluno_id)
+    ctx.auditar("reposicao.recusar", "reposicao_pedido", p.id, descricao=f"{aluno.nome}: {p.motivo_recusa}", antes=a, depois=d)
+    ctx.db.commit()
+    _avisar(ctx.db, p.aluno_id, reposicoes_srv.texto_recusado(aluno, p))
+    return reposicoes_srv._item_equipe(ctx.db, p, hoje_de_negocio(_agora()))

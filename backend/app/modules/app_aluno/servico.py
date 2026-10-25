@@ -16,7 +16,7 @@ from __future__ import annotations
 import hmac
 import secrets
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
@@ -26,8 +26,6 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.db import agora as agora_utc
 from app.core.security import hash_token
-from app.domain import agenda as dom_agenda
-from app.domain import capacidade as cap
 from app.domain import documentos, status_aula
 from app.domain.financeiro import hoje_de_negocio
 from app.domain.telefone import normalizar_telefone_br
@@ -70,6 +68,10 @@ class NaoEncontrado(ErroAluno):
 
 class Conflito(ErroAluno):
     status = 409
+
+
+class Invalido(ErroAluno):
+    status = 422
 
 
 # ------------------------------------------------------------------------------------------------------------ login
@@ -246,6 +248,8 @@ def _aula_dict(db: Session, r: Reserva, s: AulaSessao, momento: datetime) -> dic
     fim = status_aula.momento_da_sessao(s.data, s.hora_fim)
     inicio = status_aula.momento_da_sessao(s.data, s.hora_inicio)
     un = db.get(Unidade, s.unidade_id)
+    no_prazo = agenda.prazo_de_desmarcar_cumprido(s, momento)
+    limite = agenda.limite_para_desmarcar(s)
     return {
         "id": r.id,
         "data": s.data,
@@ -258,7 +262,9 @@ def _aula_dict(db: Session, r: Reserva, s: AulaSessao, momento: datetime) -> dic
         "confirmada": r.confirmada_em is not None,
         "confirmada_em": r.confirmada_em,
         "pode_confirmar": aberta and r.confirmada_em is None,
-        "pode_desmarcar": aberta,
+        "pode_desmarcar": aberta and no_prazo,
+        # regra das 6 horas: até quando o aluno pode desmarcar (None se a aula não é desmarcável)
+        "desmarcar_ate": f"{limite:%d/%m} às {limite:%H:%M}" if aberta else None,
     }
 
 
@@ -323,117 +329,3 @@ def _traduzir(e: agenda.ErroAgenda) -> ErroAluno:
     return ErroAluno(e.mensagem)
 
 
-# ------------------------------------------------------------------------------------------------------- reposições
-def listar_reposicoes(db: Session, aluno: Aluno, *, agora: datetime | None = None) -> list[dict]:
-    """Aulas desmarcadas (CANCELADA) com prazo de reposição. As vencidas aparecem com ``dentro_do_prazo=False``
-    por mais 30 dias (para o aluno entender o que perdeu)."""
-    hoje = hoje_de_negocio(_agora(agora))
-    linhas = db.execute(
-        select(Reserva, AulaSessao)
-        .join(AulaSessao, AulaSessao.id == Reserva.aula_sessao_id)
-        .where(
-            Reserva.aluno_id == aluno.id,
-            Reserva.status == StatusReserva.CANCELADA,
-            Reserva.reposicao_ate.is_not(None),
-            Reserva.reposicao_ate >= hoje - timedelta(days=30),
-        )
-        .order_by(Reserva.reposicao_ate, Reserva.id)
-    ).all()
-    return [
-        {
-            "id": r.id,
-            "data": s.data,
-            "hora_inicio": s.hora_inicio,
-            "servico": _nome_servico(db, s.tipo_servico_id),
-            "profissional": _nome_prof(db, s.profissional_id),
-            "desmarcada_em": r.desmarcada_em,
-            "reposicao_ate": r.reposicao_ate,
-            "dias_restantes": max((r.reposicao_ate - hoje).days, 0),
-            "dentro_do_prazo": r.reposicao_ate >= hoje,
-        }
-        for r, s in linhas
-    ]
-
-
-def _reposicao_valida(db: Session, aluno: Aluno, reserva_id: int, momento: datetime) -> tuple[Reserva, AulaSessao, date]:
-    r, s = _reserva_do_aluno(db, aluno, reserva_id)
-    hoje = hoje_de_negocio(momento)
-    if StatusReserva(r.status) != StatusReserva.CANCELADA or r.reposicao_ate is None:
-        raise Conflito("Esta aula não está desmarcada para reposição.")
-    if r.reposicao_ate < hoje:
-        raise Conflito(f"O prazo desta reposição terminou em {r.reposicao_ate:%d/%m/%Y}. Fale com a recepção.")
-    return r, s, hoje
-
-
-def _candidatas(db: Session, aluno: Aluno, r: Reserva, antiga: AulaSessao, hoje: date, momento: datetime) -> list[AulaSessao]:
-    local = status_aula.para_fuso_negocio(momento)
-    ja_tem = set(db.scalars(select(Reserva.aula_sessao_id).where(Reserva.aluno_id == aluno.id)))
-    sessoes = db.scalars(
-        select(AulaSessao)
-        .where(
-            AulaSessao.unidade_id == antiga.unidade_id,
-            AulaSessao.tipo_servico_id == antiga.tipo_servico_id,
-            AulaSessao.data >= hoje,
-            AulaSessao.data <= r.reposicao_ate,
-        )
-        .order_by(AulaSessao.data, AulaSessao.hora_inicio, AulaSessao.id)
-        .execution_options(populate_existing=True)  # reservas_ativas muda por UPDATE direto
-    ).all()
-    bloqueios = agenda.carregar_bloqueios(db, antiga.unidade_id)
-    out = []
-    for s in sessoes:
-        if s.id in ja_tem:
-            continue
-        if s.data == hoje and s.hora_inicio <= local.time():
-            continue
-        # aula sem profissional só se a original também não tinha (a remarcação mantém/define o profissional)
-        if s.profissional_id is None and antiga.profissional_id is not None:
-            continue
-        if cap.vagas_livres(agenda.capacidade_da_sessao(db, s), s.reservas_ativas) <= 0:
-            continue
-        aplic = dom_agenda.bloqueios_aplicaveis(bloqueios, s.tipo_servico_id, s.profissional_id, s.data, s.data)
-        if dom_agenda.slot_bloqueado(aplic, s.data, s.hora_inicio, s.hora_fim):
-            continue
-        out.append(s)
-    return out
-
-
-def _opcao_dict(db: Session, s: AulaSessao) -> dict:
-    return {
-        "aula_id": s.id,
-        "data": s.data,
-        "hora_inicio": s.hora_inicio,
-        "hora_fim": s.hora_fim,
-        "profissional": _nome_prof(db, s.profissional_id),
-        "vagas": cap.vagas_livres(agenda.capacidade_da_sessao(db, s), s.reservas_ativas),
-    }
-
-
-def opcoes_reposicao(db: Session, aluno: Aluno, reserva_id: int, *, agora: datetime | None = None, limite: int = 60) -> list[dict]:
-    """Aulas JÁ EXISTENTES, do mesmo serviço e unidade, até o fim do prazo, com vaga real, fora de bloqueio e onde o aluno
-    ainda não está. Só lê (nada é criado)."""
-    momento = _agora(agora)
-    r, antiga, hoje = _reposicao_valida(db, aluno, reserva_id, momento)
-    return [_opcao_dict(db, s) for s in _candidatas(db, aluno, r, antiga, hoje, momento)][:limite]
-
-
-def remarcar_reposicao(db: Session, aluno: Aluno, reserva_id: int, aula_id: int, *, agora: datetime | None = None) -> dict:
-    """O aluno escolhe uma das opções e a reposição é feita já (vaga garantida pela transação da agenda)."""
-    momento = _agora(agora)
-    r, antiga, hoje = _reposicao_valida(db, aluno, reserva_id, momento)
-    escolhida = next((s for s in _candidatas(db, aluno, r, antiga, hoje, momento) if s.id == aula_id), None)
-    if escolhida is None:
-        raise Conflito("Esse horário não está mais disponível. Escolha outro.")
-    try:
-        nova = agenda.remarcar_reserva(
-            db,
-            reserva_id,
-            data=escolhida.data,
-            hora_inicio=escolhida.hora_inicio,
-            profissional_id=escolhida.profissional_id,
-            agora=momento,
-        )
-    except agenda.ErroAgenda as e:
-        raise _traduzir(e) from e
-    s = db.get(AulaSessao, nova.aula_sessao_id)
-    return _aula_dict(db, nova, s, momento)

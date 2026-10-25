@@ -81,7 +81,7 @@ export function Casca({ children }: { children: React.ReactNode }) {
     router.replace("/app/entrar");
   }
 
-  const pendentes = (reposicoes.data ?? []).filter((r) => r.dentro_do_prazo).length;
+  const pendentes = (reposicoes.data ?? []).filter((r) => r.pode_pedir && !r.pedido).length;
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-background">
