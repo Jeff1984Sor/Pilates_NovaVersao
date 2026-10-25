@@ -263,11 +263,16 @@ def test_exportar_pdf_com_filtro(client, adm, contas):
 
 
 # -------------------------------------------------------------------------------------------- WhatsApp (extensão)
-def test_cobranca_whatsapp_desabilitada_ate_a_onda_de_comunicacao(client, adm, contas, db):
+def test_cobranca_whatsapp_sem_cobrador_responde_503_e_com_cobrador_funciona(client, adm, contas, db):
     url = f"/api/financeiro/receber/{contas.atrasada.id}/cobrar-whatsapp"
-    assert client.get("/api/financeiro/receber/cobranca-whatsapp/status", headers=adm).json()["enviado"] is False
-    r = client.post(url, headers=adm)
-    assert r.status_code == 503 and "comunicação" in r.json()["detail"]
+    cobrador_real = servico._cobrador  # o módulo de comunicação o registra ao carregar; aqui simulamos "sem WhatsApp"
+    servico.definir_cobrador(None)
+    try:
+        assert client.get("/api/financeiro/receber/cobranca-whatsapp/status", headers=adm).json()["enviado"] is False
+        r = client.post(url, headers=adm)
+        assert r.status_code == 503 and "comunicação" in r.json()["detail"]
+    finally:
+        servico.definir_cobrador(cobrador_real)
 
     servico.definir_cobrador(lambda db_, conta, aluno: f"Olá {aluno.nome}, fatura de R$ {conta.valor}")
     try:
@@ -276,7 +281,7 @@ def test_cobranca_whatsapp_desabilitada_ate_a_onda_de_comunicacao(client, adm, c
         assert client.post(f"/api/financeiro/receber/{contas.paga.id}/cobrar-whatsapp", headers=adm).status_code == 409
         assert len(_acoes(db, "cobrar_whatsapp")) == 1
     finally:
-        servico.definir_cobrador(None)
+        servico.definir_cobrador(cobrador_real)
 
 
 def test_resumo_do_aluno_na_api(client, adm, cenario, contas):

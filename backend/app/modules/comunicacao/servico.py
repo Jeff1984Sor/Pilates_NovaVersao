@@ -412,13 +412,38 @@ class NotificadorWhatsapp:
         return res.ok
 
 
+def enviar_mensagem_de_contrato(db: Session, m) -> None:
+    """Adaptador: o módulo de contratos entrega um `MensagemWhatsapp` e este módulo envia pelo provedor da unidade.
+
+    Tipos: contrato_assinatura (link + PDF), termo_assinatura (link), contrato_assinado e termo_assinado (confirmação).
+    Levanta `ErroDeNegocio` se não conseguir enviar (o módulo de contratos devolve 502 sem vazar detalhe)."""
+    aluno = db.get(Aluno, m.aluno_id)
+    if aluno is None:
+        raise ErroDeNegocio("Aluno não encontrado para o envio.", 404)
+    env = registrar_enviador()
+    if m.tipo == "contrato_assinatura":
+        env.enviar_link_contrato(db, aluno, m.link, contrato_id=m.contrato_id)
+        if m.pdf_url:
+            env.enviar_documento_por_url(db, aluno, m.pdf_url, m.pdf_nome or "contrato.pdf", "Seu contrato",
+                                         tipo="contract_pdf", contrato_id=m.contrato_id)
+    elif m.tipo == "termo_assinatura":
+        env.enviar_link_termo(db, aluno, m.link)
+    elif m.tipo in ("contrato_assinado", "termo_assinado"):
+        rotulo = "contract_signed" if m.tipo == "contrato_assinado" else "image_term_signed"
+        exigir_envio(enviar_texto_aluno(db, aluno, m.texto, tipo=rotulo, contrato_id=m.contrato_id))
+    else:
+        raise ErroDeNegocio(f"Tipo de mensagem desconhecido: {m.tipo}.", 422)
+
+
 def registrar_tudo() -> None:
     """Liga os pontos de extensão que pertencem a este módulo."""
+    from app.modules.contratos import servico as contratos
     from app.modules.financeiro import servico as fin
 
     fin.definir_cobrador(cobrar_conta)
     notif.definir_notificador(NotificadorWhatsapp())
     registrar_enviador()
+    contratos.definir_enviador_whatsapp(enviar_mensagem_de_contrato)
 
 
 # ------------------------------------------------------------------------------------------------ utilidades
