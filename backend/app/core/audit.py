@@ -1,16 +1,18 @@
 """Trilha de auditoria imutável."""
 
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any
 
 from sqlalchemy import event, inspect
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from app.core.models import Auditoria, Usuario
 
-CAMPOS_SENSIVEIS = {"senha_hash", "pfx_cifrado", "senha_cifrada", "smtp_senha_cifrada", "chave_cifrada"}
+CAMPOS_SENSIVEIS = {"senha_hash", "smtp_senha_cifrada", "chave_cifrada", "token_cifrado", "senha_cifrada"}
 
 
 @event.listens_for(Auditoria, "before_update")
@@ -21,6 +23,19 @@ def _bloquear_update(*_):
 @event.listens_for(Auditoria, "before_delete")
 def _bloquear_delete(*_):
     raise PermissionError("A auditoria é imutável.")
+
+
+_ESCRITA_AUDITORIA = re.compile(r'^\s*(update|delete\s+from)\s+"?auditoria"?(\s|$)', re.IGNORECASE)
+
+
+@event.listens_for(Engine, "before_cursor_execute")
+def _bloquear_sql_direto(conn, cursor, statement, parameters, context, executemany):
+    """Barreira final: UPDATE/DELETE em `auditoria` por SQL direto/bulk também é recusado.
+
+    Única exceção: `app.limpar_dados` (ferramenta de ambiente de testes) liga `conn.info["liberar_limpeza_auditoria"]`.
+    """
+    if _ESCRITA_AUDITORIA.match(statement) and not conn.info.get("liberar_limpeza_auditoria"):
+        raise PermissionError("A auditoria é imutável.")
 
 
 def _jsonable(v: Any) -> Any:
@@ -53,7 +68,6 @@ def diff(antes: dict[str, Any], depois: dict[str, Any]) -> tuple[dict[str, Any],
 def registrar(
     db: Session,
     *,
-    tenant_id: int,
     usuario: Usuario | None,
     acao: str,
     entidade: str,
@@ -65,7 +79,6 @@ def registrar(
 ) -> None:
     db.add(
         Auditoria(
-            tenant_id=tenant_id,
             usuario_id=usuario.id if usuario else None,
             usuario_nome=usuario.nome if usuario else "Robô",
             acao=acao,

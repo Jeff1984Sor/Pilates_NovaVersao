@@ -1,16 +1,16 @@
 "use client";
 
-import { BriefcaseBusiness, ChartLine, ShieldCheck, Sparkles } from "lucide-react";
+import { CalendarDays, ChartLine, ShieldCheck, Users } from "lucide-react";
 import { motion } from "motion/react";
 
-import { MayaCorpAssinatura, MayaJusLogo } from "@/components/mayacorp/brand";
+import { MarcaLogo, VersaoRodape } from "@/components/mayacorp/brand";
 import { FaixaAmbiente } from "@/components/mayacorp/shell";
 
 const DESTAQUES = [
-  { i: BriefcaseBusiness, t: "Casos, contratos e faturamento", d: "Do timesheet à nota fiscal, sem planilhas paralelas." },
-  { i: ChartLine, t: "Financeiro em tempo real", d: "Contas a pagar, fluxo de caixa, DRE e previsão de caixa." },
-  { i: Sparkles, t: "IA em todas as telas", d: "Pergunte, analise e peça ações ao assistente." },
-  { i: ShieldCheck, t: "Seguro por padrão", d: "Dados criptografados e auditoria completa." },
+  { i: CalendarDays, t: "Agenda sem conflito", d: "Aulas, reposições e capacidade sempre em dia." },
+  { i: Users, t: "Alunos e contratos", d: "Da matrícula à renovação, num só lugar." },
+  { i: ChartLine, t: "Financeiro claro", d: "Contas a receber e a pagar, fluxo de caixa e comissões." },
+  { i: ShieldCheck, t: "Seguro por padrão", d: "Acesso por perfil e auditoria de ações sensíveis." },
 ];
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +23,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute -top-32 -left-32 size-[28rem] rounded-full bg-brand/35 blur-[110px]" />
         <div className="absolute -right-24 bottom-0 size-[24rem] rounded-full bg-navy/80 blur-[100px]" />
         <div className="relative flex flex-1 flex-col justify-between p-12">
-          <MayaJusLogo claro />
+          <MarcaLogo claro />
 
           <div className="max-w-lg">
             <motion.div
@@ -33,7 +33,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs backdrop-blur"
             >
               <span className="size-1.5 animate-pulse rounded-full bg-success" />
-              Software de gestão jurídica
+              Gestão do estúdio
             </motion.div>
             <motion.h1
               initial={{ opacity: 0, y: 16 }}
@@ -41,7 +41,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               transition={{ duration: 0.6, delay: 0.08 }}
               className="text-4xl leading-[1.1] font-semibold tracking-tight xl:text-5xl"
             >
-              Seu escritório organizado,{" "}
+              Seu estúdio organizado,{" "}
               <span className="bg-linear-to-r from-brand to-white bg-clip-text text-transparent">você no controle.</span>
             </motion.h1>
             <div className="mt-10 space-y-4">
@@ -77,7 +77,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="w-full max-w-sm">{children}</div>
         </div>
         <footer className="relative flex justify-center pb-6 text-muted-foreground">
-          <MayaCorpAssinatura />
+          <VersaoRodape />
         </footer>
       </main>
     </div>

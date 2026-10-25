@@ -1,26 +1,9 @@
-import type { TokenOut } from "./types";
-
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api").replace(/\/$/, "");
-
-const ACCESS = "maya.access";
-const REFRESH = "maya.refresh";
-
-export const tokens = {
-  get access() {
-    return typeof window === "undefined" ? null : localStorage.getItem(ACCESS);
-  },
-  get refresh() {
-    return typeof window === "undefined" ? null : localStorage.getItem(REFRESH);
-  },
-  set(t: Pick<TokenOut, "access_token" | "refresh_token">) {
-    localStorage.setItem(ACCESS, t.access_token);
-    localStorage.setItem(REFRESH, t.refresh_token);
-  },
-  clear() {
-    localStorage.removeItem(ACCESS);
-    localStorage.removeItem(REFRESH);
-  },
-};
+/**
+ * Cliente da API. O navegador NUNCA fala direto com a API nem enxerga tokens: tudo passa pelo BFF do Next
+ * (`/bff/*`, ver app/bff/[...path]/route.ts), que guarda access/refresh em cookies httpOnly, renova o access
+ * sozinho e repassa a chamada à API com `Authorization`. Por isso não há `localStorage` de token aqui.
+ */
+export const API_URL = "/bff";
 
 export class ApiError extends Error {
   constructor(
@@ -52,32 +35,11 @@ function mensagemDeErro(status: number, body: unknown): string {
   return `Erro ${status}`;
 }
 
-let refreshing: Promise<boolean> | null = null;
-
-export async function tentarRefresh(): Promise<boolean> {
-  const rt = tokens.refresh;
-  if (!rt) return false;
-  refreshing ??= fetch(`${API_URL}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: rt }),
-  })
-    .then(async (r) => {
-      if (!r.ok) return false;
-      tokens.set((await r.json()) as TokenOut);
-      return true;
-    })
-    .catch(() => false)
-    .finally(() => {
-      refreshing = null;
-    });
-  return refreshing;
-}
-
 function irParaLogin() {
-  tokens.clear();
-  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+  if (typeof window !== "undefined" && !/^\/(login|esqueci-senha|redefinir-senha)/.test(window.location.pathname)) {
     const volta = encodeURIComponent(window.location.pathname + window.location.search);
+    // navegação completa de propósito: zera o estado em memória (cache de dados do usuário anterior)
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `/login?volta=${volta}`;
   }
 }
@@ -90,7 +52,7 @@ export interface RequestOpts extends Omit<RequestInit, "body"> {
 }
 
 function montarUrl(path: string, query?: RequestOpts["query"]) {
-  const url = new URL(API_URL + path);
+  const url = new URL(API_URL + path, typeof window === "undefined" ? "http://localhost" : window.location.origin);
   Object.entries(query ?? {}).forEach(([k, v]) => {
     if (Array.isArray(v)) v.forEach((x) => url.searchParams.append(k, String(x)));
     else if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
@@ -98,7 +60,7 @@ function montarUrl(path: string, query?: RequestOpts["query"]) {
   return url.toString();
 }
 
-async function rawFetch(path: string, opts: RequestOpts = {}, retry = true): Promise<Response> {
+async function rawFetch(path: string, opts: RequestOpts = {}): Promise<Response> {
   const { body, query, auth = true, headers, ...rest } = opts;
   const h = new Headers(headers);
   let payload: BodyInit | undefined;
@@ -107,19 +69,17 @@ async function rawFetch(path: string, opts: RequestOpts = {}, retry = true): Pro
     h.set("Content-Type", "application/json");
     payload = JSON.stringify(body);
   }
-  if (auth && tokens.access) h.set("Authorization", `Bearer ${tokens.access}`);
+  h.set("X-Requested-With", "pilates");
 
   let res: Response;
   try {
-    res = await fetch(montarUrl(path, query), { ...rest, headers: h, body: payload });
+    res = await fetch(montarUrl(path, query), { ...rest, headers: h, body: payload, credentials: "same-origin" });
   } catch {
     throw new ApiError(0, mensagemDeErro(0, null));
   }
 
-  if (res.status === 401 && auth && retry) {
-    if (await tentarRefresh()) return rawFetch(path, opts, false);
-    irParaLogin();
-  }
+  // o BFF já tentou renovar a sessão; 401 aqui = sessão encerrada
+  if (res.status === 401 && auth) irParaLogin();
   if (!res.ok) {
     let b: unknown = null;
     try {
@@ -177,8 +137,4 @@ export async function abrirArquivo(path: string) {
   const url = URL.createObjectURL(blob);
   if (janela) janela.location.href = url;
   else window.open(url, "_blank");
-}
-
-export function sseUrl(path: string) {
-  return montarUrl(path, { token: tokens.access ?? "" });
 }

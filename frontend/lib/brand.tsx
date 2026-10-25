@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { API_URL, api } from "./api";
 import type { IdentidadePublica } from "./types";
 
-const PADRAO: IdentidadePublica = { nome_exibicao: "CFME Advogados", logo_url: null, cor_destaque: null };
+const PADRAO: IdentidadePublica = { nome_exibicao: "Pilates", logo_url: null, cor_destaque: null };
 
 interface BrandCtx extends IdentidadePublica {
   logoSrc: string | null;
@@ -36,7 +36,7 @@ export function aplicarCor(cor: string | null) {
 export function resolverLogo(url: string | null | undefined) {
   if (!url) return null;
   if (/^https?:/.test(url)) return url;
-  // a API devolve caminhos relativos a ela (ex.: /public/logo?v=...)
+  // a API devolve caminhos relativos a ela (ex.: /public/logo?v=...); o navegador os acessa pelo BFF
   return `${API_URL}${url.startsWith("/api/") ? url.slice(4) : url}`;
 }
 
@@ -56,8 +56,8 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   }, [cor]);
 
   useEffect(() => {
-    const publica = /^\/(login|redefinir-senha)/.test(window.location.pathname);
-    document.title = publica ? "MayaJus · Gestão jurídica" : `${ident.nome_exibicao} · MayaJus`;
+    const publica = /^\/(login|esqueci-senha|redefinir-senha)/.test(window.location.pathname);
+    document.title = publica ? ident.nome_exibicao : `${ident.nome_exibicao} · Gestão`;
   }, [ident.nome_exibicao]);
 
   return (

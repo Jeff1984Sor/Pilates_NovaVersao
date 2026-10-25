@@ -12,11 +12,11 @@ import { cn } from "@/lib/utils";
 
 const ABAS = NAV.find((g) => g.titulo === "Configurações")!.itens.filter((i) => i.href.startsWith("/configuracoes"));
 // telas que tratam a edição item a item (listas com filtros e diálogos); nas demais o formulário inteiro fica só leitura
-const EDICAO_PROPRIA = ["/configuracoes/usuarios", "/configuracoes/perfis", "/configuracoes/faturamento", "/configuracoes/ia"];
+const EDICAO_PROPRIA = ["/configuracoes/usuarios", "/configuracoes/perfis"];
 
 export default function ConfiguracoesLayout({ children }: { children: React.ReactNode }) {
-  const { pode, usuario } = useAuth();
-  const abas = ABAS.filter((a) => (!a.permissao || pode(a.permissao)) && (!a.equipe || usuario?.equipe_mayacorp));
+  const { pode } = useAuth();
+  const abas = ABAS.filter((a) => !a.permissao || pode(a.permissao));
   const pathname = usePathname();
   const router = useRouter();
   // /configuracoes vai para a primeira aba que o perfil enxerga
@@ -32,7 +32,7 @@ export default function ConfiguracoesLayout({ children }: { children: React.Reac
     <div>
       <PageHeader
         titulo="Configurações"
-        descricao="Identidade, certificado, profissionais, faturamento, parâmetros fiscais e notificações."
+        descricao="Identidade do estúdio, usuários, perfis de acesso, e-mail e IA."
         icone={Settings}
         migalhas={[{ label: "Início", href: "/" }, { label: "Configurações" }]}
       />

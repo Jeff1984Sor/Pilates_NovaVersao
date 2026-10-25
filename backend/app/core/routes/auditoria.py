@@ -3,7 +3,7 @@ from datetime import date, datetime, time
 from fastapi import APIRouter, Query
 from sqlalchemy import func, or_, select
 
-from app.core.deps import Admin
+from app.core.deps import Ctx
 from app.core.models import Auditoria
 from app.core.schemas import AuditoriaOut, Pagina
 
@@ -12,7 +12,7 @@ router = APIRouter(tags=["auditoria"])
 
 @router.get("/auditoria", response_model=Pagina[AuditoriaOut])
 def listar(
-    ctx: Admin,
+    ctx: Ctx,
     q: str | None = None,
     acao: str | None = None,
     entidade: str | None = None,
@@ -21,7 +21,7 @@ def listar(
     pagina: int = Query(1, ge=1),
     por_pagina: int = Query(25, ge=1, le=200),
 ):
-    filtro = [Auditoria.tenant_id == ctx.tenant_id]
+    filtro = []
     if q:
         like = f"%{q}%"
         filtro.append(or_(Auditoria.descricao.ilike(like), Auditoria.usuario_nome.ilike(like), Auditoria.acao.ilike(like)))

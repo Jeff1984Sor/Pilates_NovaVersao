@@ -13,7 +13,7 @@ import {
   UserRound,
   ChevronDown,
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -31,25 +31,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { api } from "@/lib/api";
-import { useComunicador } from "@/components/comunicador/provider";
-import { ChatBotao, MencoesBotao } from "@/components/comunicador/topbar";
-import { ComunicadorWidget } from "@/components/comunicador/widget";
 import { useAuth } from "@/lib/auth";
 import { useBrand } from "@/lib/brand";
 import { EH_HML } from "@/lib/env";
 import type { UsuarioMe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-import { ClientLogo, MayaCorpAssinatura } from "./brand";
+import { ClientLogo, VersaoRodape } from "./brand";
 import { CommandPalette, abrirPaleta } from "./command-palette";
-import { ModoBadge } from "./modo-badge";
 import { TrocarSenhaDialog } from "./trocar-senha-dialog";
 import { UserAvatar } from "./user-avatar";
 import { ativo, itemDaRota, navPara, type NavItem } from "./nav";
 import { SemAcesso } from "./sem-acesso";
 
-const PERFIL_LABEL = { admin: "Administrador", operador: "Operador", visualizador: "Visualizador" } as const;
-const nomePerfil = (u: { perfil_acesso_nome: string | null; perfil: keyof typeof PERFIL_LABEL }) => u.perfil_acesso_nome ?? PERFIL_LABEL[u.perfil];
+const nomePerfil = (u: { perfil_acesso_nome: string | null }) => u.perfil_acesso_nome ?? "Sem perfil";
 
 const nadaAssinar = () => () => {};
 
@@ -79,36 +74,13 @@ export function FaixaAmbiente() {
   if (!EH_HML) return null;
   return (
     <div className="fixed inset-x-0 top-0 z-[60] flex h-[22px] items-center justify-center bg-[#c62828] px-2 text-[11px] font-bold tracking-wider text-white no-print">
-      <span className="truncate">AMBIENTE DE HOMOLOGAÇÃO — notas não têm valor fiscal</span>
+      <span className="truncate">AMBIENTE DE HOMOLOGAÇÃO — dados de teste</span>
     </div>
   );
 }
 
 function ItemNav({ item, recolhido, onNavigate }: { item: NavItem; recolhido: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { resumo } = useComunicador();
-  const revisoes = useQuery({
-    queryKey: ["fat", "revisoes", "em_revisao"],
-    queryFn: () => api.get<unknown[]>("/faturamento/revisoes", { status: "em_revisao" }),
-    enabled: item.badge === "revisoes",
-    staleTime: 60_000,
-    meta: { silencioso: true },
-  });
-  const tarefas = useQuery({
-    queryKey: ["fat", "tarefas", "badge"],
-    queryFn: () => api.get<{ resumo: Record<string, number> }>("/faturamento/tarefas", { situacao: "atrasadas" }),
-    enabled: item.badge === "tarefas",
-    staleTime: 60_000,
-    meta: { silencioso: true },
-  });
-  const contador =
-    item.badge === "comunicador"
-      ? resumo.nao_lidas
-      : item.badge === "revisoes"
-        ? (revisoes.data?.length ?? 0)
-        : item.badge === "tarefas"
-          ? (tarefas.data?.resumo.atrasadas ?? 0)
-          : 0;
   const on = ativo(pathname, item);
   const Icone = item.icone;
   const conteudo = (
@@ -130,21 +102,7 @@ function ItemNav({ item, recolhido, onNavigate }: { item: NavItem; recolhido: bo
       {!recolhido && (
         <span className="relative flex-1 truncate">{item.label}</span>
       )}
-      {contador > 0 &&
-        (recolhido ? (
-          <span className={cn("absolute top-1 right-2 size-2 rounded-full ring-2 ring-sidebar", item.badge === "tarefas" ? "bg-danger" : "bg-brand")} aria-label={item.badge === "tarefas" ? `${contador} atrasadas` : `${contador} não lidas`} />
-        ) : (
-          <span
-            className={cn(
-              "relative min-w-5 rounded-full px-1.5 text-center text-[11px] leading-5 font-semibold tabular-nums",
-              item.badge === "tarefas" ? "bg-danger text-white" : "bg-brand text-brand-foreground",
-            )}
-            title={item.badge === "tarefas" ? `${contador} tarefa(s) atrasada(s)` : undefined}
-          >
-            {contador > 99 ? "99+" : contador}
-          </span>
-        ))}
-      {!recolhido && item.emBreve && (
+      {!recolhido && item.planejado && (
         <span className="relative rounded-md bg-white/8 px-1.5 py-0.5 text-[10px] font-semibold text-sidebar-foreground/70 uppercase">
           em breve
         </span>
@@ -155,9 +113,9 @@ function ItemNav({ item, recolhido, onNavigate }: { item: NavItem; recolhido: bo
     "group relative flex h-9 items-center gap-3 rounded-lg px-2.5 text-[13.5px] font-medium transition-colors",
     recolhido && "justify-center px-0",
     on ? "text-white" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
-    item.emBreve && "cursor-not-allowed opacity-60 hover:bg-transparent",
+    item.planejado && "cursor-not-allowed opacity-60 hover:bg-transparent",
   );
-  const el = item.emBreve ? (
+  const el = item.planejado ? (
     <span className={classe}>{conteudo}</span>
   ) : (
     <Link href={item.href} className={classe} onClick={onNavigate}>
@@ -170,7 +128,7 @@ function ItemNav({ item, recolhido, onNavigate }: { item: NavItem; recolhido: bo
       <TooltipTrigger render={<div />}>{el}</TooltipTrigger>
       <TooltipContent side="right" sideOffset={10}>
         {item.label}
-        {item.emBreve && " · em breve"}
+        {item.planejado && " · em breve"}
       </TooltipContent>
     </Tooltip>
   );
@@ -200,7 +158,7 @@ function SidebarConteudo({ recolhido, onNavigate, onRecolher }: { recolhido: boo
   const { usuario, pode } = useAuth();
   const { nome_exibicao } = useBrand();
   const pathname = usePathname();
-  const grupos = navPara(usuario && pode, usuario?.equipe_mayacorp);
+  const grupos = navPara(usuario && pode);
   const { fechados, alternar } = useGruposRecolhidos();
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
@@ -218,7 +176,7 @@ function SidebarConteudo({ recolhido, onNavigate, onRecolher }: { recolhido: boo
         {!recolhido && (
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-sm font-semibold text-white">{nome_exibicao}</p>
-            <p className="text-[11px] text-sidebar-foreground/60">MayaJus</p>
+            <p className="text-[11px] text-sidebar-foreground/60">Gestão do estúdio</p>
           </div>
         )}
         {onRecolher && !recolhido && (
@@ -290,7 +248,7 @@ function SidebarConteudo({ recolhido, onNavigate, onRecolher }: { recolhido: boo
             <ChevronsLeft className="size-4 rotate-180" />
           </button>
         ) : (
-          <MayaCorpAssinatura className="justify-center text-sidebar-foreground/55" />
+          <VersaoRodape className="justify-center text-sidebar-foreground/55" />
         )}
       </div>
     </div>
@@ -325,7 +283,7 @@ function ThemeToggle() {
 }
 
 function Topbar({ onMenu }: { onMenu: () => void }) {
-  const { usuario, sair, pode } = useAuth();
+  const { usuario, sair } = useAuth();
   const [trocarSenha, setTrocarSenha] = useState(false);
   const router = useRouter();
   const mac = useSyncExternalStore(
@@ -348,21 +306,14 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
         className="group flex h-9 w-full max-w-md items-center gap-2 rounded-lg border bg-background/60 px-3 text-sm text-muted-foreground transition hover:border-brand/40 hover:bg-background"
       >
         <Search className="size-4" />
-        <span className="flex-1 truncate text-left">Buscar notas, clientes, lotes…</span>
+        <span className="flex-1 truncate text-left">Ir para… (menu e telas)</span>
         <kbd className="hidden rounded border bg-muted px-1.5 font-mono text-[10px] sm:inline">{mac ? "⌘" : "Ctrl"} K</kbd>
       </button>
 
       <div className="flex-1" />
-      <ModoBadge className="hidden sm:inline-flex" />
       <div className="hidden md:block">
         <ThemeToggle />
       </div>
-      {pode("comunicador.usar") && (
-        <>
-          <ChatBotao />
-          <MencoesBotao />
-        </>
-      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -391,9 +342,6 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
             <span className="text-sm">Tema</span>
             <ThemeToggle />
           </div>
-          <div className="px-2 py-1.5 sm:hidden">
-            <ModoBadge />
-          </div>
           <DropdownMenuItem disabled>
             <UserRound /> <span className="truncate">Seu perfil: {usuario && nomePerfil(usuario)}</span>
             {usuario?.login && <span className="ml-auto font-mono text-[11px]">@{usuario.login}</span>}
@@ -405,7 +353,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
             <KeyRound /> Trocar senha
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={sair} variant="destructive">
+          <DropdownMenuItem onClick={() => void sair()} variant="destructive">
             <LogOut /> Sair
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -419,10 +367,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [recolhido, alternar] = useRecolhido();
   const [gaveta, setGaveta] = useState(false);
   const pathname = usePathname();
-  const { pode, usuario } = useAuth();
+  const { pode } = useAuth();
   // bloqueio leve por página: o servidor já recusa os dados, aqui só trocamos a tela por um aviso amigável
   const rota = itemDaRota(pathname);
-  const bloqueada = !!rota && ((!!rota.permissao && !pode(rota.permissao)) || (!!rota.equipe && !usuario?.equipe_mayacorp));
+  const bloqueada = !!rota && !!rota.permissao && !pode(rota.permissao);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- fecha a gaveta ao navegar
   useEffect(() => setGaveta(false), [pathname]);
 
@@ -459,7 +407,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <Topbar onMenu={() => setGaveta(true)} />
       <CommandPalette />
-      {pode("comunicador.usar") && <ComunicadorWidget />}
 
       <main className="min-h-dvh pt-[calc(var(--tb)+var(--faixa))] transition-[padding] duration-200 lg:pl-(--sb)">
         <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{bloqueada ? <SemAcesso /> : children}</div>

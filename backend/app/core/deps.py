@@ -1,5 +1,6 @@
-"""Dependências FastAPI: sessão, usuário logado e controle de perfil (aplicado no backend)."""
+"""Dependências FastAPI: sessão, usuário logado e controle de permissão (aplicado no backend, negar por padrão)."""
 
+import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Annotated
@@ -9,12 +10,14 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from app.core import audit
+from app.core import audit, escopo
 from app.core.db import agora, get_db
-from app.core.models import Perfil, Usuario
+from app.core.models import Usuario
 from app.core.permissoes import permissao_da_rota
+from app.core.ratelimit import ip_do_cliente
 from app.core.security import decodificar_token
 
+log = logging.getLogger(__name__)
 _bearer = HTTPBearer(auto_error=False)
 
 DB = Annotated[Session, Depends(get_db)]
@@ -25,19 +28,26 @@ class Contexto:
     db: Session
     usuario: Usuario
     ip: str | None
-    rota_liberada: bool = False  # a rota está no mapa de permissões e o perfil passou
+    permissao: str | None = None  # permissão que a rota exigiu (None = livre para logados)
 
     def pode(self, permissao: str) -> bool:
         return self.usuario.pode(permissao)
 
-    @property
-    def tenant_id(self) -> int:
-        return self.usuario.tenant_id
+    def exigir(self, permissao: str) -> None:
+        """Checagem extra dentro da rota (além da exigida pelo mapa)."""
+        if not self.pode(permissao):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Seu perfil de acesso não permite esta ação.")
+
+    # --- escopo "somente as próprias aulas" (perfil Professor); ver app.core.escopo ---
+    def somente_proprias_aulas(self) -> bool:
+        return escopo.usuario_restrito(self.usuario)
+
+    def profissional_id(self) -> int | None:
+        return escopo.resolver_profissional_id(self.db, self.usuario)
 
     def auditar(self, acao: str, entidade: str, entidade_id=None, descricao=None, antes=None, depois=None):
         audit.registrar(
             self.db,
-            tenant_id=self.tenant_id,
             usuario=self.usuario,
             acao=acao,
             entidade=entidade,
@@ -50,65 +60,43 @@ class Contexto:
 
 
 def ip_cliente(request: Request) -> str | None:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else None
+    return ip_do_cliente(request)
 
 
-def _token(request: Request, cred: HTTPAuthorizationCredentials | None) -> str | None:
-    if cred:
-        return cred.credentials
-    # EventSource (SSE) não envia cabeçalhos: aceita ?token= somente nessa rota
-    return request.query_params.get("token") if request.url.path.endswith("/progresso") else None
+def usuario_do_token(db: Session, token: str) -> Usuario:
+    """Valida um access token (assinatura, expiração, usuário ativo e token_version). Levanta 401."""
+    try:
+        payload = decodificar_token(token, "access")
+        uid = int(payload["sub"])
+    except (jwt.PyJWTError, ValueError):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sessão expirada. Entre novamente.") from None
+    usuario = db.get(Usuario, uid)
+    if not usuario or not usuario.ativo or not usuario.acesso_sistema:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sessão expirada. Entre novamente.")
+    if payload.get("tv") != usuario.token_version:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sessão expirada. Entre novamente.")
+    return usuario
 
 
 def get_contexto(
     request: Request, db: DB, cred: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)]
 ) -> Contexto:
-    token = _token(request, cred)
-    if not token:
+    if not cred:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Faça login para continuar.")
-    try:
-        payload = decodificar_token(token, "access")
-    except jwt.PyJWTError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sessão expirada. Entre novamente.") from None
-    usuario = db.get(Usuario, int(payload["sub"]))
-    if not usuario or not usuario.ativo:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Usuário inativo.")
+    usuario = usuario_do_token(db, cred.credentials)
     now = agora()
     ultima = usuario.ultima_atividade
-    if ultima is None or (now - ultima.replace(tzinfo=now.tzinfo)) > timedelta(minutes=1):
+    if ultima is None or (now - ultima) > timedelta(minutes=1):
         usuario.ultima_atividade = now
         db.commit()
     mapeada, permissao = permissao_da_rota(request.method, request.url.path)
-    if mapeada and permissao and not usuario.pode(permissao):
+    if not mapeada:
+        # NEGAR POR PADRÃO: rota sem regra em app.core.permissoes não é acessível a ninguém.
+        log.warning("Rota sem mapa de permissão: %s %s", request.method, request.url.path)
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Esta rota não tem permissão configurada.")
+    if permissao and not usuario.pode(permissao):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Seu perfil de acesso não permite esta ação.")
-    return Contexto(db=db, usuario=usuario, ip=ip_cliente(request), rota_liberada=mapeada)
+    return Contexto(db=db, usuario=usuario, ip=ip_cliente(request), permissao=permissao)
 
 
 Ctx = Annotated[Contexto, Depends(get_contexto)]
-
-
-def exigir(*perfis: Perfil):
-    def _dep(ctx: Ctx) -> Contexto:
-        if ctx.rota_liberada:  # quem decide é o perfil de acesso (já checado em get_contexto)
-            return ctx
-        if ctx.usuario.perfil not in perfis and not ctx.usuario.administrador:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Seu perfil não tem permissão para esta ação.")
-        return ctx
-
-    return Depends(_dep)
-
-
-Admin = Annotated[Contexto, exigir(Perfil.admin)]
-
-
-def _equipe_mayacorp(ctx: Ctx) -> Contexto:
-    if not ctx.usuario.equipe_mayacorp:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Esta configuração é gerenciada pela MayaCorp.")
-    return ctx
-
-
-EquipeMayaCorp = Annotated[Contexto, Depends(_equipe_mayacorp)]
-Operador = Annotated[Contexto, exigir(Perfil.admin, Perfil.operador)]

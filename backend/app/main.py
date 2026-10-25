@@ -1,28 +1,19 @@
-import asyncio
-import contextlib
+import importlib
 import logging
+import pkgutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
-from app.comunicador import routes as comunicador
-from app.core import cnpj
+import app.modules as modulos_pkg
 from app.core.config import BASE_DIR, settings
-from app.core.routes import auditoria, auth, config, hub, ia, public
-from app.modules.assistente import routes as assistente_routes
-from app.modules.faturamento import judiciario as faturamento_judiciario
-from app.modules.faturamento import planilhas as faturamento_planilhas
-from app.modules.faturamento import routes as faturamento_routes
-from app.modules.faturamento import routes_revisao
-from app.modules.faturamento import tarefas as faturamento_tarefas
-from app.modules.faturamento import timesheet as faturamento_timesheet
-from app.modules.financas import routes as financas_routes
-from app.modules.rpa_nfse import routes as nfse_routes
-from app.modules.rpa_nfse import routes_dashboard, routes_faturas, routes_financeiro, tasks
+from app.core.deps import get_contexto
+from app.core.routes import arquivos, auditoria, auth, config, public
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logging.getLogger("httpx").setLevel(logging.WARNING)  # o httpx loga a URL completa de cada chamada
@@ -48,33 +39,38 @@ async def lifespan(_: FastAPI):
         Path(settings.database_url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
     if settings.migrar_na_subida:
         migrar()
-    if settings.worker_embutido:
-        tasks.retomar_pendentes()
-    # carteiro do Comunicador: entrega ao vivo as mensagens gravadas (inclusive as do robô, que vêm do worker)
-    parar = asyncio.Event()
-    carteiro = asyncio.create_task(comunicador.carteiro(parar))
     yield
-    parar.set()
-    with contextlib.suppress(asyncio.CancelledError, TimeoutError):
-        await asyncio.wait_for(carteiro, timeout=3)
 
 
 app = FastAPI(
-    title="MayaJus — API",
+    title=f"{settings.app_name} - API",
     version=VERSAO,
-    description="Hub de automações MayaCorp. RPA 01: Emissor de NFS-e em lote, layout 2 (ISS + IBS + CBS).",
     lifespan=lifespan,
-    docs_url="/api/docs",
-    openapi_url="/api/openapi.json",
+    # documentação interativa só com DEBUG (nunca em hml/prod)
+    docs_url="/api/docs" if settings.debug else None,
+    redoc_url=None,
+    openapi_url="/api/openapi.json" if settings.debug else None,
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
     expose_headers=["Content-Disposition"],
 )
+
+
+@app.middleware("http")
+async def _cabecalhos_de_seguranca(request: Request, call_next):
+    resp = await call_next(request)
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "same-origin")
+    if request.url.path.startswith("/api/"):
+        resp.headers.setdefault("Cache-Control", "no-store")
+    return resp
 
 
 def _traduzir(e: dict) -> str:
@@ -108,10 +104,33 @@ async def _validacao(_: Request, exc: RequestValidationError):
     return JSONResponse(status_code=422, content={"detail": f"{primeiro['campo']}: {primeiro['mensagem']}".strip(": "), "erros": erros})
 
 
-for r in (auth.router, public.router, hub.router, config.router, nfse_routes.config_router, routes_financeiro.config_router,
-          nfse_routes.router, routes_financeiro.router, routes_faturas.router, routes_dashboard.router, ia.router, cnpj.router, comunicador.router, comunicador.ws_router,
-          auditoria.router, assistente_routes.router, faturamento_judiciario.router, faturamento_planilhas.router, faturamento_tarefas.router, faturamento_timesheet.router, faturamento_routes.router, routes_revisao.router, financas_routes.router):
+# --- Rotas SEM login (cada uma precisa estar em permissoes.PUBLICAS) ---
+for r in (auth.publico, public.router):
     app.include_router(r, prefix="/api")
+
+# --- Rotas PROTEGIDAS: o login é exigido no nível do router (negar por padrão), além do mapa de permissões ---
+_protegidas = [auth.router, config.router, auditoria.router, arquivos.router]
+
+
+def _descobrir_modulos() -> None:
+    """Cada módulo de negócio expõe `app/modules/<nome>/routes.py` com `router` (protegido) e, se precisar,
+    `router_publico` (autenticação própria: webhook, chave de API, app do aluno; ver permissoes.PUBLICAS_AUTENTICACAO_PROPRIA)."""
+    for info in pkgutil.iter_modules(modulos_pkg.__path__):
+        try:
+            mod = importlib.import_module(f"app.modules.{info.name}.routes")
+        except ModuleNotFoundError as e:
+            if e.name == f"app.modules.{info.name}.routes":
+                continue
+            raise
+        if hasattr(mod, "router"):
+            _protegidas.append(mod.router)
+        if hasattr(mod, "router_publico"):
+            app.include_router(mod.router_publico, prefix="/api")
+
+
+_descobrir_modulos()
+for r in _protegidas:
+    app.include_router(r, prefix="/api", dependencies=[Depends(get_contexto)])
 
 
 @app.get("/api/health", tags=["infra"])

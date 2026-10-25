@@ -2,65 +2,57 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
+import { createContext, useCallback, useContext, useMemo } from "react";
 
-import { api, tokens } from "./api";
-import type { Perfil, TokenOut, UsuarioMe } from "./types";
+import { ApiError, api } from "./api";
+import type { UsuarioMe } from "./types";
 
 interface AuthCtx {
   usuario: UsuarioMe | undefined;
   carregando: boolean;
   logado: boolean;
-  login: (email: string, senha: string) => Promise<UsuarioMe>;
-  sair: () => void;
+  login: (identificador: string, senha: string) => Promise<UsuarioMe>;
+  sair: () => Promise<void>;
   /** Permissão do perfil de acesso ("recurso.acao"); o administrador pode tudo. O servidor confere de novo. */
   pode: (permissao: string) => boolean;
   /** Perfil de acesso com "Acesso total". */
   administrador: boolean;
-  /** Legado (admin/operador/visualizador, sincronizado pelo servidor); prefira `pode` em código novo. */
-  isAdmin: boolean;
-  isOperador: boolean;
+  /** Perfil que só enxerga as próprias aulas (Professor). */
+  somenteProprias: boolean;
 }
 
 const Ctx = createContext<AuthCtx | null>(null);
 
-const subscribe = (cb: () => void) => {
-  window.addEventListener("storage", cb);
-  return () => window.removeEventListener("storage", cb);
-};
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();
   const router = useRouter();
-  const temToken = useSyncExternalStore(
-    subscribe,
-    () => !!tokens.access,
-    () => false,
-  );
 
+  // A sessão mora em cookie httpOnly (BFF). Quem decide se há sessão é a API: /auth/me responde 401 sem ela.
   const me = useQuery({
     queryKey: ["me"],
     queryFn: () => api.get<UsuarioMe>("/auth/me"),
-    enabled: temToken,
     staleTime: 5 * 60_000,
     retry: false,
+    meta: { silencioso: true },
+    enabled: typeof window !== "undefined" && !/^\/(login|esqueci-senha|redefinir-senha)/.test(window.location.pathname),
   });
 
   const login = useCallback(
-    async (email: string, senha: string) => {
-      const t = await api.post<TokenOut>("/auth/login", { email, senha }, { auth: false });
-      tokens.set(t);
-      window.dispatchEvent(new StorageEvent("storage"));
-      qc.setQueryData(["me"], t.usuario);
-      return t.usuario;
+    async (identificador: string, senha: string) => {
+      const r = await api.post<{ usuario: UsuarioMe }>("/auth/login", { identificador, senha }, { auth: false });
+      qc.setQueryData(["me"], r.usuario);
+      return r.usuario;
     },
     [qc],
   );
 
-  const sair = useCallback(() => {
-    tokens.clear();
+  const sair = useCallback(async () => {
+    try {
+      await api.post("/auth/logout", undefined, { auth: false });
+    } catch {
+      /* sai mesmo assim: o cookie é limpo pelo BFF */
+    }
     qc.clear();
-    window.dispatchEvent(new StorageEvent("storage"));
     router.replace("/login");
   }, [qc, router]);
 
@@ -69,19 +61,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const administrador = !!usuario?.administrador;
     const permissoes = new Set(usuario?.permissoes ?? []);
     const pode = (permissao: string) => !!usuario && (administrador || permissoes.has(permissao));
-    const legado = (...perfis: Perfil[]) => !!usuario && perfis.includes(usuario.perfil);
     return {
       usuario,
-      carregando: temToken && me.isPending,
-      logado: temToken && !!usuario,
+      carregando: me.isPending && !me.isError,
+      logado: !!usuario,
       login,
       sair,
       pode,
       administrador,
-      isAdmin: legado("admin"),
-      isOperador: legado("admin", "operador"),
+      somenteProprias: !!usuario?.somente_proprias_aulas,
     };
-  }, [me.data, me.isPending, temToken, login, sair]);
+  }, [me.data, me.isPending, me.isError, login, sair]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -92,10 +82,6 @@ export function useAuth() {
   return c;
 }
 
-export function useTemToken() {
-  return useSyncExternalStore(
-    subscribe,
-    () => !!tokens.access,
-    () => false,
-  );
+export function sessaoExpirou(e: unknown) {
+  return e instanceof ApiError && e.status === 401;
 }

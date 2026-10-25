@@ -51,3 +51,15 @@ uv run python -m alembic upgrade head
 uv run python -m uvicorn app.main:app --reload --port 8000
 cd ../frontend && npm install && npm run dev
 ```
+
+
+## Contratos do core (fundação) para quem cria módulos
+
+- **Tabelas do core (nomes fixos, podem receber FK):** `usuario`, `perfil_acesso`, `identidade`, `auditoria`, `config_email`, `config_ia` (e auxiliares `refresh_token`, `recuperacao_senha`, `rate_limit_evento`). Single-tenant: nada de `tenant_id`.
+- **Rotas de um módulo:** crie `backend/app/modules/<nome>/routes.py` com `router` (protegido: o login é exigido no include) e, se tiver autenticação própria (webhook, chave de API, app do aluno), `router_publico`. O `main.py` descobre sozinho. Tarefas periódicas: `modules/<nome>/tarefas.py` chamando `app.worker.registrar_tarefa`.
+- **Permissão é negada por padrão:** acrescente a regra da rota em `app/core/permissoes.py` (`adicionar_regras` ou `_REGRAS`). `tests/test_cobertura_rotas.py` falha se alguma rota ficar sem regra ou sem login.
+- **Perfil Professor:** use `ctx.somente_proprias_aulas()` e `escopo.filtrar_proprias(ctx, query, Aula.profissional_id)`; registre uma vez `escopo.registrar_resolvedor_profissional(fn)` (ver `app/core/escopo.py`).
+- **Arquivos:** `storage.registrar_categoria(...)`, salvar com `storage.salvar` (caminho RELATIVO no banco), servir por `/api/arquivos/...` (login + permissão da categoria) ou `storage.link_publico` (link assinado com prazo).
+- **Segredos de integração:** cifrar com `app.core.segredos.cifrar_texto`; cadastrados pela tela, nunca em código nem no `.env` de negócio.
+- **Frontend:** o navegador só fala com `/bff/*` (Next); tokens vivem em cookies httpOnly. Itens `planejado: true` em `components/mayacorp/nav.ts` viram clicáveis quando a tela existir.
+- **Perfis padrão:** Full, Professor e Secretária (outros pela matriz de permissões).

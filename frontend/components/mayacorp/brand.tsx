@@ -32,20 +32,15 @@ export function ClientLogo({ className, compacto }: { className?: string; compac
   );
 }
 
-/** Marca do produto MayaJus (telas públicas não mostram o nome do cliente). */
-export function MayaJusLogo({ className, claro }: { className?: string; claro?: boolean }) {
+/** Marca do estúdio nas telas públicas (nome e logo vêm do banco; padrão neutro "Pilates"). */
+export function MarcaLogo({ className, claro }: { className?: string; claro?: boolean }) {
+  const { nome_exibicao } = useBrand();
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <div className="grid size-11 shrink-0 place-items-center rounded-xl brand-gradient text-white shadow-lg shadow-brand/25 ring-1 ring-white/15">
-        <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3.5 3.5 0 0 0 6 0L5 7Zm14 0-3 7a3.5 3.5 0 0 0 6 0l-3-7Z" />
-        </svg>
-      </div>
+      <ClientLogo className="size-11" />
       <div>
-        <p className={cn("text-lg leading-tight font-semibold tracking-tight", claro ? "text-white" : "text-foreground")}>
-          Maya<span className="text-brand">Jus</span>
-        </p>
-        <p className={cn("text-xs", claro ? "text-white/60" : "text-muted-foreground")}>Gestão para escritórios de advocacia</p>
+        <p className={cn("text-lg leading-tight font-semibold tracking-tight", claro ? "text-white" : "text-foreground")}>{nome_exibicao}</p>
+        <p className={cn("text-xs", claro ? "text-white/60" : "text-muted-foreground")}>Gestão do estúdio</p>
       </div>
     </div>
   );
@@ -56,7 +51,7 @@ function useVersao() {
   const { data } = useQuery({
     queryKey: ["versao-no-ar"],
     queryFn: async () => {
-      const r = await fetch(`${API_URL}/health`);
+      const r = await fetch(`${API_URL}/health`, { credentials: "same-origin" });
       return ((await r.json()) as { versao?: string }).versao;
     },
     staleTime: 30 * 60_000,
@@ -65,13 +60,13 @@ function useVersao() {
   return data && data !== "dev" ? data : VERSAO;
 }
 
-export function MayaCorpAssinatura({ className, versao = true }: { className?: string; versao?: boolean }) {
+export function VersaoRodape({ className }: { className?: string }) {
   const numero = useVersao();
   return (
     <p className={cn("flex items-center gap-1.5 text-xs", className)}>
       <span className="inline-block size-1.5 rounded-full bg-brand" />
-      Uma solução <span className="font-semibold tracking-tight">MayaCorp</span>
-      {versao && <span className="rounded bg-current/10 px-1.5 py-px font-mono text-[10px] opacity-80">{numero}</span>}
+      Sistema do estúdio
+      <span className="rounded bg-current/10 px-1.5 py-px font-mono text-[10px] opacity-80">{numero}</span>
     </p>
   );
 }
