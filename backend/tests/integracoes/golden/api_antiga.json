@@ -1,0 +1,1377 @@
+{
+ "cenario": {
+  "unidade": {
+   "nome": "Studio Golden",
+   "capacidade": 4
+  },
+  "tipo_servico": "Pilates",
+  "profissional": "Paula Golden",
+  "plano": {
+   "nome": "Plano Golden 2x",
+   "valor": "300.00",
+   "aulas": 2
+  },
+  "tokens": [
+   {
+    "nome": "Chatbot Golden",
+    "valor": "pilates_golden_ativo",
+    "ativo": true
+   },
+   {
+    "nome": "Empresa Parada",
+    "valor": "pilates_golden_inativo",
+    "ativo": false
+   }
+  ],
+  "alunos": [
+   {
+    "cd": 101,
+    "nome": "Ana Golden",
+    "cpf": "529.982.247-25",
+    "email": "ana@exemplo.invalid",
+    "status": "ATIVO",
+    "telefones": [
+     "(15) 99776-2467",
+     "1133334444"
+    ]
+   },
+   {
+    "cd": 102,
+    "nome": "Bruno Golden",
+    "cpf": "111.444.777-35",
+    "email": "",
+    "status": "INATIVO",
+    "telefones": []
+   },
+   {
+    "cd": 103,
+    "nome": "Carla Golden Silva",
+    "cpf": "390.533.447-05",
+    "email": "carla@exemplo.invalid",
+    "status": "ATIVO",
+    "telefones": [
+     "5511988887777"
+    ]
+   }
+  ],
+  "contratos": [
+   {
+    "cd": 1,
+    "aluno": 101,
+    "inicio": "2026-01-05",
+    "fim": "2026-06-30",
+    "status": "ASSINADO",
+    "parcela": "300.00",
+    "total": "1800.00"
+   },
+   {
+    "cd": 2,
+    "aluno": 101,
+    "inicio": "2026-07-01",
+    "fim": "2026-12-31",
+    "status": "NAO_ASSINADO",
+    "parcela": "320.50",
+    "total": "1923.00"
+   },
+   {
+    "cd": 3,
+    "aluno": 103,
+    "inicio": "2026-02-01",
+    "fim": "2026-04-30",
+    "status": "ASSINADO_DIGITALMENTE",
+    "parcela": "150.00",
+    "total": "450.00"
+   }
+  ],
+  "contas": [
+   {
+    "contrato": 2,
+    "valor": "320.50",
+    "venc": "2026-09-10",
+    "comp": "2026-09",
+    "status": "PAGO",
+    "pag": "2026-09-08"
+   },
+   {
+    "contrato": 2,
+    "valor": "320.50",
+    "venc": "2026-10-10",
+    "comp": "2026-10",
+    "status": "ABERTO",
+    "pag": null
+   },
+   {
+    "contrato": 2,
+    "valor": "320.50",
+    "venc": "2026-08-10",
+    "comp": "2026-08",
+    "status": "ATRASADO",
+    "pag": null
+   },
+   {
+    "contrato": 2,
+    "valor": "320.50",
+    "venc": "2026-11-10",
+    "comp": "2026-11",
+    "status": "CANCELADO",
+    "pag": null
+   },
+   {
+    "contrato": 1,
+    "valor": "300.00",
+    "venc": "2099-03-10",
+    "comp": null,
+    "status": "ABERTO",
+    "pag": null
+   },
+   {
+    "contrato": 3,
+    "valor": "150.00",
+    "venc": "2026-03-05",
+    "comp": "2026-03",
+    "status": "PAGO",
+    "pag": "2026-03-05"
+   }
+  ],
+  "sessoes": [
+   {
+    "data": "2020-03-02",
+    "ini": "09:00",
+    "fim": "09:50",
+    "prof": true
+   },
+   {
+    "data": "2099-01-05",
+    "ini": "09:00",
+    "fim": "09:50",
+    "prof": true
+   },
+   {
+    "data": "2099-01-06",
+    "ini": "10:00",
+    "fim": "10:50",
+    "prof": false
+   },
+   {
+    "data": "2099-01-06",
+    "ini": "08:00",
+    "fim": "08:50",
+    "prof": true
+   },
+   {
+    "data": "2099-01-05",
+    "ini": "10:00",
+    "fim": "10:50",
+    "prof": true
+   }
+  ],
+  "reservas": [
+   {
+    "aluno": 101,
+    "sessao": 0,
+    "status": "CONCLUIDA"
+   },
+   {
+    "aluno": 101,
+    "sessao": 1,
+    "status": "RESERVADA"
+   },
+   {
+    "aluno": 101,
+    "sessao": 2,
+    "status": "RESERVADA"
+   },
+   {
+    "aluno": 101,
+    "sessao": 3,
+    "status": "CANCELADA"
+   },
+   {
+    "aluno": 103,
+    "sessao": 4,
+    "status": "RESERVADA"
+   }
+  ]
+ },
+ "chamadas": [
+  {
+   "id": "sem_chave",
+   "m": "GET",
+   "u": "/integracao/alunos",
+   "h": {},
+   "j": null,
+   "status": 401,
+   "resposta": {
+    "detail": "API key ausente"
+   }
+  },
+  {
+   "id": "chave_errada",
+   "m": "GET",
+   "u": "/integracao/alunos",
+   "h": {
+    "X-API-Key": "pilates_nao_existe"
+   },
+   "j": null,
+   "status": 401,
+   "resposta": {
+    "detail": "API key invalida"
+   }
+  },
+  {
+   "id": "token_inativo",
+   "m": "GET",
+   "u": "/integracao/alunos",
+   "h": {
+    "X-API-Key": "pilates_golden_inativo"
+   },
+   "j": null,
+   "status": 401,
+   "resposta": {
+    "detail": "API key invalida"
+   }
+  },
+  {
+   "id": "bearer_vazio",
+   "m": "GET",
+   "u": "/integracao/alunos",
+   "h": {
+    "Authorization": "Bearer "
+   },
+   "j": null,
+   "status": 401,
+   "resposta": {
+    "detail": "API key ausente"
+   }
+  },
+  {
+   "id": "esquema_basic",
+   "m": "GET",
+   "u": "/integracao/alunos",
+   "h": {
+    "Authorization": "Basic pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 401,
+   "resposta": {
+    "detail": "API key ausente"
+   }
+  },
+  {
+   "id": "bearer_ok",
+   "m": "GET",
+   "u": "/integracao/alunos",
+   "h": {
+    "Authorization": "Bearer pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 1,
+     "cdAluno": 101,
+     "dsNome": "Ana Golden",
+     "dsCPF": "529.982.247-25",
+     "dsEmail": "ana@exemplo.invalid",
+     "dsTelefone": "(15) 99776-2467",
+     "status": "ATIVO"
+    },
+    {
+     "id": 2,
+     "cdAluno": 102,
+     "dsNome": "Bruno Golden",
+     "dsCPF": "111.444.777-35",
+     "dsEmail": "",
+     "dsTelefone": null,
+     "status": "INATIVO"
+    },
+    {
+     "id": 3,
+     "cdAluno": 103,
+     "dsNome": "Carla Golden Silva",
+     "dsCPF": "390.533.447-05",
+     "dsEmail": "carla@exemplo.invalid",
+     "dsTelefone": "5511988887777",
+     "status": "ATIVO"
+    }
+   ]
+  },
+  {
+   "id": "alunos",
+   "m": "GET",
+   "u": "/integracao/alunos",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 1,
+     "cdAluno": 101,
+     "dsNome": "Ana Golden",
+     "dsCPF": "529.982.247-25",
+     "dsEmail": "ana@exemplo.invalid",
+     "dsTelefone": "(15) 99776-2467",
+     "status": "ATIVO"
+    },
+    {
+     "id": 2,
+     "cdAluno": 102,
+     "dsNome": "Bruno Golden",
+     "dsCPF": "111.444.777-35",
+     "dsEmail": "",
+     "dsTelefone": null,
+     "status": "INATIVO"
+    },
+    {
+     "id": 3,
+     "cdAluno": 103,
+     "dsNome": "Carla Golden Silva",
+     "dsCPF": "390.533.447-05",
+     "dsEmail": "carla@exemplo.invalid",
+     "dsTelefone": "5511988887777",
+     "status": "ATIVO"
+    }
+   ]
+  },
+  {
+   "id": "alunos_nome",
+   "m": "GET",
+   "u": "/integracao/alunos?nome=golden%20s",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 3,
+     "cdAluno": 103,
+     "dsNome": "Carla Golden Silva",
+     "dsCPF": "390.533.447-05",
+     "dsEmail": "carla@exemplo.invalid",
+     "dsTelefone": "5511988887777",
+     "status": "ATIVO"
+    }
+   ]
+  },
+  {
+   "id": "alunos_nome_minusc",
+   "m": "GET",
+   "u": "/integracao/alunos?nome=ANA",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 1,
+     "cdAluno": 101,
+     "dsNome": "Ana Golden",
+     "dsCPF": "529.982.247-25",
+     "dsEmail": "ana@exemplo.invalid",
+     "dsTelefone": "(15) 99776-2467",
+     "status": "ATIVO"
+    }
+   ]
+  },
+  {
+   "id": "alunos_status",
+   "m": "GET",
+   "u": "/integracao/alunos?status=inativo",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 2,
+     "cdAluno": 102,
+     "dsNome": "Bruno Golden",
+     "dsCPF": "111.444.777-35",
+     "dsEmail": "",
+     "dsTelefone": null,
+     "status": "INATIVO"
+    }
+   ]
+  },
+  {
+   "id": "alunos_limit",
+   "m": "GET",
+   "u": "/integracao/alunos?limit=2",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 1,
+     "cdAluno": 101,
+     "dsNome": "Ana Golden",
+     "dsCPF": "529.982.247-25",
+     "dsEmail": "ana@exemplo.invalid",
+     "dsTelefone": "(15) 99776-2467",
+     "status": "ATIVO"
+    },
+    {
+     "id": 2,
+     "cdAluno": 102,
+     "dsNome": "Bruno Golden",
+     "dsCPF": "111.444.777-35",
+     "dsEmail": "",
+     "dsTelefone": null,
+     "status": "INATIVO"
+    }
+   ]
+  },
+  {
+   "id": "alunos_limit_0",
+   "m": "GET",
+   "u": "/integracao/alunos?limit=0",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 422,
+   "resposta": {
+    "detail": [
+     {
+      "type": "greater_than_equal",
+      "loc": [
+       "query",
+       "limit"
+      ],
+      "msg": "Input should be greater than or equal to 1",
+      "input": "0",
+      "ctx": {
+       "ge": 1
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "alunos_limit_201",
+   "m": "GET",
+   "u": "/integracao/alunos?limit=201",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 422,
+   "resposta": {
+    "detail": [
+     {
+      "type": "less_than_equal",
+      "loc": [
+       "query",
+       "limit"
+      ],
+      "msg": "Input should be less than or equal to 200",
+      "input": "201",
+      "ctx": {
+       "le": 200
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "por_codigo",
+   "m": "GET",
+   "u": "/integracao/alunos/por-codigo/101",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": {
+    "id": 1,
+    "cdAluno": 101,
+    "dsNome": "Ana Golden",
+    "dsCPF": "529.982.247-25",
+    "dsEmail": "ana@exemplo.invalid",
+    "dsTelefone": "(15) 99776-2467",
+    "status": "ATIVO"
+   }
+  },
+  {
+   "id": "por_codigo_sem_tel",
+   "m": "GET",
+   "u": "/integracao/alunos/por-codigo/102",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": {
+    "id": 2,
+    "cdAluno": 102,
+    "dsNome": "Bruno Golden",
+    "dsCPF": "111.444.777-35",
+    "dsEmail": "",
+    "dsTelefone": null,
+    "status": "INATIVO"
+   }
+  },
+  {
+   "id": "por_codigo_404",
+   "m": "GET",
+   "u": "/integracao/alunos/por-codigo/999",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 404,
+   "resposta": {
+    "detail": "Aluno nao encontrado"
+   }
+  },
+  {
+   "id": "por_codigo_texto",
+   "m": "GET",
+   "u": "/integracao/alunos/por-codigo/abc",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 422,
+   "resposta": {
+    "detail": [
+     {
+      "type": "int_parsing",
+      "loc": [
+       "path",
+       "cd_aluno"
+      ],
+      "msg": "Input should be a valid integer, unable to parse string as an integer",
+      "input": "abc"
+     }
+    ]
+   }
+  },
+  {
+   "id": "tel_mascara",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone?telefone=(15)%2099776-2467",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 404,
+   "resposta": {
+    "detail": "Aluno nao encontrado"
+   }
+  },
+  {
+   "id": "tel_digitos",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone?telefone=15997762467",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 404,
+   "resposta": {
+    "detail": "Aluno nao encontrado"
+   }
+  },
+  {
+   "id": "tel_ddi",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone?telefone=%2B55%2015%2099776-2467",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 404,
+   "resposta": {
+    "detail": "Aluno nao encontrado"
+   }
+  },
+  {
+   "id": "tel_sem_nono",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone?telefone=(15)%209776-2467",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 404,
+   "resposta": {
+    "detail": "Aluno nao encontrado"
+   }
+  },
+  {
+   "id": "tel_segundo",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone?telefone=1133334444",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": {
+    "id": 1,
+    "cdAluno": 101,
+    "dsNome": "Ana Golden",
+    "dsCPF": "529.982.247-25",
+    "dsEmail": "ana@exemplo.invalid",
+    "dsTelefone": "1133334444",
+    "status": "ATIVO"
+   }
+  },
+  {
+   "id": "tel_carla",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone?telefone=11988887777",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": {
+    "id": 3,
+    "cdAluno": 103,
+    "dsNome": "Carla Golden Silva",
+    "dsCPF": "390.533.447-05",
+    "dsEmail": "carla@exemplo.invalid",
+    "dsTelefone": "5511988887777",
+    "status": "ATIVO"
+   }
+  },
+  {
+   "id": "tel_carla_ddi",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone?telefone=5511988887777",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": {
+    "id": 3,
+    "cdAluno": 103,
+    "dsNome": "Carla Golden Silva",
+    "dsCPF": "390.533.447-05",
+    "dsEmail": "carla@exemplo.invalid",
+    "dsTelefone": "5511988887777",
+    "status": "ATIVO"
+   }
+  },
+  {
+   "id": "tel_inexistente",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone?telefone=21999990000",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 404,
+   "resposta": {
+    "detail": "Aluno nao encontrado"
+   }
+  },
+  {
+   "id": "tel_curto",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone?telefone=99999999",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 404,
+   "resposta": {
+    "detail": "Aluno nao encontrado"
+   }
+  },
+  {
+   "id": "tel_letras",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone?telefone=abc",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 400,
+   "resposta": {
+    "detail": "Telefone invalido"
+   }
+  },
+  {
+   "id": "tel_ausente",
+   "m": "GET",
+   "u": "/integracao/alunos/por-telefone",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 422,
+   "resposta": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "query",
+       "telefone"
+      ],
+      "msg": "Field required",
+      "input": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "faturas",
+   "m": "GET",
+   "u": "/integracao/faturas?cdAluno=101",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 3,
+     "cdAluno": 101,
+     "contrato_id": 2,
+     "descricao": "Mensalidade Agosto/2026",
+     "competencia": "2026-08",
+     "valor": 320.5,
+     "vencimento": "2026-08-10",
+     "dt_pagamento": null,
+     "status": "atrasado"
+    },
+    {
+     "id": 1,
+     "cdAluno": 101,
+     "contrato_id": 2,
+     "descricao": "Mensalidade Setembro/2026",
+     "competencia": "2026-09",
+     "valor": 320.5,
+     "vencimento": "2026-09-10",
+     "dt_pagamento": "2026-09-08",
+     "status": "pago"
+    },
+    {
+     "id": 2,
+     "cdAluno": 101,
+     "contrato_id": 2,
+     "descricao": "Mensalidade Outubro/2026",
+     "competencia": "2026-10",
+     "valor": 320.5,
+     "vencimento": "2026-10-10",
+     "dt_pagamento": null,
+     "status": "aberto"
+    },
+    {
+     "id": 4,
+     "cdAluno": 101,
+     "contrato_id": 2,
+     "descricao": "Mensalidade Novembro/2026",
+     "competencia": "2026-11",
+     "valor": 320.5,
+     "vencimento": "2026-11-10",
+     "dt_pagamento": null,
+     "status": "cancelado"
+    },
+    {
+     "id": 5,
+     "cdAluno": 101,
+     "contrato_id": 1,
+     "descricao": "Mensalidade",
+     "competencia": null,
+     "valor": 300.0,
+     "vencimento": "2099-03-10",
+     "dt_pagamento": null,
+     "status": "aberto"
+    }
+   ]
+  },
+  {
+   "id": "faturas_aberto",
+   "m": "GET",
+   "u": "/integracao/faturas?cdAluno=101&status=aberto",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 2,
+     "cdAluno": 101,
+     "contrato_id": 2,
+     "descricao": "Mensalidade Outubro/2026",
+     "competencia": "2026-10",
+     "valor": 320.5,
+     "vencimento": "2026-10-10",
+     "dt_pagamento": null,
+     "status": "aberto"
+    },
+    {
+     "id": 5,
+     "cdAluno": 101,
+     "contrato_id": 1,
+     "descricao": "Mensalidade",
+     "competencia": null,
+     "valor": 300.0,
+     "vencimento": "2099-03-10",
+     "dt_pagamento": null,
+     "status": "aberto"
+    }
+   ]
+  },
+  {
+   "id": "faturas_pago",
+   "m": "GET",
+   "u": "/integracao/faturas?cdAluno=101&status=PAGO",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 1,
+     "cdAluno": 101,
+     "contrato_id": 2,
+     "descricao": "Mensalidade Setembro/2026",
+     "competencia": "2026-09",
+     "valor": 320.5,
+     "vencimento": "2026-09-10",
+     "dt_pagamento": "2026-09-08",
+     "status": "pago"
+    }
+   ]
+  },
+  {
+   "id": "faturas_atrasado",
+   "m": "GET",
+   "u": "/integracao/faturas?cdAluno=101&status=atrasado",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 3,
+     "cdAluno": 101,
+     "contrato_id": 2,
+     "descricao": "Mensalidade Agosto/2026",
+     "competencia": "2026-08",
+     "valor": 320.5,
+     "vencimento": "2026-08-10",
+     "dt_pagamento": null,
+     "status": "atrasado"
+    }
+   ]
+  },
+  {
+   "id": "faturas_status_livre",
+   "m": "GET",
+   "u": "/integracao/faturas?cdAluno=101&status=xyz",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": []
+  },
+  {
+   "id": "faturas_103",
+   "m": "GET",
+   "u": "/integracao/faturas?cdAluno=103",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 6,
+     "cdAluno": 103,
+     "contrato_id": 3,
+     "descricao": "Mensalidade Marco/2026",
+     "competencia": "2026-03",
+     "valor": 150.0,
+     "vencimento": "2026-03-05",
+     "dt_pagamento": "2026-03-05",
+     "status": "pago"
+    }
+   ]
+  },
+  {
+   "id": "faturas_sem",
+   "m": "GET",
+   "u": "/integracao/faturas?cdAluno=102",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": []
+  },
+  {
+   "id": "faturas_sem_param",
+   "m": "GET",
+   "u": "/integracao/faturas",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 422,
+   "resposta": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "query",
+       "cdAluno"
+      ],
+      "msg": "Field required",
+      "input": null
+     }
+    ]
+   }
+  },
+  {
+   "id": "contratos",
+   "m": "GET",
+   "u": "/integracao/contratos?cdAluno=101",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 2,
+     "cdContrato": 2,
+     "cdAluno": 101,
+     "plano": "Plano Golden 2x",
+     "profissional": "Paula Golden",
+     "unidade": "Studio Golden",
+     "dt_inicio": "2026-07-01",
+     "dt_fim": "2026-12-31",
+     "status": "NAO_ASSINADO",
+     "valor_parcela": 320.5,
+     "valor_total": 1923.0
+    },
+    {
+     "id": 1,
+     "cdContrato": 1,
+     "cdAluno": 101,
+     "plano": "Plano Golden 2x",
+     "profissional": "Paula Golden",
+     "unidade": "Studio Golden",
+     "dt_inicio": "2026-01-05",
+     "dt_fim": "2026-06-30",
+     "status": "ASSINADO",
+     "valor_parcela": 300.0,
+     "valor_total": 1800.0
+    }
+   ]
+  },
+  {
+   "id": "contratos_103",
+   "m": "GET",
+   "u": "/integracao/contratos?cdAluno=103",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "id": 3,
+     "cdContrato": 3,
+     "cdAluno": 103,
+     "plano": "Plano Golden 2x",
+     "profissional": "Paula Golden",
+     "unidade": "Studio Golden",
+     "dt_inicio": "2026-02-01",
+     "dt_fim": "2026-04-30",
+     "status": "ASSINADO_DIGITALMENTE",
+     "valor_parcela": 150.0,
+     "valor_total": 450.0
+    }
+   ]
+  },
+  {
+   "id": "contratos_sem",
+   "m": "GET",
+   "u": "/integracao/contratos?cdAluno=102",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": []
+  },
+  {
+   "id": "aulas",
+   "m": "GET",
+   "u": "/integracao/aulas?cdAluno=101",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "reserva_id": 3,
+     "cdAluno": 101,
+     "data": "2099-01-06",
+     "hora_inicio": "10:00:00",
+     "hora_fim": "10:50:00",
+     "tipo_servico": "Pilates",
+     "profissional": null,
+     "unidade": "Studio Golden",
+     "status": "RESERVADA"
+    },
+    {
+     "reserva_id": 4,
+     "cdAluno": 101,
+     "data": "2099-01-06",
+     "hora_inicio": "08:00:00",
+     "hora_fim": "08:50:00",
+     "tipo_servico": "Pilates",
+     "profissional": "Paula Golden",
+     "unidade": "Studio Golden",
+     "status": "CANCELADA"
+    },
+    {
+     "reserva_id": 2,
+     "cdAluno": 101,
+     "data": "2099-01-05",
+     "hora_inicio": "09:00:00",
+     "hora_fim": "09:50:00",
+     "tipo_servico": "Pilates",
+     "profissional": "Paula Golden",
+     "unidade": "Studio Golden",
+     "status": "RESERVADA"
+    },
+    {
+     "reserva_id": 1,
+     "cdAluno": 101,
+     "data": "2020-03-02",
+     "hora_inicio": "09:00:00",
+     "hora_fim": "09:50:00",
+     "tipo_servico": "Pilates",
+     "profissional": "Paula Golden",
+     "unidade": "Studio Golden",
+     "status": "CONCLUIDA"
+    }
+   ]
+  },
+  {
+   "id": "aulas_proximas",
+   "m": "GET",
+   "u": "/integracao/aulas?cdAluno=101&apenas_proximas=true",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "reserva_id": 3,
+     "cdAluno": 101,
+     "data": "2099-01-06",
+     "hora_inicio": "10:00:00",
+     "hora_fim": "10:50:00",
+     "tipo_servico": "Pilates",
+     "profissional": null,
+     "unidade": "Studio Golden",
+     "status": "RESERVADA"
+    },
+    {
+     "reserva_id": 4,
+     "cdAluno": 101,
+     "data": "2099-01-06",
+     "hora_inicio": "08:00:00",
+     "hora_fim": "08:50:00",
+     "tipo_servico": "Pilates",
+     "profissional": "Paula Golden",
+     "unidade": "Studio Golden",
+     "status": "CANCELADA"
+    },
+    {
+     "reserva_id": 2,
+     "cdAluno": 101,
+     "data": "2099-01-05",
+     "hora_inicio": "09:00:00",
+     "hora_fim": "09:50:00",
+     "tipo_servico": "Pilates",
+     "profissional": "Paula Golden",
+     "unidade": "Studio Golden",
+     "status": "RESERVADA"
+    }
+   ]
+  },
+  {
+   "id": "aulas_limit",
+   "m": "GET",
+   "u": "/integracao/aulas?cdAluno=101&limit=1",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "reserva_id": 3,
+     "cdAluno": 101,
+     "data": "2099-01-06",
+     "hora_inicio": "10:00:00",
+     "hora_fim": "10:50:00",
+     "tipo_servico": "Pilates",
+     "profissional": null,
+     "unidade": "Studio Golden",
+     "status": "RESERVADA"
+    }
+   ]
+  },
+  {
+   "id": "aulas_103",
+   "m": "GET",
+   "u": "/integracao/aulas?cdAluno=103",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": [
+    {
+     "reserva_id": 5,
+     "cdAluno": 103,
+     "data": "2099-01-05",
+     "hora_inicio": "10:00:00",
+     "hora_fim": "10:50:00",
+     "tipo_servico": "Pilates",
+     "profissional": "Paula Golden",
+     "unidade": "Studio Golden",
+     "status": "RESERVADA"
+    }
+   ]
+  },
+  {
+   "id": "aulas_sem",
+   "m": "GET",
+   "u": "/integracao/aulas?cdAluno=102",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": null,
+   "status": 200,
+   "resposta": []
+  },
+  {
+   "id": "msg_recebida",
+   "m": "POST",
+   "u": "/integracao/whatsapp-mensagens",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": {
+    "cdAluno": 101,
+    "direcao": "recebida",
+    "texto": "Oi, posso remarcar?",
+    "telefone": "5515997762467",
+    "data_iso": "2026-10-20T13:30:00Z"
+   },
+   "status": 200,
+   "resposta": {
+    "id": 1,
+    "cdAluno": 101,
+    "direcao": "recebida",
+    "enviado_em": "2026-10-20T13:30:00+00:00"
+   }
+  },
+  {
+   "id": "msg_enviada_maiuscula",
+   "m": "POST",
+   "u": "/integracao/whatsapp-mensagens",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": {
+    "cdAluno": 101,
+    "direcao": " ENVIADA ",
+    "texto": "Claro!",
+    "data_iso": "2026-10-20T13:31:00Z"
+   },
+   "status": 200,
+   "resposta": {
+    "id": 2,
+    "cdAluno": 101,
+    "direcao": "enviada",
+    "enviado_em": "2026-10-20T13:31:00+00:00"
+   }
+  },
+  {
+   "id": "msg_padrao_recebida",
+   "m": "POST",
+   "u": "/integracao/whatsapp-mensagens",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": {
+    "cdAluno": 103,
+    "texto": "Bom dia",
+    "data_iso": "2026-10-20T14:00:00Z",
+    "contrato_id": 999999
+   },
+   "status": 200,
+   "resposta": {
+    "id": 3,
+    "cdAluno": 103,
+    "direcao": "recebida",
+    "enviado_em": "2026-10-20T14:00:00+00:00"
+   }
+  },
+  {
+   "id": "msg_com_contrato",
+   "m": "POST",
+   "u": "/integracao/whatsapp-mensagens",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": {
+    "cdAluno": 101,
+    "texto": "Sobre o contrato",
+    "data_iso": "2026-10-20T14:05:00Z",
+    "contrato_id": 2
+   },
+   "status": 200,
+   "resposta": {
+    "id": 4,
+    "cdAluno": 101,
+    "direcao": "recebida",
+    "enviado_em": "2026-10-20T14:05:00+00:00"
+   }
+  },
+  {
+   "id": "msg_direcao_invalida",
+   "m": "POST",
+   "u": "/integracao/whatsapp-mensagens",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": {
+    "cdAluno": 101,
+    "direcao": "ida",
+    "texto": "x"
+   },
+   "status": 400,
+   "resposta": {
+    "detail": "direcao deve ser 'recebida' ou 'enviada'"
+   }
+  },
+  {
+   "id": "msg_aluno_404",
+   "m": "POST",
+   "u": "/integracao/whatsapp-mensagens",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": {
+    "cdAluno": 999,
+    "texto": "x"
+   },
+   "status": 404,
+   "resposta": {
+    "detail": "Aluno nao encontrado"
+   }
+  },
+  {
+   "id": "msg_sem_texto",
+   "m": "POST",
+   "u": "/integracao/whatsapp-mensagens",
+   "h": {
+    "X-API-Key": "pilates_golden_ativo"
+   },
+   "j": {
+    "cdAluno": 101
+   },
+   "status": 422,
+   "resposta": {
+    "detail": [
+     {
+      "type": "missing",
+      "loc": [
+       "body",
+       "texto"
+      ],
+      "msg": "Field required",
+      "input": {
+       "cdAluno": 101
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "msg_sem_chave",
+   "m": "POST",
+   "u": "/integracao/whatsapp-mensagens",
+   "h": {},
+   "j": {
+    "cdAluno": 101,
+    "texto": "x"
+   },
+   "status": 401,
+   "resposta": {
+    "detail": "API key ausente"
+   }
+  }
+ ],
+ "mensagens_gravadas": [
+  {
+   "cdAluno": 101,
+   "direcao": "recebida",
+   "telefone": "5515997762467",
+   "mensagem": "Oi, posso remarcar?",
+   "status": "received",
+   "contrato_id": null,
+   "tipo": "manual"
+  },
+  {
+   "cdAluno": 101,
+   "direcao": "enviada",
+   "telefone": "",
+   "mensagem": "Claro!",
+   "status": "sent",
+   "contrato_id": null,
+   "tipo": "manual"
+  },
+  {
+   "cdAluno": 103,
+   "direcao": "recebida",
+   "telefone": "",
+   "mensagem": "Bom dia",
+   "status": "received",
+   "contrato_id": null,
+   "tipo": "manual"
+  },
+  {
+   "cdAluno": 101,
+   "direcao": "recebida",
+   "telefone": "",
+   "mensagem": "Sobre o contrato",
+   "status": "received",
+   "contrato_id": 2,
+   "tipo": "manual"
+  }
+ ],
+ "token_usado": {
+  "pilates_golden_inativo": false,
+  "pilates_golden_ativo": true
+ }
+}
