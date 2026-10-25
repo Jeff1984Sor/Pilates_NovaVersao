@@ -910,6 +910,70 @@ def sec_avulsa():
     escrever("avulsa", CENARIOS=resultados)
 
 
+def sec_receita():
+    from django.utils.text import slugify
+    from studiopilates.core import receita_saude as rs
+
+    D = dt.date
+    CPF_PROF, CPF_ALUNO, CPF_PAI = "52998224725", "11144477735", "39053344705"
+
+    def cfg(**kw):
+        base = dict(cpf_profissional=CPF_PROF, registro_profissional="79013-F", codigo_ocupacao="231", descricao_padrao="Aulas de Pilates")
+        base.update(kw)
+        return SimpleNamespace(**base)
+
+    def aluno(cpf=CPF_ALUNO, pagador="", sem_cpf=False):
+        return SimpleNamespace(dsCPF=cpf, sem_cpf=sem_cpf, cpf_pagador_recibo=pagador)
+
+    def conta(valor="150.00", pago=D(2026, 10, 5), status="PAGO", descricao="", competencia="2026-10", venc=D(2026, 10, 5)):
+        return SimpleNamespace(status=status, dtPagamento=pago, valor=Decimal(valor), descricao=descricao, competencia=competencia, dtVencimento=venc)
+
+    # cada caso: rotulo, parametros (dicts simples para o teste reconstruir), saida do antigo
+    casos = []
+
+    def caso(rotulo, itens_def, config_def):
+        itens = [(conta(**c), aluno(**a)) for c, a in itens_def]
+        config = None if config_def is None else cfg(**config_def)
+        conteudo, erros = rs.gerar_arquivo(itens, config)
+        casos.append({"rotulo": rotulo, "itens": itens_def, "config": config_def, "conteudo": conteudo, "erros": erros})
+
+    um = [({}, {})]
+    caso("simples", um, {})
+    caso("valor_1234_50", [({"valor": "1234.5"}, {})], {})
+    caso("pagador_diferente", [({}, {"pagador": "390.533.447-05"})], {})
+    caso("descricao_acentos_e_ponto_virgula", [({"descricao": "Sessão; fisioterapia\ncom acentuação " + "x" * 400, "competencia": ""}, {})], {})
+    caso("competencia_ja_na_descricao", [({"descricao": "Mensalidade 2026-10"}, {})], {})
+    caso("sem_descricao_usa_padrao", [({"descricao": "", "competencia": ""}, {})], {})
+    caso("varias_linhas_ordem_dada", [({"pago": D(2026, 10, 20), "valor": "200"}, {}), ({"pago": D(2026, 10, 5)}, {})], {})
+    caso("config_none", um, None)
+    caso("cpf_profissional_invalido", um, {"cpf_profissional": "123"})
+    caso("ocupacao_invalida", um, {"codigo_ocupacao": "999"})
+    caso("registro_longo_e_com_espacos", um, {"registro_profissional": "  1234567890123456789  "})
+    caso("registro_vazio", um, {"registro_profissional": ""})
+    caso("sem_itens", [], {})
+    caso("nao_paga", [({"status": "ABERTO"}, {})], {})
+    caso("sem_data_pagamento", [({"pago": None}, {})], {})
+    caso("valor_zero", [({"valor": "0"}, {})], {})
+    caso("aluno_sem_cpf_campo_vazio", [({}, {"cpf": ""})], {})
+    caso("aluno_sem_cpf_flag", [({}, {"sem_cpf": True})], {})
+    caso("cpf_aluno_invalido", [({}, {"cpf": "12345678900"})], {})
+    caso("cpf_pagador_invalido", [({}, {"pagador": "11111111111"})], {})
+    caso("anos_misturados", [({"pago": D(2025, 12, 30)}, {}), ({"pago": D(2026, 1, 2)}, {})], {})
+    caso("mil_linhas", [({}, {})] * 1000, {})
+    caso("mil_e_uma_linhas", [({}, {})] * 1001, {})
+    caso("varios_erros_juntos", [({"status": "ABERTO", "valor": "0", "pago": None}, {"cpf": "1"})], {"cpf_profissional": "1", "codigo_ocupacao": "1"})
+    # resumo curto para os casos grandes (mil linhas): guarda só o tamanho
+    for c in casos:
+        if c["rotulo"] in ("mil_linhas",):
+            c["conteudo"] = ("QTD_LINHAS", c["conteudo"].count("\r\n"), c["conteudo"].split("\r\n")[0])
+            c["itens"] = ("REPETIR", 1000)
+        if c["rotulo"] == "mil_e_uma_linhas":
+            c["itens"] = ("REPETIR", 1001)
+
+    nomes = [(n, i, slugify(n) or i) for n, i in [("Ana Souza", 1), ("José da Conceição", 2), ("", 3), ("  Maria--Lúcia  ", 4), ("O'Neil & Co.", 5), ("123", 6)]]
+    escrever("receita_saude", CASOS=casos, SLUGS=nomes, MAX_LINHAS=rs.MAX_LINHAS, OCUPACOES=rs.OCUPACOES)
+
+
 SECOES = {
     "precos": sec_precos,
     "parcelas": sec_parcelas,
@@ -921,6 +985,7 @@ SECOES = {
     "agenda": sec_agenda,
     "financeiro": sec_financeiro,
     "avulsa": sec_avulsa,
+    "receita": sec_receita,
 }
 
 
