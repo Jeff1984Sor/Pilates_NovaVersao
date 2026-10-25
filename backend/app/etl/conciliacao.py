@@ -242,7 +242,7 @@ class Conciliacao:
             "midia_divergente": "Arquivos de mídia com hash divergente após a cópia",
             "fks_orfas_origem": "FKs órfãs na origem",
             "perfis": "Perfis de acesso: mapeamento antigo → novo",
-            "perfis_desconhecidos": "Perfis desconhecidos (revisar)",
+            "usuarios_perfil": "Usuários e o perfil que receberam (reatribuir quem deve ser Secretária)",
             "usuarios_revisar": "Usuários para revisar",
             "senhas": "Hashes de senha migrados",
             "preenchimento_core": "Colunas do core preenchidas automaticamente",

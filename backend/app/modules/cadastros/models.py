@@ -263,6 +263,7 @@ class IntegracaoToken(Base, Timestamped, CodigoLegado):
     """Chave de API de uma empresa integradora.
 
     O valor do token NÃO fica em claro: guarda-se o SHA-256 (`token_hash`) e os 4 últimos caracteres.
+    Tokens migrados do antigo vêm sem valor (`token_hash` nulo, `precisa_regenerar`): o valor é gerado de novo na tela.
     O integrador continua enviando o mesmo valor; o sistema compara o hash.
     """
 
@@ -270,7 +271,8 @@ class IntegracaoToken(Base, Timestamped, CodigoLegado):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(120))
-    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
-    token_final: Mapped[str] = mapped_column(String(4))
+    token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    token_final: Mapped[str | None] = mapped_column(String(4))
+    precisa_regenerar: Mapped[bool] = mapped_column(Boolean, default=False)  # migrado sem o valor: gerar um novo
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     ultimo_uso: Mapped[datetime | None] = mapped_column(UtcDateTime())

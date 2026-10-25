@@ -248,11 +248,19 @@ def test_usuarios_hash_django_copiado_e_perfis(ensaio):
         )
     )
     assert perfis["Professor"] == 3  # 2 com login + 1 sem login
-    assert any("Coordenação" in x for x in conc.alertas["perfis_desconhecidos"])
+    # todo perfil que não é professor vira Full (o ETL não reduz acesso); cada usuário é listado com o perfil recebido
+    assert perfis.get("Full", 0) == 6 and set(perfis) == {"Professor", "Full"}
+    listados = {x.split(" → ")[0]: x.split(" → ")[1] for x in conc.alertas["usuarios_perfil"]}
+    assert len(listados) == 8 and set(listados.values()) == {"Full", "Professor"}
+    assert listados["vera.coord@exemplo.invalid"] == "Full" and listados["recepcao.solta"] == "Full"
+    assert listados["paula.prof@exemplo.invalid"] == "Professor"
+    assert (
+        escalar(eng, "select count(*) from perfil_acesso where nome = 'Secretária'") == 1
+    )  # existe para reatribuição manual
     admin = q(
         eng, "select pa.nome from usuario u join perfil_acesso pa on pa.id = u.perfil_acesso_id where u.login = 'admin'"
     )
-    assert admin == [("Administrador",)]
+    assert admin == [("Full",)]
 
 
 def test_profissional_sem_login(ensaio):
@@ -261,21 +269,31 @@ def test_profissional_sem_login(ensaio):
     assert escalar(eng, "select count(*) from profissional where usuario_id is not null") == 7
 
 
-def test_segredos_cifrados_e_token_preservado(ensaio):
-    eng, _, chave, *_ = ensaio
-    cif = tf.Cifrador(chave)
-    wa = q(eng, "select credencial_cifrado, provedor from whatsapp_config")[0]
-    assert (
-        wa[0] != "FAKE-WASENDER-TOKEN-0001"
-        and cif.decifrar(wa[0]) == "FAKE-WASENDER-TOKEN-0001"
-        and wa[1] == "wasender"
-    )
-    tp = q(eng, "select partner_api_key_cifrado, place_api_key_cifrado, webhook_token_cifrado from totalpass_config")[0]
-    assert [cif.decifrar(x) for x in tp] == ["FAKE-PARTNER-KEY-AAAA", "FAKE-PLACE-KEY-BBBB", "FAKE-WEBHOOK-TOKEN-CCCC"]
-    h = hashlib.sha256(b"pilates_FAKE_token_integracao_0001").hexdigest()
-    assert escalar(eng, "select count(*) from integracao_token where token_hash = :h", h=h) == 1
-    # nenhum segredo em claro em lugar algum
-    assert escalar(eng, "select count(*) from whatsapp_config where credencial_cifrado like '%FAKE%'") == 0
+def test_nenhum_segredo_e_migrado(ensaio):
+    eng, conc, *_ = ensaio
+    wa = q(eng, "select credencial_cifrado, provedor, url_api, usuario_api from whatsapp_config")[0]
+    assert wa[0] is None and wa[1] == "wasender" and wa[2].startswith("https://")  # campos não secretos migram
+    tp = q(
+        eng,
+        "select partner_api_key_cifrado, place_api_key_cifrado, webhook_token_cifrado, place_id from totalpass_config",
+    )[0]
+    assert tp[:3] == (None, None, None) and tp[3] == "9999"
+    # tokens de integração: registros sem o valor, marcados para regenerar
+    toks = q(eng, "select nome, ativo, token_hash, token_final, precisa_regenerar from integracao_token order by id")
+    assert len(toks) == 3 and all(t[2] is None and t[3] is None and t[4] for t in toks)
+    assert [t[1] for t in toks] == [1, 0, 1]
+    assert any("token(s) de integração migrados SEM o valor" in p for p in conc.alertas["pendencias"])
+    # nenhum valor secreto fake aparece em lugar nenhum do banco novo
+    with eng.connect() as c:
+        tabelas = [r[0] for r in c.execute(text("select name from sqlite_master where type='table'"))]
+        for t in tabelas:
+            for col in [r[1] for r in c.execute(text(f"pragma table_info({t})"))]:
+                n = c.execute(
+                    text(
+                        f"select count(*) from {t} where cast({col} as text) like '%FAKE-%' or cast({col} as text) like '%pilates_FAKE%'"
+                    )
+                ).scalar()
+                assert n == 0, (t, col)
 
 
 def test_email_adiado_quando_core_nao_tem_config_email(ensaio):
@@ -284,7 +302,7 @@ def test_email_adiado_quando_core_nao_tem_config_email(ensaio):
     assert any("E-mail SMTP NÃO migrado" in p for p in conc.alertas["pendencias"])
 
 
-def test_email_carregado_cifrado_quando_config_email_existe(engine, tmp_path, master_key):
+def test_email_carregado_sem_a_senha_quando_config_email_existe(engine, tmp_path, master_key):
     with engine.begin() as c:
         c.execute(
             text(
@@ -294,9 +312,8 @@ def test_email_carregado_cifrado_quando_config_email_existe(engine, tmp_path, ma
         )
     conc, _ = _rodar(engine, tmp_path, master_key, midia=False)
     assert conc.ok
-    host, senha = q(engine, "select host, senha_cifrado from config_email")[0]
-    assert host == "smtp.exemplo.invalid" and senha != "FAKE-SMTP-PASS-9"
-    assert tf.Cifrador(master_key).decifrar(senha) == "FAKE-SMTP-PASS-9"
+    host, senha, usuario = q(engine, "select host, senha_cifrado, usuario from config_email")[0]
+    assert host == "smtp.exemplo.invalid" and senha is None and usuario == "envio@exemplo.invalid"
     assert not any("E-mail SMTP NÃO migrado" in p for p in conc.alertas.get("pendencias", []))
 
 
@@ -493,5 +510,5 @@ def test_caminhos_de_midia():
 
 def test_classificar_perfil():
     assert classificar_perfil("Professor") == "Professor" and classificar_perfil("PROFESSORA de pilates") == "Professor"
-    assert classificar_perfil("Administrador") == "Administrador" and classificar_perfil("Padrao") == "Recepção/Gestão"
-    assert classificar_perfil("Coordenação") is None
+    assert classificar_perfil("Administrador") == "Full" and classificar_perfil("Padrao") == "Full"
+    assert classificar_perfil("Coordenação") == "Full" and classificar_perfil("") == "Full"

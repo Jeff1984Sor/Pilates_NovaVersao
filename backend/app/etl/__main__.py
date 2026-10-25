@@ -39,9 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--relatorio", type=Path, required=True, help="arquivo .md do relatório (grava também .json ao lado)"
     )
-    p.add_argument(
-        "--master-key", default=os.environ.get("MASTER_KEY"), help="chave Fernet; padrão: variável MASTER_KEY"
-    )
+    p.add_argument("--master-key", default=os.environ.get("MASTER_KEY"), help="(não usada: o ETL não copia segredos)")
     p.add_argument(
         "--criar-esquema",
         action="store_true",
@@ -50,14 +48,6 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--semente", type=int, default=20261025, help="semente da amostra aleatória")
     a = p.parse_args(argv)
 
-    if not a.master_key:
-        from app.core.config import settings
-
-        a.master_key = settings.master_key
-        print(
-            "AVISO: MASTER_KEY não informada; usando a do ambiente do app (em prod/hml precisa ser a real).",
-            file=sys.stderr,
-        )
     if bool(a.midia_origem) != bool(a.midia_destino) and not a.simular:
         p.error("--midia-origem e --midia-destino devem ser usados juntos")
 

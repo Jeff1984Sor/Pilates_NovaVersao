@@ -35,8 +35,8 @@ from app.modules.contratos.models import FormaPagamento, StatusAssinatura
 from app.modules.financeiro.models import RecorrenciaPagar, StatusPagar, StatusReceber, TipoMovimento
 from app.modules.integracoes.models import ProvedorWhatsapp
 
-PERFIS_NOVOS = ["Administrador", "Recepção/Gestão", "Financeiro", "Professor", "Somente leitura"]
-PERFIL_PADRAO_DESCONHECIDO = "Recepção/Gestão"
+PERFIS_NOVOS = ["Full", "Professor", "Secretária"]
+PERFIL_PADRAO = "Full"  # o ETL não reduz o acesso de ninguém: só "professor" tinha restrição no antigo
 RANK_STATUS_RESERVA = {
     "CONCLUIDA": 5,
     "FALTOU_SEM_AVISAR": 4,
@@ -61,20 +61,9 @@ def _sem_acento(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c)).lower().strip()
 
 
-def classificar_perfil(nome: str) -> str | None:
-    """Perfil antigo -> perfil do catálogo novo (por nome). None = desconhecido."""
-    n = _sem_acento(nome or "")
-    if "professor" in n:  # a regra antiga: "perfil contém 'professor'"
-        return "Professor"
-    if "admin" in n:
-        return "Administrador"
-    if "financ" in n:
-        return "Financeiro"
-    if any(p in n for p in ("recep", "gest", "padrao", "secret")):
-        return "Recepção/Gestão"
-    if any(p in n for p in ("leitura", "visualiz", "consulta")):
-        return "Somente leitura"
-    return None
+def classificar_perfil(nome: str) -> str:
+    """Perfil antigo -> perfil novo. Contém "professor" (regra do antigo) -> Professor; qualquer outro -> Full."""
+    return "Professor" if "professor" in _sem_acento(nome or "") else PERFIL_PADRAO
 
 
 class Carga:
@@ -83,7 +72,7 @@ class Carga:
         fonte: Fonte,
         destino_url: str,
         *,
-        master_key: str,
+        master_key: str | None = None,
         simular: bool = False,
         midia_origem: Path | None = None,
         midia_destino: Path | None = None,
@@ -94,7 +83,6 @@ class Carga:
         registrar_modelos()
         self.fonte = fonte
         self.simular = simular
-        self.cif = tf.Cifrador(master_key)
         self.midia = Midia(midia_origem, midia_destino, simular)
         self.conc = Conciliacao(
             modo="simulação (nada gravado)" if simular else "gravação",
@@ -371,7 +359,7 @@ class Carga:
                     {
                         "nome": nome,
                         "descricao": "Criado pelo ETL (permissões a definir pelo core)",
-                        "administrador": nome == "Administrador",
+                        "administrador": nome == "Full",
                         "sistema": True,
                         "permissoes": [],
                     },
@@ -384,12 +372,6 @@ class Carga:
         self.mapas["core_perfilacesso"] = {}
         for p in self.fonte.linhas("core_perfilacesso"):
             alvo = classificar_perfil(p["dsPerfilAcesso"])
-            if alvo is None:
-                alvo = PERFIL_PADRAO_DESCONHECIDO
-                self.conc.alerta(
-                    "perfis_desconhecidos",
-                    f"Perfil antigo '{p['dsPerfilAcesso']}' (cd {p['cdPerfilAcesso']}) sem equivalente: usado '{alvo}'. Revisar.",
-                )
             self.conc.alerta("perfis", f"'{p['dsPerfilAcesso']}' (cd {p['cdPerfilAcesso']}) → {alvo}")
             self.mapas["core_perfilacesso"][p["id"]] = self._perfil_novo[alvo]
         linha.destino = len(self.mapas["core_perfilacesso"])
@@ -423,13 +405,15 @@ class Carga:
             else:
                 perfil_id = None
             if tf.booleano(u["is_superuser"]):
-                perfil_id = self._perfil_novo["Administrador"]
+                perfil_id = self._perfil_novo["Full"]
             elif perfil_id is None:
-                perfil_id = self._perfil_novo[PERFIL_PADRAO_DESCONHECIDO]
+                perfil_id = self._perfil_novo[PERFIL_PADRAO]
                 self.conc.alerta(
                     "usuarios_revisar",
-                    f"Usuário '{username}' sem profissional/perfil: recebeu '{PERFIL_PADRAO_DESCONHECIDO}'. Revisar.",
+                    f"Usuário '{username}' sem profissional/perfil: recebeu '{PERFIL_PADRAO}' (como no antigo, acesso total).",
                 )
+            nome_perfil = next((k for k, v in self._perfil_novo.items() if v == perfil_id), "?")
+            self.conc.alerta("usuarios_perfil", f"{username or u['id']} → {nome_perfil}")
             mapeados = set(self.mapas["auth_user"].values())
             if email in existentes and existentes[email] not in mapeados:  # já migrado numa execução anterior
                 self.mapas["auth_user"][u["id"]] = existentes[email]
@@ -746,13 +730,12 @@ class Carga:
         )
 
         def mapper_tk(r: dict) -> dict:
-            tok = r["token"] or ""
-            if not tok:
-                raise Descartar("token vazio")
+            # o valor do token NÃO é migrado (será recadastrado/regenerado na tela do sistema novo)
             return {
                 "nome": r["nome"],
-                "token_hash": tf.hash_token(tok),
-                "token_final": tok[-4:],
+                "token_hash": None,
+                "token_final": None,
+                "precisa_regenerar": True,
                 "ativo": tf.booleano(r["ativo"], True),
                 "ultimo_uso": tf.como_instante(r["ultimo_uso"]),
                 **self._ts(r),
@@ -761,9 +744,19 @@ class Carga:
         self._carregar(
             "integracao_token", "core_integracaotoken", "integracao_token", chave=lambda r: r["id"], mapper=mapper_tk
         )
+        n_tok = len(self.fonte.linhas("core_integracaotoken"))
+        if n_tok:
+            self.conc.alerta(
+                "pendencias",
+                f"{n_tok} token(s) de integração migrados SEM o valor (marcados precisa_regenerar): gerar novos na tela e repassar aos integradores.",
+            )
+        self.conc.alerta(
+            "pendencias",
+            "Cadastrar na tela do sistema novo: credencial WhatsApp (Wasender/Evolution) por unidade, chaves e token do webhook TotalPass, senha SMTP.",
+        )
         self.conc.alerta(
             "info",
-            "Tokens de integração: o valor original NÃO é guardado; entra o SHA-256 (token_hash). Os integradores continuam enviando o mesmo valor.",
+            "Segredos NÃO migrados (decisão do Jefferson): credenciais WhatsApp, chaves/token do TotalPass, senha SMTP e valor dos tokens de integração. Colunas *_cifrado ficam NULL.",
         )
 
     # ----------------------------------------------------------------------------------- alunos
@@ -1492,7 +1485,6 @@ class Carga:
 
     # ----------------------------------------------------------------------------------- integrações e comunicação
     def _integracoes(self) -> None:
-        cif = self.cif
 
         def mapper_wa(r: dict) -> dict:
             inst = tf.texto(r["evolution_instance"])
@@ -1502,7 +1494,7 @@ class Carga:
                 "provedor": ProvedorWhatsapp.evolution if inst else ProvedorWhatsapp.wasender,
                 "url_api": tf.texto(r["evolution_url"]),
                 "usuario_api": tf.texto(r["evolution_usuario"]),
-                "credencial_cifrado": cif.cifrar(r["evolution_senha"]),
+                "credencial_cifrado": None,
                 "instancia": inst,
                 "acompanhar_envios": tf.booleano(r["acompanhar_envios"]),
                 "numero_acompanhamento": tf.texto(r["numero_acompanhamento"]),
@@ -1548,9 +1540,9 @@ class Carga:
             return {
                 "unidade_id": self._fk("core_unidade", r["unidade_id"], obrigatorio=True),
                 "ativo": tf.booleano(r["ativo"], True),
-                "partner_api_key_cifrado": cif.cifrar(r["partner_api_key"]),
-                "place_api_key_cifrado": cif.cifrar(r["place_api_key"]),
-                "webhook_token_cifrado": cif.cifrar(r["webhook_token"]),
+                "partner_api_key_cifrado": None,
+                "place_api_key_cifrado": None,
+                "webhook_token_cifrado": None,
                 "place_id": tf.texto(r["place_id"]),
                 "criar_aluno_automatico": tf.booleano(r["criar_aluno_automatico"], True),
                 "somente_dia": tf.booleano(r["somente_dia"], True),
@@ -1620,7 +1612,7 @@ class Carga:
             "remetente": col("remetente", "remetente_email", "de_email"),
             "ativo": col("ativo"),
         }
-        faltam = [k for k in ("host", "senha") if mapa[k] is None]
+        faltam = [k for k in ("host",) if mapa[k] is None]
         if faltam:
             for r in rows:
                 linha.adiar(
@@ -1636,10 +1628,7 @@ class Carga:
             linha.informativo = True
             return
         for r in rows:
-            senha = self.cif.cifrar(r["senha"])
-            ct = t.c[mapa["senha"]]
-            valor_senha = senha.encode() if senha and "BLOB" in str(ct.type).upper() else senha
-            valores = {mapa["host"]: r["host"], mapa["senha"]: valor_senha}
+            valores = {mapa["host"]: r["host"]}  # a senha SMTP NÃO é migrada (recadastrar na tela)
             for k, v in (
                 ("porta", r["porta"]),
                 ("usuario", r["usuario"]),
