@@ -115,7 +115,7 @@ def gerar_xlsx(tabelas: list[Tabela]) -> bytes:
                 elif isinstance(c.value, date):
                     c.number_format = "dd/mm/yyyy"
         for idx, col in enumerate(t.colunas, start=1):
-            maior = max([len(str(col))] + [len(str(_texto(l[idx - 1]))) for l in t.linhas if idx - 1 < len(l)] or [10])
+            maior = max([len(str(col))] + [len(str(_texto(linha[idx - 1]))) for linha in t.linhas if idx - 1 < len(linha)] or [10])
             ws.column_dimensions[get_column_letter(idx)].width = min(max(maior + 2, 10), 60)
         ws.freeze_panes = "A2"
     buf = io.BytesIO()

@@ -127,7 +127,7 @@ def _contas_do_aluno(db: Session, aluno: Aluno, ids: list[int]) -> list[ContaRec
     contas = db.scalars(select(ContaReceber).where(ContaReceber.id.in_(ids), ContaReceber.aluno_id == aluno.id)).all()
     if len(contas) != len(set(ids)):
         raise ErroDeNegocio("Alguma conta marcada não pertence a este aluno.", 422)
-    return sorted(contas, key=rs.chave_de_ordenacao)
+    return sorted(contas, key=lambda c: rs.chave_de_ordenacao(conta_dom(c)))
 
 
 def gerar_arquivo_do_aluno(db: Session, aluno: Aluno, ids: list[int]) -> tuple[str, bytes, list[ContaReceber]]:

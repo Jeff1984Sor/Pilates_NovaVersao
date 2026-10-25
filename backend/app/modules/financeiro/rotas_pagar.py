@@ -11,7 +11,8 @@ from fastapi.responses import FileResponse
 from app.core import audit, storage
 from app.core.deps import Ctx
 from app.core.schemas import Mensagem
-from app.modules.financeiro import consultas, pagar as srv, planilhas
+from app.modules.financeiro import consultas, planilhas
+from app.modules.financeiro import pagar as srv
 from app.modules.financeiro.consultas import FiltrosPagar
 from app.modules.financeiro.exportacao import gerar_pdf, gerar_xlsx, identidade_do_estudio
 from app.modules.financeiro.rotas_base import PDF, XLSX, anexo, novo_router

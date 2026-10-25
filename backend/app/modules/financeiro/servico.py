@@ -23,7 +23,6 @@ from app.core.db import agora
 from app.domain import financeiro as dom
 from app.domain.parcelas import competencia_mensal, gerar_parcelas
 from app.modules import registrar_modelos
-from app.modules.agenda.models import AulaAvulsa, Reserva
 from app.modules.alunos.models import Aluno
 from app.modules.cadastros.models import Plano
 from app.modules.contratos.models import Contrato

@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from fastapi import File, Form, Query, UploadFile
+from fastapi import File, Form, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 
