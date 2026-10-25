@@ -1,12 +1,11 @@
 """PDF do contrato: abre, contém o texto (títulos, parágrafos, negrito/itálico, listas, tabela, quebra de página, assinatura, rodapé)."""
 
+import base64
 import re
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from app.modules.contratos import pdf
 from tests.contratos.conftest import cabecalho, png_data_url
-
-import base64
 
 
 def texto_bruto(b: bytes) -> str:
