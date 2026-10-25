@@ -107,9 +107,9 @@ export const NAV: NavGrupo[] = [
   {
     titulo: "Comunicação",
     itens: [
-      { label: "WhatsApp", href: "/comunicacao/whatsapp", icone: MessageCircle, permissao: "whatsapp.ver", planejado: true },
-      { label: "Comunicados", href: "/comunicacao/comunicados", icone: Megaphone, permissao: "comunicacao.ver", planejado: true },
-      { label: "Integrações", href: "/comunicacao/integracoes", icone: Link2, permissao: "integracoes.ver", planejado: true },
+      { label: "WhatsApp", href: "/comunicacao/whatsapp", icone: MessageCircle, permissao: "whatsapp.ver", planejado: false },
+      { label: "Comunicados", href: "/comunicacao/comunicados", icone: Megaphone, permissao: "comunicacao.ver", planejado: false },
+      { label: "Integrações", href: "/configuracoes/integracoes", icone: Link2, permissao: "integracoes.ver", planejado: false },
     ],
   },
   {
