@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   Ban,
+  Briefcase,
   BarChart3,
   Building2,
   CalendarCheck,
@@ -73,7 +74,7 @@ export const NAV: NavGrupo[] = [
     titulo: "Contratos",
     itens: [
       { label: "Contratos", href: "/contratos", icone: FileSignature, permissao: "contratos.ver", planejado: true },
-      { label: "Planos", href: "/planos", icone: ClipboardList, permissao: "planos.ver", planejado: true },
+      { label: "Planos", href: "/cadastros/planos", icone: ClipboardList, permissao: "planos.ver" },
     ],
   },
   {
@@ -91,9 +92,10 @@ export const NAV: NavGrupo[] = [
   {
     titulo: "Cadastros",
     itens: [
-      { label: "Unidades", href: "/cadastros/unidades", icone: Building2, permissao: "cadastros_unidades.ver", planejado: true },
-      { label: "Tipos de serviço", href: "/cadastros/servicos", icone: Tags, permissao: "cadastros_servicos.ver", planejado: true },
-      { label: "Profissionais", href: "/cadastros/profissionais", icone: Stethoscope, permissao: "cadastros_profissionais.ver", planejado: true },
+      { label: "Unidades", href: "/cadastros/unidades", icone: Building2, permissao: "cadastros_unidades.ver" },
+      { label: "Tipos de serviço", href: "/cadastros/servicos", icone: Tags, permissao: "cadastros_servicos.ver" },
+      { label: "Profissionais", href: "/cadastros/profissionais", icone: Stethoscope, permissao: "cadastros_profissionais.ver" },
+      { label: "Profissões", href: "/cadastros/profissoes", icone: Briefcase, permissao: "cadastros_profissionais.ver" },
       { label: "Fornecedores", href: "/cadastros/fornecedores", icone: Truck, permissao: "cadastros_fornecedores.ver", planejado: true },
       { label: "Categorias", href: "/cadastros/categorias", icone: FolderTree, permissao: "cadastros_categorias.ver", planejado: true },
       { label: "Horários", href: "/cadastros/horarios", icone: Clock, permissao: "cadastros_horarios.ver", planejado: true },
