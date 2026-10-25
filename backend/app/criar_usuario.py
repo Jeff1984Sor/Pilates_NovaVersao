@@ -1,8 +1,8 @@
 """Cria (ou atualiza) um usuário pelo terminal, para o primeiro acesso de um ambiente novo.
 
-    uv run python -m app.criar_usuario --login admin --nome "Jefferson" --email voce@mayacorp.com.br --perfil admin
+    uv run python -m app.criar_usuario --login admin --nome "Jefferson" --email voce@exemplo.com --perfil Administrador
 
-A senha é pedida no terminal (ou lida da entrada padrão) e nunca fica em arquivo.
+A senha é pedida no terminal (ou lida da entrada padrão) e nunca fica em arquivo nem na linha de comando.
 Depois do primeiro acesso, usuários e senhas são gerenciados em Configurações › Usuários.
 """
 
@@ -12,21 +12,19 @@ import sys
 
 from sqlalchemy import or_, select
 
-from app.core import audit
+from app.core import audit, perfis
 from app.core.db import SessionLocal
-from app.core.models import Perfil, Tenant, Usuario
+from app.core.models import Usuario
 from app.core.security import hash_senha, validar_politica_senha
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--login", required=True)
+    ap.add_argument("--login", help="opcional; senão entra só pelo e-mail")
     ap.add_argument("--email", required=True)
     ap.add_argument("--nome", required=True)
-    ap.add_argument("--perfil", choices=[p.value for p in Perfil], default="admin")
-    ap.add_argument("--tenant", default="cfme", help="slug do cliente (padrão: cfme)")
-    ap.add_argument("--equipe-mayacorp", action="store_true",
-                    help="libera as configurações da plataforma (ex.: chave da IA); só se concede por aqui")
+    ap.add_argument("--telefone")
+    ap.add_argument("--perfil", default="Administrador", help="nome do perfil de acesso (padrão: Administrador)")
     a = ap.parse_args()
 
     senha = getpass.getpass("Senha: ") if sys.stdin.isatty() else sys.stdin.readline().rstrip("\r\n")
@@ -34,24 +32,31 @@ def main() -> None:
         sys.exit(erro)
 
     with SessionLocal() as db:
-        tenant = db.scalar(select(Tenant).where(Tenant.slug == a.tenant))
-        if not tenant:
-            sys.exit(f"Cliente '{a.tenant}' não existe. Rode antes: python -m app.seed")
-        login, email = a.login.strip().lower(), a.email.strip().lower()
-        u = db.scalar(select(Usuario).where(or_(Usuario.login == login, Usuario.email == email)))
+        perfil = perfis.garantir_padrao(db).get(a.perfil)
+        if not perfil:
+            sys.exit(f"Perfil '{a.perfil}' não existe.")
+        login = a.login.strip().lower() if a.login else None
+        email = a.email.strip().lower()
+        cond = [Usuario.email == email] + ([Usuario.login == login] if login else [])
+        u = db.scalar(select(Usuario).where(or_(*cond)))
         novo = u is None
         if novo:
-            u = Usuario(tenant_id=tenant.id, email=email)
+            u = Usuario(email=email, nome=a.nome)
             db.add(u)
-        u.login, u.email, u.nome, u.perfil = login, email, a.nome, Perfil(a.perfil)
-        u.equipe_mayacorp = a.equipe_mayacorp or bool(u.equipe_mayacorp)
+        u.login, u.email, u.nome = login, email, a.nome
+        if a.telefone:
+            u.telefone = a.telefone
+        u.perfil_acesso_id = perfil.id
         u.senha_hash = hash_senha(senha)
-        u.ativo, u.convite_pendente, u.tentativas_falhas, u.bloqueado_ate = True, False, 0, None
+        u.ativo = u.acesso_sistema = True
+        u.convite_pendente, u.tentativas_falhas, u.bloqueado_ate = False, 0, None
+        if not novo:
+            u.token_version = (u.token_version or 0) + 1  # senha trocada: derruba sessões antigas
         db.flush()
-        audit.registrar(db, tenant_id=tenant.id, usuario=None, acao="usuario.criar_terminal", entidade="usuario",
-                        entidade_id=u.id, descricao=f"{'Criado' if novo else 'Atualizado'} pelo terminal: {login}")
+        audit.registrar(db, usuario=None, acao="usuario.criar_terminal", entidade="usuario", entidade_id=u.id,
+                        descricao=f"{'Criado' if novo else 'Atualizado'} pelo terminal: {email}")
         db.commit()
-        print(f"Usuário '{login}' {'criado' if novo else 'atualizado'} ({u.perfil.value}).")
+        print(f"Usuário '{email}' {'criado' if novo else 'atualizado'} ({perfil.nome}).")
 
 
 if __name__ == "__main__":

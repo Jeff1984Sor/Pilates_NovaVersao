@@ -12,7 +12,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.models import ConfigIA
-from app.core.security import decifrar
+from app.core.segredos import decifrar
 
 log = logging.getLogger(__name__)
 
@@ -31,17 +31,17 @@ class Provedor:
     chave: str
 
 
-def config(db: Session, tenant_id: int) -> ConfigIA:
-    cfg = db.get(ConfigIA, tenant_id)
+def config(db: Session) -> ConfigIA:
+    cfg = db.get(ConfigIA, 1)
     if cfg is None:
-        cfg = ConfigIA(tenant_id=tenant_id, ativo=False, provedor="openai")
+        cfg = ConfigIA(id=1, ativo=False, provedor="openai")
         db.add(cfg)
         db.flush()
     return cfg
 
 
-def provedor_ativo(db: Session, tenant_id: int) -> Provedor:
-    cfg = config(db, tenant_id)
+def provedor_ativo(db: Session) -> Provedor:
+    cfg = config(db)
     if not cfg.ativo:
         raise IAIndisponivel("A Inteligência Artificial está desligada. Ative em Configurações › Inteligência Artificial.")
     if not cfg.chave_cifrada or not cfg.modelo:
@@ -91,7 +91,7 @@ def gerar_json(p: Provedor, sistema: str, usuario: str, anexo: tuple[str, bytes]
 
     b64 = base64.b64encode(anexo[1]).decode() if anexo else None
     if anexo and p.nome == "openai" and not anexo[0].startswith("image/"):
-        raise IAIndisponivel("Com a OpenAI, envie a nota como XML, PDF com texto ou foto.")
+        raise IAIndisponivel("Com a OpenAI, envie o anexo como imagem.")
     try:
         if p.nome == "openai":
             conteudo_usuario = usuario if not anexo else [
