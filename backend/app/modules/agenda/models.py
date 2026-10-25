@@ -166,6 +166,8 @@ class Reserva(Base, Timestamped, CodigoLegado):
     confirmada_em: Mapped[datetime | None] = mapped_column(UtcDateTime())
     desmarcada_em: Mapped[datetime | None] = mapped_column(UtcDateTime())
     reposicao_ate: Mapped[date | None] = mapped_column(Date)
+    # motivo da EXCEÇÃO ao prazo de 6 h para desmarcar (só o perfil Full abre; também vai para a auditoria)
+    motivo_excecao_prazo: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (UniqueConstraint("aluno_id", "aula_sessao_id", name="uq_reserva_aluno_aula_sessao"),)
 

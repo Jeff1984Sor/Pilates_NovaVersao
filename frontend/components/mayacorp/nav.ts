@@ -23,6 +23,7 @@ import {
   Palette,
   Percent,
   ReceiptText,
+  Repeat,
   ScrollText,
   ShieldCheck,
   Sparkles,
@@ -64,6 +65,7 @@ export const NAV: NavGrupo[] = [
     itens: [
       { label: "Grade semanal", href: "/agenda/semana", icone: CalendarDays, permissao: "agenda.ver", planejado: false },
       { label: "Aulas do dia", href: "/agenda/aulas", icone: CalendarCheck, permissao: "aulas.ver", planejado: false },
+      { label: "Reposições", href: "/reposicoes", icone: Repeat, permissao: "reposicoes.ver", planejado: false },
     ],
   },
   {

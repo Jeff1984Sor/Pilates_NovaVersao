@@ -56,7 +56,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   }, [cor]);
 
   useEffect(() => {
-    const publica = /^\/(login|esqueci-senha|redefinir-senha)/.test(window.location.pathname);
+    const publica = /^\/(login|esqueci-senha|redefinir-senha|app(\/|$))/.test(window.location.pathname);
     document.title = publica ? ident.nome_exibicao : `${ident.nome_exibicao} · Gestão`;
   }, [ident.nome_exibicao]);
 

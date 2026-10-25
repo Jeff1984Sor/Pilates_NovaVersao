@@ -58,6 +58,11 @@ class PresencaIn(Entrada):
     acao: str = Field(description="chegou | iniciar | finalizar | faltou | faltou_avisou")
 
 
+class DesmarcarIn(Entrada):
+    excecao_prazo: bool = False
+    motivo: str | None = Field(default=None, max_length=300)
+
+
 class RemarcarIn(Entrada):
     data: date
     hora_inicio: time

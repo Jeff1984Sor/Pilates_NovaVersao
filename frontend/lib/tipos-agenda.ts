@@ -132,6 +132,8 @@ export interface CartaoAula {
   ultima_evolucao: { texto: string | null; criado_em: string | null };
   whatsapp: { disponivel: boolean; motivo: string };
   permite?: PermissoesAula;
+  /** Regra das 6 horas: texto do aviso quando já passou do prazo de desmarcar (null = dentro do prazo). */
+  aviso_prazo_desmarcar?: string | null;
 }
 export interface PermissoesAula {
   chegou: boolean;
@@ -139,6 +141,8 @@ export interface PermissoesAula {
   faltou: boolean;
   remarcar: boolean;
   desmarcar: boolean;
+  /** Só o perfil Full: desmarcar mesmo fora do prazo de 6 horas, com motivo. */
+  desmarcar_excecao?: boolean;
   excluir: boolean;
   confirmar: boolean;
   evolucao: boolean;

@@ -24,6 +24,7 @@ import { UserAvatar } from "@/components/mayacorp/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -101,6 +102,7 @@ export function GavetaAluno({ reservaId, abaInicial = "evolucao", onFechar }: { 
   const [aba, setAba] = useState<Aba>(abaInicial);
   const [remarcando, setRemarcando] = useState(false);
   const [confirmar, setConfirmar] = useState<"desmarcar" | "excluir" | null>(null);
+  const [motivoExcecao, setMotivoExcecao] = useState("");
 
   const q = useQuery({
     queryKey: ["agenda", "reserva", reservaId],
@@ -133,10 +135,15 @@ export function GavetaAluno({ reservaId, abaInicial = "evolucao", onFechar }: { 
     },
   });
   const desmarcar = useMutation({
-    mutationFn: () => api.post<{ reposicao_ate: string | null }>(`/aulas/reservas/${reservaId}/desmarcar`),
+    mutationFn: (excecao?: { motivo: string }) =>
+      api.post<{ reposicao_ate: string | null }>(
+        `/aulas/reservas/${reservaId}/desmarcar`,
+        excecao ? { excecao_prazo: true, motivo: excecao.motivo } : undefined,
+      ),
     onSuccess: (r) => {
       toast.success(r.reposicao_ate ? `Aula desmarcada. Reposição até ${dataBr(r.reposicao_ate)}.` : "Aula desmarcada");
       setConfirmar(null);
+      setMotivoExcecao("");
       invalidar();
     },
     onError: () => setConfirmar(null),
@@ -301,13 +308,42 @@ export function GavetaAluno({ reservaId, abaInicial = "evolucao", onFechar }: { 
           />
           <ConfirmDialog
             open={confirmar === "desmarcar"}
-            onOpenChange={(o) => !o && setConfirmar(null)}
-            titulo="Desmarcar esta aula?"
-            descricao="A aula fica cancelada e o aluno ganha uma reposição por 30 dias."
-            confirmar="Desmarcar"
+            onOpenChange={(o) => {
+              if (!o) {
+                setConfirmar(null);
+                setMotivoExcecao("");
+              }
+            }}
+            titulo={c.aviso_prazo_desmarcar ? "Fora do prazo de desmarcar" : "Desmarcar esta aula?"}
+            descricao={
+              c.aviso_prazo_desmarcar
+                ? c.aviso_prazo_desmarcar
+                : "A aula fica cancelada e o aluno ganha uma reposição por 30 dias."
+            }
+            confirmar={c.aviso_prazo_desmarcar ? "Desmarcar mesmo assim" : "Desmarcar"}
+            destrutivo={!!c.aviso_prazo_desmarcar}
             carregando={desmarcar.isPending}
-            onConfirm={() => desmarcar.mutate()}
-          />
+            desabilitado={!!c.aviso_prazo_desmarcar && (!p?.desmarcar_excecao || motivoExcecao.trim().length < 3)}
+            onConfirm={() => (c.aviso_prazo_desmarcar ? desmarcar.mutate({ motivo: motivoExcecao.trim() }) : desmarcar.mutate(undefined))}
+          >
+            {c.aviso_prazo_desmarcar &&
+              (p?.desmarcar_excecao ? (
+                <div className="space-y-1.5">
+                  <label htmlFor="motivo-excecao" className="text-sm font-medium">
+                    Motivo da exceção (fica registrado na auditoria)
+                  </label>
+                  <Textarea
+                    id="motivo-excecao"
+                    value={motivoExcecao}
+                    maxLength={300}
+                    onChange={(e) => setMotivoExcecao(e.target.value)}
+                    placeholder="Ex.: aluna avisou por telefone que está internada"
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Só a gerência (perfil Full) pode abrir exceção ao prazo.</p>
+              ))}
+          </ConfirmDialog>
           <ConfirmDialog
             open={confirmar === "excluir"}
             onOpenChange={(o) => !o && setConfirmar(null)}

@@ -6,7 +6,8 @@ import type { NextRequest } from "next/server";
 import { REFRESH } from "@/lib/server/sessao";
 
 // "assinar": páginas públicas de assinatura de contrato/termo por link (módulo contratos)
-const PUBLICAS = /^\/(login|esqueci-senha|redefinir-senha|assinar)(\/|$)/;
+// "app": app do aluno (sessão própria, BFF em /app/api)
+const PUBLICAS = /^\/(login|esqueci-senha|redefinir-senha|assinar|app)(\/|$)/;
 
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
