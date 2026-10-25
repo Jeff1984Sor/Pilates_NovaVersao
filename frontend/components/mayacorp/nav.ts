@@ -73,7 +73,7 @@ export const NAV: NavGrupo[] = [
   {
     titulo: "Contratos",
     itens: [
-      { label: "Contratos", href: "/contratos", icone: FileSignature, permissao: "contratos.ver", planejado: true },
+      { label: "Contratos", href: "/contratos", icone: FileSignature, permissao: "contratos.ver", planejado: false },
       { label: "Planos", href: "/cadastros/planos", icone: ClipboardList, permissao: "planos.ver" },
     ],
   },

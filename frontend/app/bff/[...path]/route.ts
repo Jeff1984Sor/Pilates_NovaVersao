@@ -17,7 +17,7 @@ const REPASSAR = ["content-type", "content-disposition", "cache-control", "retry
 // rotas que respondem com TokenOut: viram cookies
 const ROTAS_DE_TOKEN = new Set(["auth/login", "auth/trocar-senha"]);
 // rotas que não exigem sessão
-const ROTAS_PUBLICAS = /^(auth\/(login|forgot|reset|forgot-codigo|reset-codigo)|public\/.*|arquivos-publicos\/.*|health)$/;
+const ROTAS_PUBLICAS = /^(auth\/(login|forgot|reset|forgot-codigo|reset-codigo)|public\/.*|arquivos-publicos\/.*|assinar\/(contrato|termo)\/.*|health)$/;
 
 function origemValida(req: NextRequest): boolean {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return true;
