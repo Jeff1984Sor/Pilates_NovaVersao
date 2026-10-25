@@ -54,6 +54,9 @@ class ContaReceber(Base, Timestamped, CodigoLegado):
     competencia: Mapped[str | None] = mapped_column(String(7))  # "YYYY-MM" (mensal) ou "YYYY-WW" (semanal)
     pagamento: Mapped[date | None] = mapped_column(Date)
     recibo_saude_gerado_em: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # --- aditivo (financeiro): forma de pagamento da baixa e motivo do cancelamento
+    forma_pagamento: Mapped[str | None] = mapped_column(String(20))
+    motivo_cancelamento: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
         CheckConstraint("valor >= 0", name="valor_nao_negativo"),
@@ -79,6 +82,9 @@ class ContaPagar(Base, Timestamped, CodigoLegado):
     pagamento: Mapped[date | None] = mapped_column(Date)
     comprovante_path: Mapped[str | None] = mapped_column(String(500))  # comprovantes/contas_pagar/...
     motivo_cancelamento: Mapped[str | None] = mapped_column(Text)
+    # --- aditivo (financeiro): descrição livre e vínculo das cópias de uma recorrência (sem regeneração em cascata)
+    descricao: Mapped[str | None] = mapped_column(String(200))
+    recorrencia_grupo: Mapped[str | None] = mapped_column(String(36), index=True)
 
     __table_args__ = (
         CheckConstraint("valor >= 0", name="valor_nao_negativo"),
@@ -107,6 +113,10 @@ class MovimentoConta(Base, Timestamped, CodigoLegado):
     data: Mapped[date] = mapped_column(Date, index=True)
     descricao: Mapped[str | None] = mapped_column(String(200))
     comprovante_path: Mapped[str | None] = mapped_column(String(500))  # comprovantes/movimentos/...
+    # --- aditivo (financeiro): origem do movimento (baixa de conta) e par de uma transferência entre contas
+    conta_receber_id: Mapped[int | None] = mapped_column(ForeignKey("conta_receber.id", ondelete="SET NULL"), index=True)
+    conta_pagar_id: Mapped[int | None] = mapped_column(ForeignKey("conta_pagar.id", ondelete="SET NULL"), index=True)
+    transferencia_id: Mapped[str | None] = mapped_column(String(36), index=True)
 
     __table_args__ = (CheckConstraint("valor >= 0", name="valor_nao_negativo"),)
 
@@ -123,6 +133,7 @@ class Comissao(Base, Timestamped):
     valor_base: Mapped[Decimal] = mapped_column(Numeric(15, 2))
     percentual: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     valor: Mapped[Decimal] = mapped_column(Numeric(15, 2))
+    paga_em: Mapped[date | None] = mapped_column(Date)  # aditivo (financeiro): comissão repassada ao profissional
 
 
 class ReceitaSaudeConfig(Base, Timestamped):
