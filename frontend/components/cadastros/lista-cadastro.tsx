@@ -289,7 +289,15 @@ export function ListaCadastro<T extends { id: number }>(p: Props<T>) {
                 : "Remova ou troque esses vínculos antes de excluir."}
             </>
           ) : (
-            "Esta ação não pode ser desfeita."
+            <>
+              {vinculos.data && vinculos.data.total_junto > 0 && (
+                <>
+                  Serão removidos junto:{" "}
+                  <strong className="font-medium text-foreground">{vinculos.data.junto.map((v) => `${v.quantidade} ${v.rotulo}`).join(", ")}</strong>.{" "}
+                </>
+              )}
+              Esta ação não pode ser desfeita.
+            </>
           )
         }
         confirmar={bloqueado ? (comSituacao && vinculos.data?.pode_desativar && excluir && ativoDe(excluir) ? "Desativar" : "Entendi") : "Excluir"}

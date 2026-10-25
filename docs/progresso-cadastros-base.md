@@ -36,22 +36,23 @@ Todas exigem login, regra de permissão e geram auditoria em criar/alterar/exclu
 | `/api/cadastros/profissoes` (CRUD + `/{id}/vinculos`) | `cadastros_profissionais.*` (não há recurso próprio no catálogo) |
 | `/api/planos` (idem + `/{id}/duplicar`, `/opcoes`) | `planos.*` |
 | `/api/cadastros/profissionais` (idem + `/perfis-acesso`) | `cadastros_profissionais.*` |
-| `POST/DELETE /api/cadastros/profissionais/{id}/acesso`, `POST .../acesso/convite` | `cadastros_profissionais.editar` **e** `usuarios.editar` (checado na rota) |
+| `POST/DELETE /api/cadastros/profissionais/{id}/acesso` (POST recebe `perfil_acesso_id` e `login`), `POST .../acesso/convite` | `cadastros_profissionais.editar` **e** `usuarios.editar` (checado na rota) |
 | `GET/PATCH /api/cadastros/profissionais/meu` | livre para logados (só o próprio profissional) |
 
 Observação: a rota dos planos é `/api/planos` (recurso `planos`), mas a tela fica em `/cadastros/planos` (decisão: a pasta é minha; o `nav.ts` foi ajustado).
 
 ## Decisões
 
-1. **R3 (capacidade)**: `unidade.capacidade` é o padrão de vagas por aula. Sessão com capacidade NULA herda a da unidade (`capacidade_efetiva` em `app.domain.capacidade`); 0 na sessão vale 0. Documentado no docstring de `unidades.py` e na dica do formulário. Faixas: capacidade 0–500, duração 10–240 min.
+1. **R3 (capacidade)**: `unidade.capacidade` é o padrão de vagas por aula. Sessão com capacidade NULA herda a da unidade (`capacidade_efetiva` em `app.domain.capacidade`); 0 na sessão vale 0. **Decisão do Jefferson: capacidade da unidade 0 é PROIBIDA**: capacidade 1–500 e duração 1–240 min; a API responde 422 "A capacidade da unidade precisa ser de pelo menos 1 vaga por aula." (idem duração) e o formulário valida igual.
 2. **Código de negócio**: todo registro novo usa `proximo_codigo(db, "unidade"|"tipo_servico"|"plano"|"profissional"|"profissao")` (mesmos nomes de série que o ETL inicializa), gravado em `codigo_legado`; a API expõe como `codigo`. Teste garante que continua do contador do ETL.
-3. **Exclusão**: `comum.vinculos()` percorre todas as FKs do `metadata` que apontam para o cadastro (menos `ON DELETE CASCADE`) e conta os registros por tabela. Com vínculos: `DELETE` responde 409 com texto como "Não é possível excluir a unidade: ela está em uso por 12 aulas, 3 contratos. Desative-a em vez de excluir." A tela consulta `/{id}/vinculos` antes e oferece "Desativar" no lugar de "Excluir". Funciona sem mudar quando novas tabelas passarem a apontar para o cadastro. Profissão não tem ativo/inativo: só bloqueia.
+3. **Exclusão**: `comum.vinculos()` percorre todas as FKs do `metadata` que apontam para o cadastro (menos `ON DELETE CASCADE`) e conta os registros por tabela. Com vínculos: `DELETE` responde 409 com texto como "Não é possível excluir a unidade: ela está em uso por 12 aulas, 3 contratos. Desative-a em vez de excluir." A tela consulta `/{id}/vinculos` antes e oferece "Desativar" no lugar de "Excluir". Funciona sem mudar quando novas tabelas passarem a apontar para o cadastro. Profissão não tem ativo/inativo: só bloqueia. **Unidade (decisão do Jefferson)**: horários de funcionamento, horários da grade e bloqueios saem JUNTO (exclusão em cascata na mesma transação, registrada na auditoria); aulas, contratos, alunos e demais vínculos continuam bloqueando com 409 e sugerindo desativar. `GET /{id}/vinculos` devolve `itens`/`total`/`pode_excluir` (o que bloqueia) separados de `junto`/`total_junto` (o que será removido junto), e a confirmação da tela mostra "Serão removidos junto: …".
 4. **Nome único (sem diferenciar maiúsculas)** em unidade, serviço, plano e profissão (409). Não há constraint no banco; a checagem é na rota.
 5. **Plano**: `valor` é MENSAL; `valor_aula` e `valor_total` vêm de `precificar_contrato` (R1). Validações: valor 0–9.999.999,99 (plano avulso TotalPass de valor 0 é permitido), aulas/semana 0–14, duração 1–120 meses. Categoria e subcategoria têm de ser de RECEITA e coerentes (subcategoria sem categoria preenche a categoria). Duplicar: "Nome (cópia)", "(cópia 2)"..., novo código, mantém todos os campos e a situação.
 6. **Profissional ↔ usuário** (substitui os signals do Django):
-   - Profissional sem login: `usuario_id` nulo. Dar acesso: cria `usuario` com `email` = e-mail do profissional (o login do core aceita e-mail; o campo `login` fica vazio), perfil escolhido, `convite_pendente`, sem senha, e envia o link de definição de senha com `auth_service.enviar_link_email(convite=True)`. Se o e-mail não sair (SMTP não configurado), o cadastro é mantido e a resposta traz `convite_enviado: false` (a tela avisa; há "Reenviar convite").
+   - **Login (decisão do Jefferson)**: todos entram com um LOGIN próprio (ex.: `ana`), nunca com e-mail. Ao dar acesso o campo `login` é obrigatório (3 a 30 caracteres: minúsculas, números, ponto, hífen e sublinhado; sem `@` nem espaço; guardado em minúsculas; único sem diferenciar maiúsculas, 409 se repetido). O e-mail continua obrigatório só como contato, recuperação de senha e convite. Editar permite trocar o login (valida unicidade e derruba as sessões via `token_version`; exige `usuarios.editar`). A lista mostra e busca o login; Minha conta já mostra o login. Os testes de login usam o campo `login` (`tests/cadastros_base/test_login_profissional.py`). O core passará a aceitar somente login (coordenador).
+   - Profissional sem login: `usuario_id` nulo. Dar acesso: cria `usuario` com `login` escolhido e `email` do profissional, perfil escolhido, `convite_pendente`, sem senha, e envia o link de definição de senha com `auth_service.enviar_link_email(convite=True)`. Se o e-mail não sair (SMTP não configurado), o cadastro é mantido e a resposta traz `convite_enviado: false` (a tela avisa; há "Reenviar convite").
    - Revogar acesso: `acesso_sistema=False`, `convite_pendente=False`, `invalidar_sessoes` (sobe `token_version`, derruba access/refresh). O usuário é mantido e o vínculo também (histórico/auditoria). Dar acesso de novo reaproveita o mesmo usuário, zera a senha e manda novo convite.
-   - Editar sincroniza nome, e-mail (login), celular (→ `usuario.telefone`), situação e perfil. Desativar o profissional desativa o usuário; reativar reativa. Mudança de perfil derruba as sessões.
+   - Editar sincroniza nome, e-mail (contato), login, celular (→ `usuario.telefone`), situação e perfil. Desativar o profissional desativa o usuário; reativar reativa. Mudança de perfil derruba as sessões.
    - Proteções iguais às do core: não tirar o próprio acesso, manter pelo menos um Administrador ativo, e-mail único (409 com mensagem), e-mail obrigatório para quem tem acesso.
    - Excluir profissional (sem aulas etc.) desativa o usuário vinculado.
    - Dar/tirar acesso e trocar o perfil exigem também `usuarios.editar` (uma "gestora de cadastros" sem esse recurso não consegue elevar privilégio).
@@ -71,16 +72,14 @@ Observação: a rota dos planos é `/api/planos` (recurso `planos`), mas a tela 
 
 ## Dúvidas para o Jefferson
 
-1. **Login = e-mail**: o profissional entra com o e-mail (o campo "usuário" do core fica vazio). Algum profissional deve entrar por um nome curto (ex.: `ana`)? Dá para preencher em Configurações › Usuários.
-2. **Comissão**: o percentual é por profissional (0–100). Deve existir um percentual diferente por plano ou por tipo de serviço? Não implementei.
-3. **Capacidade 0 na unidade** significa "sem vagas por padrão". Prefere obrigar pelo menos 1?
-4. **Secretária** só consulta cadastros. Ela deve poder cadastrar planos e profissionais (sem acesso ao sistema)? Hoje não.
-5. **Profissional inativo com aulas futuras**: desativar não cancela nada. O agente de Agenda deve decidir o que fazer (avisar?).
+Respondidas (2025-10-25) e aplicadas: login próprio (item de decisão 6), comissão (continua um percentual por profissional, igual para todos os planos e serviços), capacidade mínima 1, Secretária só consulta (testes mantidos), exclusão de unidade com cascata de horários/bloqueios.
+
+1. **Profissional inativo com aulas futuras**: desativar não cancela nada. O agente de Agenda deve decidir o que fazer (avisar?).
 
 ## Pendências
 
 - Verificação visual: `npm run lint` e `npm run build` passam, mas as telas não foram abertas num navegador nesta sessão (sem API real + Next rodando juntos). Os fluxos de API estão cobertos por testes.
-- Exclusão de unidade/serviço: hoje 409 por qualquer vínculo (inclusive horários de funcionamento e bloqueios cadastrados). Se preferir que horários/bloqueios saiam junto, é uma regra a combinar.
+- Exclusão de tipo de serviço: continua 409 por qualquer vínculo (inclusive horários de funcionamento); só a unidade leva horários/bloqueios junto.
 - Foto do profissional: pode ser trocada em Configurações › Usuários (rota do core); não repliquei na tela de profissionais.
 
 ## Como rodar

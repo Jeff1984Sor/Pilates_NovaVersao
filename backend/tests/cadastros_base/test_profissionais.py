@@ -19,7 +19,7 @@ def perfil_id(db, nome):
 
 
 def base(**extra):
-    d = {"nome": "Ana Souza", "email": "ana@exemplo.com", "celular": "(11) 98888-7777", "crefito": "CREFITO-3/123456",
+    d = {"nome": "Ana Souza", "login": "ana", "email": "ana@exemplo.com", "celular": "(11) 98888-7777", "crefito": "CREFITO-3/123456",
          "data_nascimento": "1990-05-17", "comissao_percentual": "30"}
     d.update(extra)
     return d
@@ -72,10 +72,10 @@ def test_criar_com_acesso_cria_usuario_com_perfil_e_envia_convite(client, db, h_
     r = client.post(PF, headers=h_full, json=base(acesso_sistema=True, perfil_acesso_id=perfil_id(db, "Professor")))
     assert r.status_code == 201, r.text
     p = r.json()
-    assert p["acesso_sistema"] is True and p["perfil_acesso_nome"] == "Professor" and p["convite_pendente"] is True
+    assert p["acesso_sistema"] is True and p["login"] == "ana" and p["perfil_acesso_nome"] == "Professor" and p["convite_pendente"] is True
     assert p["convite_enviado"] is True
     u = db.get(Usuario, p["usuario_id"])
-    assert u.email == "ana@exemplo.com" and u.nome == "Ana Souza" and u.acesso_sistema and u.ativo
+    assert u.login == "ana" and u.email == "ana@exemplo.com" and u.nome == "Ana Souza" and u.acesso_sistema and u.ativo
     assert u.senha_hash is None and u.convite_pendente and u.telefone == "5511988887777"
     assert u.perfil_acesso.nome == "Professor"
     assert len(emails) == 1 and emails[0][0] == ["ana@exemplo.com"] and "redefinir-senha?token=" in emails[0][2]
@@ -117,10 +117,10 @@ def test_quem_edita_cadastros_mas_nao_gere_usuarios_nao_da_acesso(client, db, h_
     db.commit()
     h = auth(entrar(client, "gestora@exemplo.com").json()["access_token"])
     assert client.post(PF, headers=h, json=base()).status_code == 201  # sem login: pode
-    r = client.post(PF, headers=h, json=base(nome="Com", email="com@exemplo.com", acesso_sistema=True, perfil_acesso_id=perfil_id(db, "Professor")))
+    r = client.post(PF, headers=h, json=base(nome="Com", email="com@exemplo.com", login="com", acesso_sistema=True, perfil_acesso_id=perfil_id(db, "Professor")))
     assert r.status_code == 403
     pid = client.get(PF, headers=h).json()["itens"][0]["id"]
-    assert client.post(f"{PF}/{pid}/acesso", headers=h, json={"perfil_acesso_id": perfil_id(db, "Professor")}).status_code == 403
+    assert client.post(f"{PF}/{pid}/acesso", headers=h, json={"perfil_acesso_id": perfil_id(db, "Professor"), "login": "ana"}).status_code == 403
     assert client.delete(f"{PF}/{pid}/acesso", headers=h).status_code == 403
 
 
@@ -129,19 +129,19 @@ def test_novo_profissional_define_senha_pelo_convite_e_entra(client, db, h_full,
     token = emails[0][2].split("token=")[1].split()[0]
     r = client.post("/api/auth/reset", json={"token": token, "senha": SENHA})
     assert r.status_code == 200, r.text
-    assert entrar(client, "ana@exemplo.com").status_code == 200
+    assert entrar(client, "ana").status_code == 200
     assert db.get(Usuario, p["usuario_id"]).convite_pendente is False
 
 
 def test_dar_acesso_depois_e_revogar(client, db, h_full, emails):
     p = client.post(PF, headers=h_full, json=base()).json()
-    r = client.post(f"{PF}/{p['id']}/acesso", headers=h_full, json={"perfil_acesso_id": perfil_id(db, "Secretária")})
+    r = client.post(f"{PF}/{p['id']}/acesso", headers=h_full, json={"perfil_acesso_id": perfil_id(db, "Secretária"), "login": "ana"})
     assert r.status_code == 200 and r.json()["acesso_sistema"] is True and r.json()["perfil_acesso_nome"] == "Secretária"
-    assert client.post(f"{PF}/{p['id']}/acesso", headers=h_full, json={"perfil_acesso_id": perfil_id(db, "Secretária")}).status_code == 409
+    assert client.post(f"{PF}/{p['id']}/acesso", headers=h_full, json={"perfil_acesso_id": perfil_id(db, "Secretária"), "login": "ana"}).status_code == 409
     u = db.get(Usuario, r.json()["usuario_id"])
     u.senha_hash = criar_usuario(db, "Full", email="tmp@exemplo.com").senha_hash  # senha conhecida
     db.commit()
-    tok = entrar(client, "ana@exemplo.com").json()["access_token"]
+    tok = entrar(client, "ana").json()["access_token"]
     assert client.get("/api/auth/me", headers=auth(tok)).status_code == 200
     versao = db.get(Usuario, u.id).token_version
 
@@ -150,19 +150,19 @@ def test_dar_acesso_depois_e_revogar(client, db, h_full, emails):
     db.expire_all()
     assert db.get(Usuario, u.id).token_version > versao
     assert client.get("/api/auth/me", headers=auth(tok)).status_code == 401  # sessão em curso caiu
-    assert entrar(client, "ana@exemplo.com").status_code == 401
+    assert entrar(client, "ana").status_code == 401
     assert client.delete(f"{PF}/{p['id']}/acesso", headers=h_full).status_code == 400
     assert auditorias(db, "profissional.revogar_acesso") and auditorias(db, "profissional.dar_acesso")
 
     # dar acesso de novo reaproveita o mesmo usuário e exige nova senha
-    r = client.post(f"{PF}/{p['id']}/acesso", headers=h_full, json={"perfil_acesso_id": perfil_id(db, "Professor")})
+    r = client.post(f"{PF}/{p['id']}/acesso", headers=h_full, json={"perfil_acesso_id": perfil_id(db, "Professor"), "login": "ana"})
     assert r.status_code == 200 and r.json()["usuario_id"] == u.id and r.json()["convite_pendente"] is True
-    assert entrar(client, "ana@exemplo.com").status_code == 401
+    assert entrar(client, "ana").status_code == 401
 
 
 def test_dar_acesso_exige_email(client, db, h_full):
     p = client.post(PF, headers=h_full, json={"nome": "Sem Email"}).json()
-    r = client.post(f"{PF}/{p['id']}/acesso", headers=h_full, json={"perfil_acesso_id": perfil_id(db, "Professor")})
+    r = client.post(f"{PF}/{p['id']}/acesso", headers=h_full, json={"perfil_acesso_id": perfil_id(db, "Professor"), "login": "ana"})
     assert r.status_code == 422 and "e-mail" in r.json()["detail"]
 
 
@@ -235,7 +235,7 @@ def test_desativar_profissional_derruba_o_login_e_reativar_devolve(client, db, h
     u = db.get(Usuario, p["usuario_id"])
     u.senha_hash = criar_usuario(db, "Full", email="tmp@exemplo.com").senha_hash
     db.commit()
-    tok = entrar(client, "ana@exemplo.com").json()["access_token"]
+    tok = entrar(client, "ana").json()["access_token"]
     assert client.post(f"{PF}/{p['id']}/desativar", headers=h_full).json()["ativo"] is False
     db.expire_all()
     assert db.get(Usuario, u.id).ativo is False
@@ -243,7 +243,7 @@ def test_desativar_profissional_derruba_o_login_e_reativar_devolve(client, db, h
     assert client.post(f"{PF}/{p['id']}/ativar", headers=h_full).json()["ativo"] is True
     db.expire_all()
     assert db.get(Usuario, u.id).ativo is True
-    assert entrar(client, "ana@exemplo.com").status_code == 200
+    assert entrar(client, "ana").status_code == 200
     assert auditorias(db, "profissional.desativar") and auditorias(db, "profissional.ativar")
 
 
@@ -323,7 +323,7 @@ def test_resolvedor_liga_usuario_ao_profissional(client, db, h_full):
 
 def test_professor_so_ve_as_proprias_aulas_via_contexto(client, db, h_full):
     p1 = _com_acesso(client, db, h_full)
-    p2 = _com_acesso(client, db, h_full, nome="Bia Rocha", email="bia@exemplo.com")
+    p2 = _com_acesso(client, db, h_full, nome="Bia Rocha", email="bia@exemplo.com", login="bia")
     prof1 = db.get(Usuario, p1["usuario_id"])
     ctx = Contexto(db=db, usuario=prof1, ip=None)
     assert ctx.somente_proprias_aulas() and ctx.profissional_id() == p1["id"]
@@ -364,7 +364,7 @@ def test_meu_cadastro_edita_os_proprios_dados(client, db, h_full):
     u = db.get(Usuario, p["usuario_id"])
     u.senha_hash = criar_usuario(db, "Full", email="tmp@exemplo.com").senha_hash
     db.commit()
-    h = auth(entrar(client, "ana@exemplo.com").json()["access_token"])  # Professor: sem permissão de cadastros
+    h = auth(entrar(client, "ana").json()["access_token"])  # Professor: sem permissão de cadastros
     assert client.get(PF, headers=h).status_code == 403
     me = client.get(f"{PF}/meu", headers=h).json()
     assert me["id"] == p["id"] and me["nome"] == "Ana Souza" and "comissao_percentual" not in me

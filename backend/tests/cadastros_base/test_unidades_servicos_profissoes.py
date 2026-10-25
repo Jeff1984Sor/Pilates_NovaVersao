@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.modules.agenda.models import AulaSessao
 from app.modules.alunos.models import Aluno
-from app.modules.cadastros.models import ContadorCodigo, HorarioFuncionamento, Profissao, TipoServico, Unidade
+from app.modules.cadastros.models import ContadorCodigo, Profissao, TipoServico, Unidade
 from tests.cadastros_base.conftest import auditorias
 
 U = "/api/cadastros/unidades"
@@ -45,8 +45,9 @@ def test_unidade_codigo_continua_depois_do_etl(client, db, h_full):
 @pytest.mark.parametrize("corpo", [
     {"nome": "A"},
     {"nome": "Ok", "capacidade": -1},
+    {"nome": "Ok", "capacidade": 0},
+    {"nome": "Ok", "duracao_aula_minutos": 0},
     {"nome": "Ok", "capacidade": 501},
-    {"nome": "Ok", "duracao_aula_minutos": 5},
     {"nome": "Ok", "duracao_aula_minutos": 500},
     {"capacidade": 3},
 ])
@@ -115,16 +116,6 @@ def test_unidade_com_aulas_nao_exclui_e_sugere_desativar(client, db, h_full):
     assert db.get(Unidade, uid) is not None
     assert not auditorias(db, "unidade.excluir")
     assert client.post(f"{U}/{uid}/desativar", headers=h_full).json()["ativo"] is False
-
-
-def test_unidade_vinculo_com_horario_de_funcionamento_tambem_bloqueia(client, db, h_full):
-    un = Unidade(nome="Matriz")
-    db.add(un)
-    db.flush()
-    db.add(HorarioFuncionamento(unidade_id=un.id, dia_semana=0, hora_inicio=time(7), hora_fim=time(20)))
-    db.commit()
-    r = client.delete(f"{U}/{un.id}", headers=h_full)
-    assert r.status_code == 409 and "horário de funcionamento" in r.json()["detail"]
 
 
 # ------------------------------------------------------------------------------------------------ serviços

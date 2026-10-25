@@ -29,6 +29,7 @@ const hoje = () => new Date().toISOString().slice(0, 10);
 const schema = z.object({
   nome: z.string().trim().min(2, "Informe o nome (mínimo 2 letras)").max(150, "Máximo 150 caracteres"),
   email: z.union([z.literal(""), z.email("E-mail inválido")]),
+  login: z.string(),
   celular: z.string().refine((v) => v === "" || [10, 11].includes(v.replace(/\D/g, "").length), "Informe o DDD e o número"),
   data_nascimento: z.string().refine((v) => v === "" || (v >= "1900-01-01" && v <= hoje()), "Data inválida"),
   crefito: z.string().max(50, "Máximo 50 caracteres"),
@@ -43,7 +44,7 @@ const schema = z.object({
   perfil_acesso_id: z.string(),
 });
 type Form = z.infer<typeof schema>;
-const vazio: Form = { nome: "", email: "", celular: "", data_nascimento: "", crefito: "", comissao_percentual: "0", ativo: true, acesso: false, perfil_acesso_id: "" };
+const vazio: Form = { nome: "", email: "", login: "", celular: "", data_nascimento: "", crefito: "", comissao_percentual: "0", ativo: true, acesso: false, perfil_acesso_id: "" };
 
 function ProfissionalDialog({ profissional, open, onClose, editar }: { profissional: ProfissionalOut | null; open: boolean; onClose: () => void; editar: boolean }) {
   const qc = useQueryClient();
@@ -65,6 +66,7 @@ function ProfissionalDialog({ profissional, open, onClose, editar }: { profissio
         ? {
             nome: profissional.nome,
             email: profissional.email ?? "",
+            login: profissional.login ?? "",
             celular: celularParaTela(profissional.celular),
             data_nascimento: profissional.data_nascimento ?? "",
             crefito: profissional.crefito ?? "",
@@ -88,10 +90,11 @@ function ProfissionalDialog({ profissional, open, onClose, editar }: { profissio
         comissao_percentual: v.comissao_percentual.replace(",", "."),
         ativo: v.ativo,
       };
+      const login = v.login.trim().toLowerCase() || null;
       const perfil = v.perfil_acesso_id ? Number(v.perfil_acesso_id) : null;
-      if (!profissional) return api.post<ProfissionalOut>("/cadastros/profissionais", { ...corpo, acesso_sistema: v.acesso, perfil_acesso_id: v.acesso ? perfil : null });
-      let r = await api.put<ProfissionalOut>(`/cadastros/profissionais/${profissional.id}`, { ...corpo, perfil_acesso_id: profissional.acesso_sistema && v.acesso ? perfil : null });
-      if (!profissional.acesso_sistema && v.acesso) r = await api.post<ProfissionalOut>(`/cadastros/profissionais/${profissional.id}/acesso`, { perfil_acesso_id: perfil });
+      if (!profissional) return api.post<ProfissionalOut>("/cadastros/profissionais", { ...corpo, acesso_sistema: v.acesso, perfil_acesso_id: v.acesso ? perfil : null, login: v.acesso ? login : null });
+      let r = await api.put<ProfissionalOut>(`/cadastros/profissionais/${profissional.id}`, { ...corpo, perfil_acesso_id: profissional.acesso_sistema && v.acesso ? perfil : null, login: profissional.acesso_sistema && v.acesso ? login : null });
+      if (!profissional.acesso_sistema && v.acesso) r = await api.post<ProfissionalOut>(`/cadastros/profissionais/${profissional.id}/acesso`, { perfil_acesso_id: perfil, login });
       else if (profissional.acesso_sistema && !v.acesso) r = await api.del<ProfissionalOut>(`/cadastros/profissionais/${profissional.id}/acesso`);
       return r;
     },
@@ -111,7 +114,9 @@ function ProfissionalDialog({ profissional, open, onClose, editar }: { profissio
   const [acesso, email, ativo] = useWatch({ control: f.control, name: ["acesso", "email", "ativo"] });
   const tinhaAcesso = !!profissional?.acesso_sistema;
   const enviar = (v: Form) => {
-    if (acesso && !v.email) return f.setError("email", { message: "O e-mail é o login de acesso" });
+    if (acesso && !v.email) return f.setError("email", { message: "Informe o e-mail: ele recebe o convite e a recuperação de senha" });
+    if (acesso && !/^[a-z0-9._-]{3,30}$/.test(v.login.trim().toLowerCase()))
+      return f.setError("login", { message: "Use de 3 a 30 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado (sem @ nem espaço)" });
     if (acesso && !v.perfil_acesso_id) return f.setError("perfil_acesso_id", { message: "Escolha o perfil de acesso" });
     if (!v.ativo && v.acesso) return f.setError("ativo", { message: "Um profissional inativo não pode ter acesso" });
     if (tinhaAcesso && !v.acesso) return setConfirmarRevogar(v);
@@ -138,7 +143,7 @@ function ProfissionalDialog({ profissional, open, onClose, editar }: { profissio
           <Field label="Nome" obrigatorio erro={er.nome?.message} className="sm:col-span-2">
             <Input {...f.register("nome")} autoFocus />
           </Field>
-          <Field label="E-mail" erro={er.email?.message} dica={acesso ? "É o login de acesso ao sistema." : "Opcional. Necessário para dar acesso ao sistema."}>
+          <Field label="E-mail" erro={er.email?.message} dica={acesso ? "Contato, recuperação de senha e envio do convite." : "Opcional. Necessário para dar acesso ao sistema."}>
             <Input type="email" {...f.register("email")} autoCapitalize="none" />
           </Field>
           <Field label="Celular (WhatsApp)" erro={er.celular?.message}>
@@ -169,12 +174,17 @@ function ProfissionalDialog({ profissional, open, onClose, editar }: { profissio
               titulo="Acesso ao sistema"
               descricao={
                 podeUsuarios
-                  ? "Cria o usuário (login = e-mail) e envia um convite para ele definir a senha."
+                  ? "Cria o usuário com o login escolhido e envia um convite por e-mail para ele definir a senha."
                   : "Só quem gerencia usuários pode dar ou tirar o acesso."
               }
             >
               <Switch disabled={!podeUsuarios} checked={acesso} onCheckedChange={(v) => f.setValue("acesso", v, { shouldDirty: true })} />
             </SwitchRow>
+            {acesso && (
+              <Field label="Login" obrigatorio erro={er.login?.message} dica="Nome curto para entrar no sistema (ex.: ana). Não é o e-mail.">
+                <Input {...f.register("login", { onChange: (e) => f.setValue("login", e.target.value.toLowerCase().replace(/\s/g, "")) })} autoCapitalize="none" autoComplete="off" disabled={!podeUsuarios} />
+              </Field>
+            )}
             {acesso && (
               <Field label="Perfil de acesso" obrigatorio erro={er.perfil_acesso_id?.message} dica="Define o que a pessoa pode ver e fazer. O perfil Professor vê só as próprias aulas.">
                 <NativeSelect {...f.register("perfil_acesso_id")} disabled={!podeUsuarios}>
@@ -187,7 +197,7 @@ function ProfissionalDialog({ profissional, open, onClose, editar }: { profissio
                 </NativeSelect>
               </Field>
             )}
-            {acesso && !email && <p className="text-xs text-warning-ink">Informe o e-mail acima: ele será o login.</p>}
+            {acesso && !email && <p className="text-xs text-warning-ink">Informe o e-mail acima: o convite para definir a senha vai para ele.</p>}
             {profissional?.acesso_sistema && profissional.convite_pendente && (
               <p className="text-xs text-muted-foreground">Convite pendente: a pessoa ainda não definiu a senha.</p>
             )}
@@ -245,7 +255,7 @@ export default function ProfissionaisPage() {
         substantivo="profissional"
         rotuloNovo="Novo profissional"
         nomeDe={(p) => p.nome}
-        buscaPlaceholder="Nome, e-mail, CREFITO ou celular…"
+        buscaPlaceholder="Nome, login, e-mail, CREFITO ou celular…"
         podeEditar={editar}
         podeExcluir={pode("cadastros_profissionais.excluir")}
         onNovo={() => setDialogo({ p: null })}
@@ -290,6 +300,7 @@ export default function ProfissionaisPage() {
               </div>
             ),
           },
+          { titulo: "Login", ate: "md", render: (p) => (p.login && p.acesso_sistema ? <Mono>{p.login}</Mono> : <span className="text-muted-foreground">—</span>) },
           { titulo: "Celular", ate: "md", render: (p) => <span className="num">{celularParaTela(p.celular) || "—"}</span> },
           { titulo: "CREFITO", ordenar: "crefito", ate: "lg", render: (p) => p.crefito || <span className="text-muted-foreground">—</span> },
           { titulo: "Comissão", ordenar: "comissao", ate: "md", render: (p) => <span className="num">{Number(p.comissao_percentual).toLocaleString("pt-BR")}%</span> },

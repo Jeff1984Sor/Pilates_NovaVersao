@@ -1,6 +1,6 @@
 """Peças comuns dos cadastros-base: paginação com contagens, situação (ativos/inativos), vínculos para exclusão."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, status
@@ -31,6 +31,8 @@ class VinculosOut(Schema):
     itens: list[VinculoOut]
     pode_excluir: bool
     pode_desativar: bool
+    junto: list[VinculoOut] = []  # serão removidos junto com o cadastro
+    total_junto: int = 0
 
 
 # Nome legível dos registros que apontam para um cadastro (tabela -> (singular, plural)).
@@ -55,8 +57,8 @@ ROTULOS: dict[str, tuple[str, str]] = {
 }
 
 
-def vinculos(db: Session, modelo: type[Base], registro_id: int) -> list[VinculoOut]:
-    """Quantos registros de OUTRAS tabelas apontam para este cadastro (FK sem exclusão em cascata).
+def _contagens(db: Session, modelo: type[Base], registro_id: int) -> dict[str, int]:
+    """tabela -> quantos registros apontam para este cadastro (FK sem exclusão em cascata).
 
     Percorre o metadata (assim nenhuma tabela de outro módulo fica de fora quando for criada).
     """
@@ -71,31 +73,49 @@ def vinculos(db: Session, modelo: type[Base], registro_id: int) -> list[VinculoO
         for fk in tabela.foreign_keys:
             if fk.column.table is alvo and (fk.ondelete or "").upper() != "CASCADE":
                 por_tabela.setdefault(tabela, []).append(fk.parent == registro_id)
-    achados: list[VinculoOut] = []
+    achados: dict[str, int] = {}
     for tabela, condicoes in por_tabela.items():
         n = db.scalar(select(func.count()).select_from(tabela).where(or_(*condicoes))) or 0
         if n:
-            sing, plur = ROTULOS.get(tabela.name, (tabela.name.replace("_", " "),) * 2)
-            achados.append(VinculoOut(rotulo=sing if n == 1 else plur, quantidade=n))
+            achados[tabela.name] = n
+    return achados
+
+
+def _agrupar(contagens: dict[str, int]) -> list[VinculoOut]:
     # agrupa rótulos repetidos (ex.: as duas tabelas de horário)
     soma: dict[str, int] = {}
-    for a in achados:
-        soma[a.rotulo] = soma.get(a.rotulo, 0) + a.quantidade
+    for tabela, n in contagens.items():
+        sing, plur = ROTULOS.get(tabela, (tabela.replace("_", " "),) * 2)
+        r = sing if n == 1 else plur
+        soma[r] = soma.get(r, 0) + n
     return sorted((VinculoOut(rotulo=r, quantidade=q) for r, q in soma.items()), key=lambda v: -v.quantidade)
+
+
+def vinculos(db: Session, modelo: type[Base], registro_id: int, junto: Collection[str] = ()) -> list[VinculoOut]:
+    """Vínculos que BLOQUEIAM a exclusão (tabelas em `junto` saem junto e não entram aqui)."""
+    return _agrupar({t: n for t, n in _contagens(db, modelo, registro_id).items() if t not in junto})
+
+
+def vinculos_junto(db: Session, modelo: type[Base], registro_id: int, junto: Collection[str]) -> list[VinculoOut]:
+    """Itens que serão removidos junto com o cadastro (exclusão em cascata)."""
+    return _agrupar({t: n for t, n in _contagens(db, modelo, registro_id).items() if t in junto})
 
 
 def resumo_vinculos(lista: Sequence[VinculoOut]) -> str:
     return ", ".join(f"{v.quantidade} {v.rotulo}" for v in lista)
 
 
-def vinculos_out(db: Session, modelo: type[Base], registro_id: int, *, tem_ativo: bool = True) -> VinculosOut:
-    lista = vinculos(db, modelo, registro_id)
-    return VinculosOut(total=sum(v.quantidade for v in lista), itens=lista, pode_excluir=not lista, pode_desativar=tem_ativo)
+def vinculos_out(db: Session, modelo: type[Base], registro_id: int, *, tem_ativo: bool = True, junto: Collection[str] = ()) -> VinculosOut:
+    lista = vinculos(db, modelo, registro_id, junto)
+    saem = vinculos_junto(db, modelo, registro_id, junto) if junto else []
+    return VinculosOut(total=sum(v.quantidade for v in lista), itens=lista, pode_excluir=not lista, pode_desativar=tem_ativo,
+                       junto=saem, total_junto=sum(v.quantidade for v in saem))
 
 
-def bloquear_se_vinculado(db: Session, modelo: type[Base], registro_id: int, o_que: str, *, tem_ativo: bool = True) -> None:
+def bloquear_se_vinculado(db: Session, modelo: type[Base], registro_id: int, o_que: str, *, tem_ativo: bool = True,
+                          junto: Collection[str] = ()) -> None:
     """409 com mensagem clara quando há vínculos; sugere desativar quando o cadastro tem a situação ativo/inativo."""
-    lista = vinculos(db, modelo, registro_id)
+    lista = vinculos(db, modelo, registro_id, junto)
     if lista:
         dica = " Desative-o em vez de excluir." if tem_ativo else " Remova ou troque esses vínculos antes de excluir."
         raise HTTPException(status.HTTP_409_CONFLICT, f"Não é possível excluir {o_que}: ele está em uso por {resumo_vinculos(lista)}.{dica}")

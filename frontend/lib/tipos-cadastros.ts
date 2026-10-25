@@ -12,6 +12,9 @@ export interface VinculosOut {
   itens: { rotulo: string; quantidade: number }[];
   pode_excluir: boolean;
   pode_desativar: boolean;
+  /** Itens que serão removidos junto com o cadastro (ex.: horários e bloqueios da unidade). */
+  junto: { rotulo: string; quantidade: number }[];
+  total_junto: number;
 }
 
 export interface UnidadeOut {
@@ -79,6 +82,7 @@ export interface ProfissionalOut {
   comissao_percentual: string;
   ativo: boolean;
   usuario_id: number | null;
+  login: string | null;
   acesso_sistema: boolean;
   convite_pendente: boolean;
   perfil_acesso_id: number | null;

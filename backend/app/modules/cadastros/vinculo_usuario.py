@@ -2,7 +2,7 @@
 
 Modelo: `profissional.usuario_id` (único, anulável). Profissional SEM login existe (usuario_id nulo) ou tem um
 `usuario` com `acesso_sistema=False` (acesso revogado, mantido para o histórico). O login do profissional é o
-E-MAIL (`usuario.email`; a autenticação do core aceita e-mail ou login). Quem tem acesso recebe o convite para
+LOGIN próprio (`usuario.login`, nome curto como "ana"; nunca o e-mail). O e-mail é só contato, recuperação de senha e convite. Quem tem acesso recebe o convite para
 definir a senha pelos serviços do core (`auth_service.enviar_link_email`).
 
 Escopo do Professor: `resolver_profissional_id` é registrado em `app.core.escopo` (ver `registrar_escopo`) e diz,
@@ -12,9 +12,10 @@ para o usuário logado, qual é o seu profissional; sem vínculo o perfil restri
 from __future__ import annotations
 
 import logging
+import re
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core import audit, escopo
@@ -23,6 +24,8 @@ from app.core.models import PerfilAcesso, Usuario
 from app.modules.cadastros.models import Profissional
 
 log = logging.getLogger(__name__)
+
+LOGIN_RE = re.compile(r"[a-z0-9._-]{3,30}")
 
 
 # --------------------------------------------------------------------------------------------- escopo do Professor
@@ -56,6 +59,21 @@ def perfil_ou_404(db: Session, perfil_id: int | None) -> PerfilAcesso:
     return p
 
 
+def normalizar_login(login: str | None) -> str:
+    limpo = (login or "").strip().lower()
+    if not LOGIN_RE.fullmatch(limpo):
+        raise HTTPException(422, "Login inválido: use de 3 a 30 caracteres entre letras minúsculas, números, ponto, hífen e sublinhado (sem @ nem espaço).")
+    return limpo
+
+
+def login_livre(db: Session, login: str, exceto_usuario_id: int | None = None) -> None:
+    q = select(Usuario.id).where(func.lower(Usuario.login) == login.lower())
+    if exceto_usuario_id:
+        q = q.where(Usuario.id != exceto_usuario_id)
+    if db.scalar(q):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Este login já está em uso. Escolha outro.")
+
+
 def email_do_usuario_livre(db: Session, email: str, exceto_usuario_id: int | None = None) -> None:
     q = select(Usuario.id).where(Usuario.email == email.lower())
     if exceto_usuario_id:
@@ -72,7 +90,7 @@ def _enviar_convite(db: Session, u: Usuario) -> bool:
         return False
 
 
-def conceder_acesso(db: Session, prof: Profissional, perfil: PerfilAcesso) -> tuple[Usuario, bool]:
+def conceder_acesso(db: Session, prof: Profissional, perfil: PerfilAcesso, login: str | None) -> tuple[Usuario, bool]:
     """Cria (ou reativa) o usuário do profissional e envia o convite. Devolve (usuário, convite_enviado)."""
     if not prof.email:
         raise HTTPException(422, "Informe o e-mail do profissional: ele é o login de acesso ao sistema.")
@@ -81,15 +99,17 @@ def conceder_acesso(db: Session, prof: Profissional, perfil: PerfilAcesso) -> tu
     u = db.get(Usuario, prof.usuario_id) if prof.usuario_id else None
     if u is not None and u.acesso_sistema and u.ativo:
         raise HTTPException(status.HTTP_409_CONFLICT, "Este profissional já tem acesso ao sistema.")
+    login = normalizar_login(login)
+    login_livre(db, login, exceto_usuario_id=u.id if u else None)
     email_do_usuario_livre(db, prof.email, exceto_usuario_id=u.id if u else None)
     if u is None:
-        u = Usuario(nome=prof.nome, email=prof.email.lower(), telefone=prof.celular, perfil_acesso_id=perfil.id,
+        u = Usuario(nome=prof.nome, login=login, email=prof.email.lower(), telefone=prof.celular, perfil_acesso_id=perfil.id,
                     acesso_sistema=True, ativo=True, convite_pendente=True)
         db.add(u)
         db.flush()
         prof.usuario_id = u.id
     else:  # acesso revogado antes: reativa o mesmo usuário (mantém o histórico) com nova senha a definir
-        u.nome, u.email, u.telefone = prof.nome, prof.email.lower(), prof.celular
+        u.nome, u.login, u.email, u.telefone = prof.nome, login, prof.email.lower(), prof.celular
         u.perfil_acesso_id = perfil.id
         u.acesso_sistema, u.ativo = True, True
         u.senha_hash, u.convite_pendente = None, True
@@ -112,7 +132,7 @@ def revogar_acesso(db: Session, prof: Profissional, ator: Usuario) -> Usuario:
     return u
 
 
-def sincronizar_usuario(db: Session, prof: Profissional, ator: Usuario, *, perfil_id: int | None = None) -> list[str]:
+def sincronizar_usuario(db: Session, prof: Profissional, ator: Usuario, *, perfil_id: int | None = None, login: str | None = None) -> list[str]:
     """Propaga nome, e-mail, celular, situação e perfil do profissional para o usuário vinculado.
 
     Devolve a lista das mudanças feitas no usuário (para a auditoria). Sem usuário vinculado não faz nada.
@@ -132,6 +152,11 @@ def sincronizar_usuario(db: Session, prof: Profissional, ator: Usuario, *, perfi
         if u.email != prof.email.lower():
             email_do_usuario_livre(db, prof.email, exceto_usuario_id=u.id)
             u.email = prof.email.lower()
+        if login is not None and login.strip().lower() != (u.login or ""):
+            novo_login = normalizar_login(login)
+            login_livre(db, novo_login, exceto_usuario_id=u.id)
+            u.login = novo_login
+            svc.invalidar_sessoes(db, u)  # quem está logado com o login antigo precisa entrar de novo
         if not prof.ativo and u.ativo:
             _exigir_pode_tirar_acesso(db, u, ator)
             u.ativo = False

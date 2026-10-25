@@ -27,8 +27,8 @@ const numero = (min: number, max: number, rotulo: string) =>
 
 const schema = z.object({
   nome: z.string().trim().min(2, "Informe o nome (mínimo 2 letras)").max(120, "Máximo 120 caracteres"),
-  capacidade: numero(0, 500, "as vagas por aula"),
-  duracao_aula_minutos: numero(10, 240, "a duração em minutos"),
+  capacidade: numero(1, 500, "as vagas por aula"),
+  duracao_aula_minutos: numero(1, 240, "a duração em minutos"),
   ativo: z.boolean(),
 });
 type Form = z.infer<typeof schema>;
@@ -69,11 +69,11 @@ function UnidadeDialog({ unidade, open, onClose, editar }: { unidade: UnidadeOut
           <Input {...f.register("nome")} autoFocus placeholder="Ex.: Matriz" />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Vagas por aula" obrigatorio erro={er.capacidade?.message} dica="Aulas sem capacidade própria herdam este número. 0 = sem vagas.">
-            <Input type="number" inputMode="numeric" min={0} max={500} {...f.register("capacidade", { valueAsNumber: true })} />
+          <Field label="Vagas por aula" obrigatorio erro={er.capacidade?.message} dica="Aulas sem capacidade própria herdam este número. Mínimo 1.">
+            <Input type="number" inputMode="numeric" min={1} max={500} {...f.register("capacidade", { valueAsNumber: true })} />
           </Field>
           <Field label="Duração da aula (min)" obrigatorio erro={er.duracao_aula_minutos?.message} dica="Usada para sugerir o horário final das aulas.">
-            <Input type="number" inputMode="numeric" min={10} max={240} {...f.register("duracao_aula_minutos", { valueAsNumber: true })} />
+            <Input type="number" inputMode="numeric" min={1} max={240} {...f.register("duracao_aula_minutos", { valueAsNumber: true })} />
           </Field>
         </div>
         <SwitchRow titulo="Unidade ativa" descricao="Desativada, deixa de aparecer em novos cadastros, mas o histórico fica preservado.">

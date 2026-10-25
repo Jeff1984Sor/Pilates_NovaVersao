@@ -1,7 +1,7 @@
 """Profissionais (`/api/cadastros/profissionais`): cadastro, comissão e vínculo opcional com um usuário de login.
 
 - Sem acesso ao sistema: só o cadastro (aparece em agendas e comissões).
-- Com acesso: cria o `usuario` (login = e-mail) com o perfil escolhido e envia o convite para definir a senha.
+- Com acesso: cria o `usuario` (login próprio) com o perfil escolhido e envia o convite para definir a senha.
 - `POST/DELETE /{id}/acesso` dá e revoga o acesso depois; editar o profissional sincroniza o usuário.
 - `GET/PATCH /meu`: o próprio profissional edita os seus dados (tela Minha conta; qualquer usuário logado).
 Dar ou tirar acesso exige também `usuarios.editar` (além de `cadastros_profissionais.editar`).
@@ -76,6 +76,8 @@ class ProfissionalIn(_Contato):
     # só vale na criação; depois use POST/DELETE /{id}/acesso
     acesso_sistema: bool = False
     perfil_acesso_id: int | None = None
+    # obrigatório ao dar acesso (3 a 30: minúsculas, números, ponto, hífen e sublinhado); na edição troca o login
+    login: str | None = Field(default=None, max_length=60)
 
 
 class ProfissionalPut(ProfissionalIn):
@@ -84,6 +86,7 @@ class ProfissionalPut(ProfissionalIn):
 
 class AcessoIn(BaseModel):
     perfil_acesso_id: int
+    login: str = Field(max_length=60)
 
 
 class ProfissionalOut(Schema):
@@ -97,6 +100,7 @@ class ProfissionalOut(Schema):
     comissao_percentual: Decimal
     ativo: bool
     usuario_id: int | None
+    login: str | None = None
     acesso_sistema: bool
     convite_pendente: bool
     perfil_acesso_id: int | None
@@ -121,7 +125,7 @@ def _out(db, p: Profissional, u: Usuario | None = None, perfil: PerfilAcesso | N
         perfil = db.get(PerfilAcesso, u.perfil_acesso_id)
     return ProfissionalOut(
         id=p.id, codigo=p.codigo_legado, nome=p.nome, email=p.email, celular=p.celular, data_nascimento=p.data_nascimento,
-        crefito=p.crefito, comissao_percentual=p.comissao_percentual, ativo=p.ativo, usuario_id=p.usuario_id,
+        crefito=p.crefito, comissao_percentual=p.comissao_percentual, ativo=p.ativo, usuario_id=p.usuario_id, login=u.login if u else None,
         acesso_sistema=acesso, convite_pendente=bool(u and acesso and u.convite_pendente),
         perfil_acesso_id=perfil.id if perfil else None, perfil_acesso_nome=perfil.nome if perfil else None,
         perfil_acesso_cor=perfil.cor if perfil else None, convite_enviado=convite_enviado)
@@ -219,7 +223,7 @@ def listar(
     if q and q.strip():
         like = comum.like(q)
         cond = [Profissional.nome.ilike(like, escape="\\"), Profissional.email.ilike(like, escape="\\"),
-                Profissional.crefito.ilike(like, escape="\\")]
+                Profissional.crefito.ilike(like, escape="\\"), Usuario.login.ilike(like, escape="\\")]
         digitos = "".join(c for c in q if c.isdigit())
         if len(digitos) >= 4:
             cond.append(Profissional.celular.like(f"%{digitos}%"))
@@ -255,7 +259,7 @@ def ler(profissional_id: int, ctx: Ctx):
 
 @router.post("", response_model=ProfissionalOut, status_code=201)
 def criar(dados: ProfissionalIn, ctx: Ctx):
-    """Cria o profissional. Com `acesso_sistema=true` cria também o usuário (login = e-mail) e envia o convite."""
+    """Cria o profissional. Com `acesso_sistema=true` cria também o usuário (login próprio) e envia o convite."""
     perfil = None
     if dados.acesso_sistema:
         ctx.exigir("usuarios.editar")
@@ -264,17 +268,18 @@ def criar(dados: ProfissionalIn, ctx: Ctx):
         if not dados.ativo:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Um profissional inativo não pode ter acesso ao sistema.")
         perfil = vinculo_usuario.perfil_ou_404(ctx.db, dados.perfil_acesso_id)
+        vinculo_usuario.login_livre(ctx.db, vinculo_usuario.normalizar_login(dados.login))
         vinculo_usuario.email_do_usuario_livre(ctx.db, dados.email)
     _email_livre(ctx, dados.email)
     p = Profissional(
-        **dados.model_dump(exclude={"acesso_sistema", "perfil_acesso_id", "email"}),
+        **dados.model_dump(exclude={"acesso_sistema", "perfil_acesso_id", "email", "login"}),
         email=dados.email.lower() if dados.email else None,
         codigo_legado=proximo_codigo(ctx.db, "profissional"))
     ctx.db.add(p)
     ctx.db.flush()
     u, convite = None, None
     if perfil is not None:
-        u, convite = vinculo_usuario.conceder_acesso(ctx.db, p, perfil)
+        u, convite = vinculo_usuario.conceder_acesso(ctx.db, p, perfil, dados.login)
         ctx.auditar("usuario.criar", "usuario", u.id, descricao=f"{u.nome} ({perfil.nome}), via cadastro de profissional",
                     depois=audit.snapshot(u))
     ctx.auditar("profissional.criar", "profissional", p.id, descricao=p.nome + (" (com acesso ao sistema)" if u else ""),
@@ -289,15 +294,17 @@ def alterar(profissional_id: int, dados: ProfissionalPut, ctx: Ctx):
     _email_livre(ctx, dados.email, exceto_id=p.id)
     u = ctx.db.get(Usuario, p.usuario_id) if p.usuario_id else None
     troca_perfil = bool(u and u.acesso_sistema and dados.perfil_acesso_id and dados.perfil_acesso_id != u.perfil_acesso_id)
-    if troca_perfil or (u and u.acesso_sistema and (dados.ativo != p.ativo or (dados.email or "").lower() != (p.email or "").lower())):
+    troca_login = bool(u and u.acesso_sistema and dados.login and dados.login.strip().lower() != (u.login or ""))
+    if troca_perfil or troca_login or (u and u.acesso_sistema and (dados.ativo != p.ativo or (dados.email or "").lower() != (p.email or "").lower())):
         ctx.exigir("usuarios.editar")  # mexe no login de alguém: precisa poder gerir usuários
     antes = audit.snapshot(p)
-    campos = dados.model_dump(exclude={"acesso_sistema", "perfil_acesso_id", "email"})
+    campos = dados.model_dump(exclude={"acesso_sistema", "perfil_acesso_id", "email", "login"})
     for k, v in campos.items():
         setattr(p, k, v)
     p.email = dados.email.lower() if dados.email else None
     ctx.db.flush()
-    mudancas = vinculo_usuario.sincronizar_usuario(ctx.db, p, ctx.usuario, perfil_id=dados.perfil_acesso_id if troca_perfil else None)
+    mudancas = vinculo_usuario.sincronizar_usuario(ctx.db, p, ctx.usuario, perfil_id=dados.perfil_acesso_id if troca_perfil else None,
+                                                      login=dados.login if troca_login else None)
     a, d = audit.diff(antes, audit.snapshot(p))
     ctx.auditar("profissional.alterar", "profissional", p.id, descricao=p.nome, antes=a, depois=d)
     if mudancas:
@@ -308,11 +315,11 @@ def alterar(profissional_id: int, dados: ProfissionalPut, ctx: Ctx):
 
 @router.post("/{profissional_id}/acesso", response_model=ProfissionalOut)
 def dar_acesso(profissional_id: int, dados: AcessoIn, ctx: Ctx):
-    """Cria o usuário (login = e-mail) com o perfil escolhido e envia o convite para definir a senha."""
+    """Cria o usuário (login próprio) com o perfil escolhido e envia o convite para definir a senha."""
     ctx.exigir("usuarios.editar")
     p = _obter(ctx, profissional_id)
     perfil = vinculo_usuario.perfil_ou_404(ctx.db, dados.perfil_acesso_id)
-    u, convite = vinculo_usuario.conceder_acesso(ctx.db, p, perfil)
+    u, convite = vinculo_usuario.conceder_acesso(ctx.db, p, perfil, dados.login)
     ctx.auditar("profissional.dar_acesso", "profissional", p.id, descricao=f"{p.nome}: acesso ao sistema com o perfil {perfil.nome}")
     ctx.auditar("usuario.criar", "usuario", u.id, descricao=f"{u.nome} ({perfil.nome}), via cadastro de profissional")
     ctx.db.commit()

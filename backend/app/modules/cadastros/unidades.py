@@ -2,7 +2,8 @@
 
 Regra R3 (capacidade): `capacidade` é o número de vagas por aula DA UNIDADE. Uma sessão de aula cuja capacidade
 própria é nula HERDA este valor (`app.domain.capacidade.capacidade_efetiva`); capacidade 0 na sessão vale 0 (sem
-vagas) e capacidade 0 na unidade significa "sem vagas por padrão". `duracao_aula_minutos` é a duração padrão
+vagas). A capacidade da unidade é de pelo menos 1 (validado na API). Ao excluir a unidade, horários de
+funcionamento, da grade e bloqueios saem junto; aulas, contratos, alunos etc. bloqueiam (409). `duracao_aula_minutos` é a duração padrão
 usada para sugerir o horário final e corrigir horários invertidos.
 """
 
@@ -18,7 +19,7 @@ from app.core.deps import Ctx
 from app.core.schemas import Mensagem, Schema
 from app.modules.cadastros import comum
 from app.modules.cadastros.comum import PaginaCad, Situacao, VinculosOut
-from app.modules.cadastros.models import Unidade, proximo_codigo
+from app.modules.cadastros.models import BloqueioAgenda, HorarioFuncionamento, HorarioStudio, Unidade, proximo_codigo
 
 router = APIRouter(prefix="/cadastros/unidades", tags=["cadastros: unidades"])
 
@@ -27,8 +28,8 @@ Nome = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max
 
 class UnidadeIn(BaseModel):
     nome: Nome
-    capacidade: int = Field(default=1, ge=0, le=500, description="Vagas por aula quando a aula não define a sua (0 = sem vagas)")
-    duracao_aula_minutos: int = Field(default=50, ge=10, le=240)
+    capacidade: int = Field(default=1, ge=0, le=500, description="Vagas por aula quando a aula não define a sua (mínimo 1)")
+    duracao_aula_minutos: int = Field(default=50, ge=0, le=240)
     ativo: bool = True
 
 
@@ -44,6 +45,17 @@ class UnidadeOut(Schema):
 def _out(db, u: Unidade) -> UnidadeOut:
     return UnidadeOut(id=u.id, codigo=u.codigo_legado, nome=u.nome, capacidade=u.capacidade,
                       duracao_aula_minutos=u.duracao_aula_minutos, ativo=u.ativo)
+
+
+def _validar(dados: UnidadeIn) -> None:
+    if dados.capacidade < 1:
+        raise HTTPException(422, "A capacidade da unidade precisa ser de pelo menos 1 vaga por aula.")
+    if dados.duracao_aula_minutos < 1:
+        raise HTTPException(422, "A duração da aula precisa ser de pelo menos 1 minuto.")
+
+
+# Saem junto com a unidade (exclusão em cascata, na mesma transação); qualquer outro vínculo bloqueia.
+JUNTO = frozenset({"horario_funcionamento", "horario_studio", "bloqueio_agenda"})
 
 
 def _obter(ctx, unidade_id: int) -> Unidade:
@@ -87,6 +99,7 @@ def ler(unidade_id: int, ctx: Ctx):
 
 @router.post("", response_model=UnidadeOut, status_code=201)
 def criar(dados: UnidadeIn, ctx: Ctx):
+    _validar(dados)
     if comum.duplicado(ctx.db, Unidade, Unidade.nome, dados.nome):
         raise HTTPException(status.HTTP_409_CONFLICT, "Já existe uma unidade com este nome.")
     u = Unidade(**dados.model_dump(), codigo_legado=proximo_codigo(ctx.db, "unidade"))
@@ -99,6 +112,7 @@ def criar(dados: UnidadeIn, ctx: Ctx):
 
 @router.put("/{unidade_id}", response_model=UnidadeOut)
 def alterar(unidade_id: int, dados: UnidadeIn, ctx: Ctx):
+    _validar(dados)
     u = _obter(ctx, unidade_id)
     if comum.duplicado(ctx.db, Unidade, Unidade.nome, dados.nome, exceto_id=u.id):
         raise HTTPException(status.HTTP_409_CONFLICT, "Já existe uma unidade com este nome.")
@@ -115,18 +129,24 @@ def alterar(unidade_id: int, dados: UnidadeIn, ctx: Ctx):
 @router.get("/{unidade_id}/vinculos", response_model=VinculosOut)
 def ver_vinculos(unidade_id: int, ctx: Ctx):
     _obter(ctx, unidade_id)
-    return comum.vinculos_out(ctx.db, Unidade, unidade_id)
+    return comum.vinculos_out(ctx.db, Unidade, unidade_id, junto=JUNTO)
 
 
 @router.delete("/{unidade_id}", response_model=Mensagem)
 def excluir(unidade_id: int, ctx: Ctx):
     u = _obter(ctx, unidade_id)
-    comum.bloquear_se_vinculado(ctx.db, Unidade, u.id, "a unidade")
+    comum.bloquear_se_vinculado(ctx.db, Unidade, u.id, "a unidade", junto=JUNTO)
+    saem = comum.vinculos_junto(ctx.db, Unidade, u.id, JUNTO)
     snap = audit.snapshot(u)
     nome = u.nome
     try:
+        for modelo in (HorarioFuncionamento, HorarioStudio, BloqueioAgenda):
+            for item in ctx.db.scalars(select(modelo).where(modelo.unidade_id == u.id)):
+                ctx.db.delete(item)
+        ctx.db.flush()
         ctx.db.delete(u)
-        ctx.auditar("unidade.excluir", "unidade", unidade_id, descricao=nome, antes=snap)
+        extra = f" (removidos junto: {comum.resumo_vinculos(saem)})" if saem else ""
+        ctx.auditar("unidade.excluir", "unidade", unidade_id, descricao=nome + extra, antes=snap)
         ctx.db.commit()
     except IntegrityError:
         ctx.db.rollback()
