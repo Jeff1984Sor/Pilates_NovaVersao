@@ -29,7 +29,6 @@ from app.core.security import hash_token
 from app.domain import agenda as dom_agenda
 from app.domain import capacidade as cap
 from app.domain import documentos, status_aula
-from app.domain import reposicao as repos
 from app.domain.financeiro import hoje_de_negocio
 from app.domain.telefone import normalizar_telefone_br
 from app.modules.agenda import servico as agenda
@@ -310,7 +309,10 @@ def desmarcar(db: Session, aluno: Aluno, reserva_id: int, *, agora: datetime | N
         r = agenda.desmarcar_reserva_do_aluno(db, aluno.id, reserva_id, agora=agora)
     except agenda.ErroAgenda as e:
         raise _traduzir(e) from e
-    return {"mensagem": repos.mensagem_reposicao(r.reposicao_ate), "reposicao_ate": r.reposicao_ate}
+    return {
+        "mensagem": f"Aula desmarcada. Você pode repor até {r.reposicao_ate:%d/%m/%Y} (30 dias).",
+        "reposicao_ate": r.reposicao_ate,
+    }
 
 
 def _traduzir(e: agenda.ErroAgenda) -> ErroAluno:
