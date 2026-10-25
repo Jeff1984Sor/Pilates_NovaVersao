@@ -333,7 +333,6 @@ class ContratoPublico(BaseModel):
     aluno_primeiro_nome: str
     assinado_em: datetime | None = None
     html: str | None = None
-    exige_documento: bool = True
 
 
 class AssinarPublicoIn(BaseModel):
