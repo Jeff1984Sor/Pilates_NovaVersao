@@ -80,13 +80,13 @@ export const NAV: NavGrupo[] = [
   {
     titulo: "Financeiro",
     itens: [
-      { label: "Contas a receber", href: "/financeiro/receber", icone: ReceiptText, permissao: "financeiro_receber.ver", planejado: true },
-      { label: "Contas a pagar", href: "/financeiro/pagar", icone: CalendarClock, permissao: "financeiro_pagar.ver", planejado: true },
-      { label: "Fluxo de caixa", href: "/financeiro/caixa", icone: ArrowLeftRight, permissao: "financeiro_caixa.ver", planejado: true },
-      { label: "DRE", href: "/financeiro/dre", icone: BarChart3, permissao: "financeiro_dre.ver", planejado: true },
-      { label: "Contas bancárias", href: "/financeiro/bancos", icone: Landmark, permissao: "financeiro_bancos.ver", planejado: true },
-      { label: "Receita Saúde", href: "/receita-saude", icone: HeartPulse, permissao: "receita_saude.ver", planejado: true },
-      { label: "Comissões", href: "/comissoes", icone: Percent, permissao: "comissoes.ver", planejado: true },
+      { label: "Contas a receber", href: "/financeiro/receber", icone: ReceiptText, permissao: "financeiro_receber.ver" },
+      { label: "Contas a pagar", href: "/financeiro/pagar", icone: CalendarClock, permissao: "financeiro_pagar.ver" },
+      { label: "Fluxo de caixa", href: "/financeiro/caixa", icone: ArrowLeftRight, permissao: "financeiro_caixa.ver" },
+      { label: "DRE", href: "/financeiro/dre", icone: BarChart3, permissao: "financeiro_dre.ver" },
+      { label: "Contas bancárias", href: "/financeiro/bancos", icone: Landmark, permissao: "financeiro_bancos.ver" },
+      { label: "Receita Saúde", href: "/receita-saude", icone: HeartPulse, permissao: "receita_saude.ver" },
+      { label: "Comissões", href: "/comissoes", icone: Percent, permissao: "comissoes.ver" },
     ],
   },
   {
