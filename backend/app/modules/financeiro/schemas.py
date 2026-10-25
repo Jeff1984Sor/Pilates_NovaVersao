@@ -404,3 +404,27 @@ class GerarComissaoOut(Schema):
 class PagarComissaoIn(Entrada):
     comissao_ids: list[int] = Field(min_length=1, max_length=5000)
     data_pagamento: date | None = None
+
+
+# ----------------------------------------------------------------------------------------- opções dos formulários
+class OpcaoOut(Schema):
+    id: int
+    nome: str
+
+
+class CategoriaOpcaoOut(Schema):
+    id: int
+    nome: str
+    tipo: str
+    subcategorias: list[OpcaoOut]
+
+
+class OpcoesReceberOut(Schema):
+    planos: list[OpcaoOut]
+    contas_bancarias: list[OpcaoOut]
+
+
+class OpcoesPagarOut(Schema):
+    fornecedores: list[OpcaoOut]
+    categorias: list[CategoriaOpcaoOut]
+    contas_bancarias: list[OpcaoOut]

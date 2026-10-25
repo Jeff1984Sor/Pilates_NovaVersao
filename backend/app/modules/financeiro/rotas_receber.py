@@ -6,12 +6,14 @@ from datetime import date
 from typing import Literal
 
 from fastapi import Query
+from sqlalchemy import select
 
 from app.core import audit
 from app.core.deps import Ctx
 from app.core.schemas import Mensagem
 from app.modules.alunos.models import Aluno
-from app.modules.financeiro import consultas, planilhas, servico
+from app.modules.cadastros.models import Plano
+from app.modules.financeiro import bancos, consultas, planilhas, servico
 from app.modules.financeiro.consultas import FiltrosReceber
 from app.modules.financeiro.exportacao import gerar_pdf, gerar_recibo_pdf, gerar_xlsx, identidade_do_estudio
 from app.modules.financeiro.models import ContaReceber
@@ -23,6 +25,8 @@ from app.modules.financeiro.schemas import (
     CobrancaOut,
     ContaReceberOut,
     EditarReceberIn,
+    OpcaoOut,
+    OpcoesReceberOut,
     PaginaReceber,
     ResumoAlunoOut,
     SituacaoReceber,
@@ -59,6 +63,14 @@ def listar(
     f = _filtros(situacao, de, ate, aluno_id, plano_id, competencia, q)
     itens, total, chips, hoje = consultas.listar_receber(ctx.db, f, pagina, por_pagina)
     return PaginaReceber(itens=itens, total=total, pagina=pagina, por_pagina=por_pagina, chips=chips, hoje=hoje)
+
+
+@router.get("/opcoes", response_model=OpcoesReceberOut)
+def opcoes(ctx: Ctx):
+    """Planos (filtro) e contas bancárias ativas (destino da baixa) para os formulários da tela."""
+    planos = ctx.db.scalars(select(Plano).order_by(Plano.nome))
+    return OpcoesReceberOut(planos=[OpcaoOut(id=p.id, nome=p.nome) for p in planos],
+                            contas_bancarias=bancos.opcoes_contas_ativas(ctx.db))
 
 
 @router.get("/exportar")

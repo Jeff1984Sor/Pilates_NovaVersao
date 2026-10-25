@@ -7,21 +7,26 @@ from typing import Annotated, Literal
 
 from fastapi import File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
+from sqlalchemy import select
 
 from app.core import audit, storage
 from app.core.deps import Ctx
 from app.core.schemas import Mensagem
-from app.modules.financeiro import consultas, planilhas
+from app.modules.cadastros.models import Categoria, Fornecedor, Subcategoria
+from app.modules.financeiro import bancos, consultas, planilhas
 from app.modules.financeiro import pagar as srv
 from app.modules.financeiro.consultas import FiltrosPagar
 from app.modules.financeiro.exportacao import gerar_pdf, gerar_xlsx, identidade_do_estudio
 from app.modules.financeiro.rotas_base import PDF, XLSX, anexo, novo_router
 from app.modules.financeiro.schemas import (
     CancelarPagarIn,
+    CategoriaOpcaoOut,
     ContaPagarEditarIn,
     ContaPagarIn,
     ContaPagarOut,
     CriarPagarOut,
+    OpcaoOut,
+    OpcoesPagarOut,
     PaginaPagar,
     SituacaoPagar,
 )
@@ -58,6 +63,21 @@ def listar(
     f = _filtros(situacao, de, ate, fornecedor_id, categoria_id, subcategoria_id, q)
     itens, total, chips, hoje = consultas.listar_pagar(ctx.db, f, pagina, por_pagina)
     return PaginaPagar(itens=itens, total=total, pagina=pagina, por_pagina=por_pagina, chips=chips, hoje=hoje)
+
+
+@router.get("/opcoes", response_model=OpcoesPagarOut)
+def opcoes(ctx: Ctx):
+    """Fornecedores, categorias (com subcategorias) e contas bancárias ativas para os formulários."""
+    db = ctx.db
+    subs: dict[int, list[OpcaoOut]] = {}
+    for s in db.scalars(select(Subcategoria).order_by(Subcategoria.nome)):
+        subs.setdefault(s.categoria_id, []).append(OpcaoOut(id=s.id, nome=s.nome))
+    return OpcoesPagarOut(
+        fornecedores=[OpcaoOut(id=f.id, nome=f.nome) for f in db.scalars(select(Fornecedor).order_by(Fornecedor.nome))],
+        categorias=[CategoriaOpcaoOut(id=c.id, nome=c.nome, tipo=c.tipo.value, subcategorias=subs.get(c.id, []))
+                    for c in db.scalars(select(Categoria).order_by(Categoria.nome))],
+        contas_bancarias=bancos.opcoes_contas_ativas(db),
+    )
 
 
 @router.get("/exportar")

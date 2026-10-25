@@ -82,3 +82,9 @@ def criar_movimento(db: Session, *, conta_id: int, tipo: TipoMovimento, valor: D
     db.add(m)
     db.flush()
     return m
+
+
+def opcoes_contas_ativas(db: Session) -> list[dict]:
+    """Contas ativas para os seletores (id + rótulo), sem expor saldos."""
+    contas = db.scalars(select(ContaBancaria).where(ContaBancaria.ativo.is_(True)).order_by(ContaBancaria.banco, ContaBancaria.id))
+    return [{"id": c.id, "nome": f"{c.banco} ag. {c.agencia} c/c {c.conta}"} for c in contas]
