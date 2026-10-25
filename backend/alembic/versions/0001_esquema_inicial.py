@@ -30,6 +30,13 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_categoria')),
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_categoria_codigo_legado'))
     )
+    op.create_table('comunicacao_parametro',
+    sa.Column('chave', sa.String(length=60), nullable=False),
+    sa.Column('valor', sa.Text(), nullable=True),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('chave', name=op.f('pk_comunicacao_parametro'))
+    )
     op.create_table('config_email',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('remetente_nome', sa.String(length=150), nullable=False),
@@ -420,6 +427,24 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_auditoria_acao'), 'auditoria', ['acao'], unique=False)
     op.create_index(op.f('ix_auditoria_criado_em'), 'auditoria', ['criado_em'], unique=False)
+    op.create_table('comunicado',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('texto', sa.Text(), nullable=False),
+    sa.Column('publico', sa.String(length=10), nullable=False),
+    sa.Column('unidade_id', sa.Integer(), nullable=True),
+    sa.Column('status', sa.String(length=12), nullable=False),
+    sa.Column('pausa_segundos', sa.Integer(), nullable=False),
+    sa.Column('criado_por_id', sa.Integer(), nullable=True),
+    sa.Column('aviso', sa.String(length=300), nullable=True),
+    sa.Column('ultimo_envio_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('finalizado_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['criado_por_id'], ['usuario.id'], name=op.f('fk_comunicado_criado_por_id_usuario'), ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['unidade_id'], ['unidade.id'], name=op.f('fk_comunicado_unidade_id_unidade'), ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_comunicado'))
+    )
+    op.create_index(op.f('ix_comunicado_status'), 'comunicado', ['status'], unique=False)
     op.create_table('conta_pagar',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('fornecedor_id', sa.Integer(), nullable=False),
@@ -598,6 +623,21 @@ def upgrade() -> None:
     )
     op.create_index('ix_bloqueio_agenda_data_inicio', 'bloqueio_agenda', ['data_inicio'], unique=False)
     op.create_index(op.f('ix_bloqueio_agenda_unidade_id'), 'bloqueio_agenda', ['unidade_id'], unique=False)
+    op.create_table('comunicado_destinatario',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('comunicado_id', sa.Integer(), nullable=False),
+    sa.Column('aluno_id', sa.Integer(), nullable=False),
+    sa.Column('nome', sa.String(length=150), nullable=False),
+    sa.Column('telefone', sa.String(length=20), nullable=True),
+    sa.Column('status', sa.String(length=15), nullable=False),
+    sa.Column('erro', sa.String(length=300), nullable=True),
+    sa.Column('enviado_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['aluno_id'], ['aluno.id'], name=op.f('fk_comunicado_destinatario_aluno_id_aluno'), ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['comunicado_id'], ['comunicado.id'], name=op.f('fk_comunicado_destinatario_comunicado_id_comunicado'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_comunicado_destinatario')),
+    sa.UniqueConstraint('comunicado_id', 'aluno_id', name='uq_comunicado_destinatario')
+    )
+    op.create_index('ix_comunicado_destinatario_status', 'comunicado_destinatario', ['comunicado_id', 'status'], unique=False)
     op.create_table('contrato',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('aluno_id', sa.Integer(), nullable=False),
@@ -825,6 +865,34 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_evolucao_profissional_id'), 'evolucao', ['profissional_id'], unique=False)
     op.create_index(op.f('ix_evolucao_reserva_id'), 'evolucao', ['reserva_id'], unique=False)
+    op.create_table('reposicao_pedido',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('aluno_id', sa.Integer(), nullable=False),
+    sa.Column('reserva_origem_id', sa.Integer(), nullable=False),
+    sa.Column('data_origem', sa.Date(), nullable=False),
+    sa.Column('hora_origem', sa.Time(), nullable=False),
+    sa.Column('preferencia', sa.Text(), nullable=True),
+    sa.Column('status', sa.Enum('PENDENTE', 'APROVADO', 'RECUSADO', 'CANCELADO', name='statuspedido', native_enum=False, length=12), nullable=False),
+    sa.Column('reserva_nova_id', sa.Integer(), nullable=True),
+    sa.Column('aprovado_data', sa.Date(), nullable=True),
+    sa.Column('aprovado_hora', sa.Time(), nullable=True),
+    sa.Column('decidido_por_usuario_id', sa.Integer(), nullable=True),
+    sa.Column('decidido_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('motivo_recusa', sa.Text(), nullable=True),
+    sa.Column('ignorou_prazo', sa.Boolean(), nullable=False),
+    sa.Column('motivo_ignorar_prazo', sa.Text(), nullable=True),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['aluno_id'], ['aluno.id'], name=op.f('fk_reposicao_pedido_aluno_id_aluno')),
+    sa.ForeignKeyConstraint(['decidido_por_usuario_id'], ['usuario.id'], name=op.f('fk_reposicao_pedido_decidido_por_usuario_id_usuario'), ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['reserva_nova_id'], ['reserva.id'], name=op.f('fk_reposicao_pedido_reserva_nova_id_reserva'), ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['reserva_origem_id'], ['reserva.id'], name=op.f('fk_reposicao_pedido_reserva_origem_id_reserva'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_reposicao_pedido'))
+    )
+    op.create_index(op.f('ix_reposicao_pedido_aluno_id'), 'reposicao_pedido', ['aluno_id'], unique=False)
+    op.create_index(op.f('ix_reposicao_pedido_reserva_origem_id'), 'reposicao_pedido', ['reserva_origem_id'], unique=False)
+    op.create_index(op.f('ix_reposicao_pedido_status'), 'reposicao_pedido', ['status'], unique=False)
+    op.create_index('uq_reposicao_pedido_ativo', 'reposicao_pedido', ['reserva_origem_id'], unique=True, sqlite_where=sa.text("status IN ('PENDENTE', 'APROVADO')"), postgresql_where=sa.text("status IN ('PENDENTE', 'APROVADO')"))
     op.create_table('totalpass_evento',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('event_id', sa.String(length=100), nullable=True),
@@ -914,6 +982,11 @@ def downgrade() -> None:
     op.drop_index('ix_totalpass_evento_recebido_em', table_name='totalpass_evento')
     op.drop_index('ix_totalpass_evento_event_id', table_name='totalpass_evento')
     op.drop_table('totalpass_evento')
+    op.drop_index('uq_reposicao_pedido_ativo', table_name='reposicao_pedido', sqlite_where=sa.text("status IN ('PENDENTE', 'APROVADO')"), postgresql_where=sa.text("status IN ('PENDENTE', 'APROVADO')"))
+    op.drop_index(op.f('ix_reposicao_pedido_status'), table_name='reposicao_pedido')
+    op.drop_index(op.f('ix_reposicao_pedido_reserva_origem_id'), table_name='reposicao_pedido')
+    op.drop_index(op.f('ix_reposicao_pedido_aluno_id'), table_name='reposicao_pedido')
+    op.drop_table('reposicao_pedido')
     op.drop_index(op.f('ix_evolucao_reserva_id'), table_name='evolucao')
     op.drop_index(op.f('ix_evolucao_profissional_id'), table_name='evolucao')
     op.drop_table('evolucao')
@@ -944,6 +1017,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_contrato_plano_id'), table_name='contrato')
     op.drop_index(op.f('ix_contrato_aluno_id'), table_name='contrato')
     op.drop_table('contrato')
+    op.drop_index('ix_comunicado_destinatario_status', table_name='comunicado_destinatario')
+    op.drop_table('comunicado_destinatario')
     op.drop_index(op.f('ix_bloqueio_agenda_unidade_id'), table_name='bloqueio_agenda')
     op.drop_index('ix_bloqueio_agenda_data_inicio', table_name='bloqueio_agenda')
     op.drop_table('bloqueio_agenda')
@@ -964,6 +1039,8 @@ def downgrade() -> None:
     op.drop_index('ix_conta_pagar_vencimento_status', table_name='conta_pagar')
     op.drop_index(op.f('ix_conta_pagar_recorrencia_grupo'), table_name='conta_pagar')
     op.drop_table('conta_pagar')
+    op.drop_index(op.f('ix_comunicado_status'), table_name='comunicado')
+    op.drop_table('comunicado')
     op.drop_index(op.f('ix_auditoria_criado_em'), table_name='auditoria')
     op.drop_index(op.f('ix_auditoria_acao'), table_name='auditoria')
     op.drop_table('auditoria')
@@ -1002,5 +1079,6 @@ def downgrade() -> None:
     op.drop_table('conta_bancaria')
     op.drop_table('config_ia')
     op.drop_table('config_email')
+    op.drop_table('comunicacao_parametro')
     op.drop_table('categoria')
     # ### end Alembic commands ###
