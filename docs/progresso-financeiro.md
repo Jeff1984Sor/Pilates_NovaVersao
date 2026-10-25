@@ -8,7 +8,7 @@ e comissões, com API, testes e telas. Regras de negócio vêm de `app/domain` (
 ```bash
 cd backend
 uv sync
-uv run python -m pytest -q tests/financeiro tests/test_cobertura_rotas.py     # 99 testes do financeiro + cobertura de rotas
+uv run python -m pytest -q tests/financeiro tests/test_cobertura_rotas.py     # 92 testes do financeiro + cobertura de rotas
 uv run python -m ruff check app/modules/financeiro tests/financeiro
 cd ../frontend && npm install && npm run lint && npm run build
 ```
@@ -82,5 +82,10 @@ Atenção: `tests/dados/test_migracao.py` compara a migração `0001` com `creat
 
 ## Não verificado
 
-- As telas foram compiladas (`npm run lint`, `npm run build`) mas **não foram exercitadas no navegador** com a API real; a API tem 99 testes automatizados.
+- As telas foram compiladas (`npm run lint`, `npm run build`) mas **não foram exercitadas no navegador** com a API real; a API tem 92 testes automatizados do financeiro.
 - O ETL traz `forma_pagamento`/`descricao`/`paga_em` vazios (campos novos).
+
+## Suíte completa (25/10/2026)
+
+`uv run python -m pytest -q` em `backend`: 2794 passaram e 1 falhou: `tests/dados/test_migracao.py::test_upgrade_igual_ao_create_all_e_downgrade_limpa`,
+esperado até o coordenador gerar a migração das colunas aditivas acima. `npm run lint` e `npm run build` sem erro.
