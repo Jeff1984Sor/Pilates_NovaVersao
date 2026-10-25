@@ -38,15 +38,15 @@ Fonte da verdade do sistema antigo: [`inventario-pilates-django.md`](inventario-
 
 ## Lista de paridade (marque ao concluir; cada item = tela + API + teste)
 
-**Acesso e base:** [x] login e-mail/usuário · [x] perfis e permissões (catálogo) · [x] perfil Professor (R11) · [x] profissional sem login · [~] troca/recuperação de senha (e-mail e WhatsApp) — e-mail e código prontos; envio real pelo WhatsApp na onda 3 · [x] identidade white-label · [x] auditoria · [x] perfil do usuário
-**Cadastros:** [x] unidades (capacidade, duração) · [x] tipos de serviço · [x] planos (+duplicar, avulso, modelo de contrato) · [x] profissionais (+comissão, CREFITO) · [x] profissões · [x] fornecedores · [x] categorias/subcategorias · [x] horários de funcionamento (+gerar) · [x] horários do studio · [x] bloqueios · [x] termos de uso · [x] modelos de contrato (editor HTML) · [x] modelos de evolução · [ ] tokens de integração
-**Alunos:** [x] lista com chips (ativos/inativos/todos) · [x] cadastro (endereço, vários telefones, CEP) · [~] ficha com abas (Contratos, Aulas, Financeiro, WhatsApp, Documentos, Evolução, Avaliações, Uso da imagem) — prontas Dados, Aulas, Financeiro, Evolução, Avaliações, Documentos e Uso da imagem; faltam Contratos e WhatsApp · [x] foto · [x] documentos (upload) · [x] CPF do pagador · [ ] wizard de cadastro com IA
+**Acesso e base:** [x] login e-mail/usuário · [x] perfis e permissões (catálogo) · [x] perfil Professor (R11) · [x] profissional sem login · [x] troca/recuperação de senha (e-mail e WhatsApp) · [x] identidade white-label · [x] auditoria · [x] perfil do usuário
+**Cadastros:** [x] unidades (capacidade, duração) · [x] tipos de serviço · [x] planos (+duplicar, avulso, modelo de contrato) · [x] profissionais (+comissão, CREFITO) · [x] profissões · [x] fornecedores · [x] categorias/subcategorias · [x] horários de funcionamento (+gerar) · [x] horários do studio · [x] bloqueios · [x] termos de uso · [x] modelos de contrato (editor HTML) · [x] modelos de evolução · [x] tokens de integração
+**Alunos:** [x] lista com chips (ativos/inativos/todos) · [x] cadastro (endereço, vários telefones, CEP) · [x] ficha com abas (Contratos, Aulas, Financeiro, WhatsApp, Documentos, Evolução, Avaliações, Uso da imagem) · [x] foto · [x] documentos (upload) · [x] CPF do pagador · [x] wizard de cadastro com IA
 **Agenda:** [x] grade semanal (ocupação n/m, cores por status) · [x] painel operacional (agrupado por horário > profissional, gaveta de evolução) · [x] criar/editar/excluir aula · [x] remarcar/desmarcar/faltou/chegou/finalizar · [x] aula avulsa · [x] aula avaliativa · [x] reposição (consumir `reposicao_ate`: novo) · [x] capacidade transacional (R3)
-**Contratos:** [ ] criar com precificação (R1) e parcelas (R2) · [ ] agenda do contrato (1 horário por dia da semana) · [ ] gestão (ativos/vencendo/vencidos) · [ ] PDF · [ ] envio por e-mail e WhatsApp · [ ] assinatura por link (R10) e local · [ ] exclusão segura (R13) · [ ] recalcular
+**Contratos:** [x] criar com precificação (R1) e parcelas (R2) · [x] agenda do contrato (1 horário por dia da semana) · [x] gestão (ativos/vencendo/vencidos) · [x] PDF · [x] envio por e-mail e WhatsApp · [x] assinatura por link (R10) e local · [x] exclusão segura (R13) · [x] recalcular
 **Financeiro:** [x] contas a receber (baixar, cobrar por WhatsApp, recibo PDF, lançar avulso, exportar PDF/Excel) · [x] contas a pagar (recorrência, pagar, cancelar, comprovante, exportar) · [x] conta bancária e movimentos · [x] fluxo de caixa (R7) · [x] DRE (R7) · [x] Receita Saúde (R8) · [x] comissões (R17)
-**Evolução:** [x] evolução e avaliação por reserva · [~] melhoria de texto com IA — pronta; depende da chave cadastrada em Configurações > Integrações (onda 3) · [x] exportar PDF/Excel
-**Comunicação:** [ ] WhatsApp Wasender/Evolution por unidade · [ ] scheduler (R9) · [ ] comunicado geral · [ ] aviso ao aluno · [ ] histórico de mensagens · [ ] e-mail SMTP configurável
-**Integrações:** [ ] TotalPass webhook + sync (R14) · [ ] API de integração externa · [ ] App do aluno PWA (R15) · [ ] CEP (ViaCEP)
+**Evolução:** [x] evolução e avaliação por reserva · [x] melhoria de texto com IA (usa a chave cadastrada em Configurações > Integrações) · [x] exportar PDF/Excel
+**Comunicação:** [x] WhatsApp Wasender/Evolution por unidade · [x] scheduler (R9) — entregue DESLIGADO por padrão (chave geral do Full) · [x] comunicado geral · [x] aviso ao aluno · [x] histórico de mensagens · [x] e-mail SMTP configurável
+**Integrações:** [x] TotalPass webhook + sync (R14) · [x] API de integração externa · [x] App do aluno PWA (R15) · [x] CEP (ViaCEP)
 **Dados:** [x] ETL completo com conciliação · [x] cópia da mídia (fotos, assinaturas, documentos, comprovantes) · [x] senhas: usuários antigos entram com hash PBKDF2 do Django aceito no login (ou redefinição obrigatória)
 
 ## Segurança exigida (o antigo falhava nisto)
@@ -64,10 +64,19 @@ Login obrigatório global · JWT com `exp` · OTP com limite de pedidos/tentativ
 
 - **Onda 1 (concluída e integrada em `develop`):** fundação do core, domínio puro (R1–R17, 2.531 testes golden master), modelo de dados (40+ tabelas) e ETL com conciliação. Ensaio ponta a ponta com dados sintéticos OK.
 - **Onda 2a (concluída e integrada em `develop`):** cadastros, alunos, agenda/reservas, financeiro/Receita Saúde.
-- **Onda 2b:** contratos (depende de agenda e financeiro).
-- **Onda 3:** WhatsApp (envio, scheduler R9, comunicado, aviso), TotalPass (R14, token pela tela), app do aluno (R15), API de integração, IA, telas de Configurações > Integrações.
+- **Onda 2b e 3 (concluídas e integradas em `develop`):** contratos; WhatsApp (envio, scheduler R9, comunicado, aviso); TotalPass (R14); app do aluno (R15) com reposição por pedido e regra das 6 horas; API de integração; IA de cadastro; telas de Configurações > Integrações.
 - **Onda 4:** hardening, hml, ensaio da carga em PostgreSQL com cópia anonimizada, conferência lado a lado, cutover.
 
 ## Divergências do sistema antigo a decidir (ver `docs/progresso-dominio.md`)
 
 Valor da aula avulsa não multiplica pela quantidade (R1) · dia ≤ 28 já na 1ª parcela (R2) · remarcação com capacidade 0 passa (R3) · data em UTC no atraso/DRE (R7) · WhatsApp envia a telefone fixo/lixo e atraso sem limite (R9) · aula avulsa em horário com 2 serviços cobra 2× (R12) · excluir contrato apaga contas pagas e evoluções (R13) · bloqueio pontual sem data final vale para sempre.
+
+## O que falta para a troca (onda 4)
+
+1. **Banco real:** ensaio completo do ETL num PostgreSQL com cópia anonimizada do banco antigo; conferir o relatório de conciliação; unificar à mão CPFs duplicados.
+2. **Ambiente de homologação** no servidor (hml): domínio, portas, banco `pilates_nova_hml`, deploy pelo `deploy/deploy.sh`, HTTPS; nginx reescrevendo `/api/fast/integracao/*` para `/api/integracao/*` (ou avisar os integradores).
+3. **Credenciais cadastradas pelo usuário na tela** (WhatsApp, IA, e-mail, TotalPass): nada migra.
+4. **Segurança:** revisão final (cabeçalhos, limites, backup do storage, segredos de hml/prod), rotacionar chaves do sistema antigo.
+5. **Paridade lado a lado:** a equipe usa o novo com dados reais em hml por alguns dias e confere agenda, financeiro e contratos contra o antigo.
+6. **Virada:** avisos automáticos do antigo desligados antes de ligar a chave geral do novo; `LEGACY_DJANGO_SECRET_KEY` por 30 dias; antigo em modo consulta por 15–30 dias.
+
