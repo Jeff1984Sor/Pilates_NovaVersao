@@ -260,7 +260,7 @@ def criar(dados: ProfissionalIn, ctx: Ctx):
     if dados.acesso_sistema:
         ctx.exigir("usuarios.editar")
         if not dados.email:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Informe o e-mail do profissional: ele é o login de acesso ao sistema.")
+            raise HTTPException(422, "Informe o e-mail do profissional: ele é o login de acesso ao sistema.")
         if not dados.ativo:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Um profissional inativo não pode ter acesso ao sistema.")
         perfil = vinculo_usuario.perfil_ou_404(ctx.db, dados.perfil_acesso_id)

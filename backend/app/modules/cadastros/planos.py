@@ -98,20 +98,20 @@ def _validar_referencias(ctx, dados: PlanoIn) -> None:
     """Existência do serviço/categoria/modelo e coerência categoria x subcategoria (só receita)."""
     db = ctx.db
     if not db.get(TipoServico, dados.tipo_servico_id):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Escolha um tipo de serviço válido.")
+        raise HTTPException(422, "Escolha um tipo de serviço válido.")
     if dados.categoria_receita_id:
         cat = db.get(Categoria, dados.categoria_receita_id)
         if not cat or cat.tipo != TipoCategoria.RECEITA:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A categoria de receita informada não existe ou não é de receita.")
+            raise HTTPException(422, "A categoria de receita informada não existe ou não é de receita.")
     if dados.subcategoria_receita_id:
         sub = db.get(Subcategoria, dados.subcategoria_receita_id)
         pai = db.get(Categoria, sub.categoria_id) if sub else None
         if not sub or not pai or pai.tipo != TipoCategoria.RECEITA:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A subcategoria de receita informada não existe ou não é de receita.")
+            raise HTTPException(422, "A subcategoria de receita informada não existe ou não é de receita.")
         if dados.categoria_receita_id and sub.categoria_id != dados.categoria_receita_id:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A subcategoria não pertence à categoria escolhida.")
+            raise HTTPException(422, "A subcategoria não pertence à categoria escolhida.")
     if dados.modelo_contrato_id and not db.get(ModeloContrato, dados.modelo_contrato_id):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "O modelo de contrato informado não existe.")
+        raise HTTPException(422, "O modelo de contrato informado não existe.")
 
 
 def _valores(dados: PlanoIn, db) -> dict:

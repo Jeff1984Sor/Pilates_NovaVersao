@@ -52,7 +52,7 @@ def _exigir_pode_tirar_acesso(db: Session, u: Usuario, ator: Usuario) -> None:
 def perfil_ou_404(db: Session, perfil_id: int | None) -> PerfilAcesso:
     p = db.get(PerfilAcesso, perfil_id) if perfil_id else None
     if not p:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Escolha o perfil de acesso.")
+        raise HTTPException(422, "Escolha o perfil de acesso.")
     return p
 
 
@@ -75,7 +75,7 @@ def _enviar_convite(db: Session, u: Usuario) -> bool:
 def conceder_acesso(db: Session, prof: Profissional, perfil: PerfilAcesso) -> tuple[Usuario, bool]:
     """Cria (ou reativa) o usuário do profissional e envia o convite. Devolve (usuário, convite_enviado)."""
     if not prof.email:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Informe o e-mail do profissional: ele é o login de acesso ao sistema.")
+        raise HTTPException(422, "Informe o e-mail do profissional: ele é o login de acesso ao sistema.")
     if not prof.ativo:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ative o profissional antes de dar acesso ao sistema.")
     u = db.get(Usuario, prof.usuario_id) if prof.usuario_id else None
@@ -128,7 +128,7 @@ def sincronizar_usuario(db: Session, prof: Profissional, ator: Usuario, *, perfi
         u.telefone = prof.celular
     if u.acesso_sistema:
         if not prof.email:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Este profissional tem acesso ao sistema: o e-mail é o login e não pode ficar vazio.")
+            raise HTTPException(422, "Este profissional tem acesso ao sistema: o e-mail é o login e não pode ficar vazio.")
         if u.email != prof.email.lower():
             email_do_usuario_livre(db, prof.email, exceto_usuario_id=u.id)
             u.email = prof.email.lower()
