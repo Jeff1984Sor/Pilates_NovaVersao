@@ -77,6 +77,11 @@ class TotalpassConfig(Base, Timestamped, CodigoLegado):
     place_id: Mapped[str | None] = mapped_column(String(120))
     criar_aluno_automatico: Mapped[bool] = mapped_column(Boolean, default=True)
     somente_dia: Mapped[bool] = mapped_column(Boolean, default=True)
+    # --- aditivo (integracoes): serviço padrão quando o título do evento não casa com nenhum serviço, e sync agendado
+    servico_padrao_id: Mapped[int | None] = mapped_column(ForeignKey("tipo_servico.id", ondelete="SET NULL"))
+    sync_ativo: Mapped[bool] = mapped_column(Boolean, default=False)  # sincronização agendada (desligada por padrão)
+    sync_ultimo_em: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    sync_ultimo_resumo: Mapped[str | None] = mapped_column(String(300))
 
 
 class TotalpassEvento(Base, CodigoLegado):
@@ -93,6 +98,10 @@ class TotalpassEvento(Base, CodigoLegado):
     recebido_em: Mapped[datetime] = mapped_column(UtcDateTime())
     processado_em: Mapped[datetime | None] = mapped_column(UtcDateTime())
     erro: Mapped[str | None] = mapped_column(Text)
+    # --- aditivo (integracoes): desfecho do processamento e reserva afetada
+    resultado: Mapped[str | None] = mapped_column(String(20))  # processado | cancelado | descartado | erro
+    reserva_id: Mapped[int | None] = mapped_column(ForeignKey("reserva.id", ondelete="SET NULL"))
+    origem: Mapped[str | None] = mapped_column(String(10))  # webhook | sync
 
     __table_args__ = (
         Index("ix_totalpass_evento_event_id", "event_id"),
