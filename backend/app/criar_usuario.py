@@ -1,6 +1,6 @@
 """Cria (ou atualiza) um usuário pelo terminal, para o primeiro acesso de um ambiente novo.
 
-    uv run python -m app.criar_usuario --login admin --nome "Jefferson" --email voce@exemplo.com --perfil Administrador
+    uv run python -m app.criar_usuario --login admin --nome "Jefferson" --email voce@exemplo.com --perfil Full
 
 A senha é pedida no terminal (ou lida da entrada padrão) e nunca fica em arquivo nem na linha de comando.
 Depois do primeiro acesso, usuários e senhas são gerenciados em Configurações › Usuários.
@@ -24,7 +24,7 @@ def main() -> None:
     ap.add_argument("--email", required=True)
     ap.add_argument("--nome", required=True)
     ap.add_argument("--telefone")
-    ap.add_argument("--perfil", default="Administrador", help="nome do perfil de acesso (padrão: Administrador)")
+    ap.add_argument("--perfil", default="Full", help="nome do perfil de acesso (padrão: Full)")
     a = ap.parse_args()
 
     senha = getpass.getpass("Senha: ") if sys.stdin.isatty() else sys.stdin.readline().rstrip("\r\n")

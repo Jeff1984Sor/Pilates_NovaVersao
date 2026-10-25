@@ -67,7 +67,7 @@ def emails(monkeypatch):
     return enviados
 
 
-def criar_usuario(db, perfil: str = "Administrador", *, email="user@exemplo.com", login=None, senha=SENHA,
+def criar_usuario(db, perfil: str = "Full", *, email="user@exemplo.com", login=None, senha=SENHA,
                   telefone=None, **extra) -> Usuario:
     p = perfis.garantir_padrao(db)[perfil]
     u = Usuario(nome=f"Usuário {perfil}", email=email, login=login, telefone=telefone, perfil_acesso_id=p.id,
@@ -88,7 +88,7 @@ def auth(token: str) -> dict:
 
 @pytest.fixture
 def admin(db):
-    return criar_usuario(db, "Administrador", email="admin@exemplo.com", login="admin")
+    return criar_usuario(db, "Full", email="admin@exemplo.com", login="admin")
 
 
 @pytest.fixture

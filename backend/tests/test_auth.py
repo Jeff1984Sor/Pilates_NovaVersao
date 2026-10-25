@@ -61,7 +61,7 @@ def test_login_bem_sucedido_zera_tentativas(client, db, admin):
 
 # ---------------------------------------------------------------------------------------------- hash do Django
 def test_login_com_hash_pbkdf2_do_django_regrava_em_argon2(client, db):
-    criar_usuario(db, "Gestão/Recepção", email="velho@exemplo.com", senha=None)
+    criar_usuario(db, "Secretária", email="velho@exemplo.com", senha=None)
     u = db.scalar(select(Usuario).where(Usuario.email == "velho@exemplo.com"))
     u.senha_hash = HASH_DJANGO
     db.commit()
@@ -236,7 +236,7 @@ def _codigo(zap) -> str:
 
 
 def test_codigo_whatsapp_fluxo_completo(client, db, zap):
-    criar_usuario(db, "Gestão/Recepção", email="rec@exemplo.com", telefone="(11) 98888-7777")
+    criar_usuario(db, "Secretária", email="rec@exemplo.com", telefone="(11) 98888-7777")
     r = client.post("/api/auth/forgot-codigo", json={"identificador": "rec@exemplo.com"})
     assert r.status_code == 200
     fone, _ = zap.enviadas[0]
@@ -251,7 +251,7 @@ def test_codigo_whatsapp_fluxo_completo(client, db, zap):
 
 
 def test_codigo_whatsapp_limite_de_tentativas(client, db, zap):
-    criar_usuario(db, "Gestão/Recepção", email="rec@exemplo.com", telefone="11988887777")
+    criar_usuario(db, "Secretária", email="rec@exemplo.com", telefone="11988887777")
     client.post("/api/auth/forgot-codigo", json={"identificador": "rec@exemplo.com"})
     certo = _codigo(zap)
     errado = "000000" if certo != "000000" else "111111"
@@ -264,7 +264,7 @@ def test_codigo_whatsapp_limite_de_tentativas(client, db, zap):
 
 
 def test_codigo_whatsapp_expirado(client, db, zap):
-    criar_usuario(db, "Gestão/Recepção", email="rec@exemplo.com", telefone="11988887777")
+    criar_usuario(db, "Secretária", email="rec@exemplo.com", telefone="11988887777")
     client.post("/api/auth/forgot-codigo", json={"identificador": "rec@exemplo.com"})
     codigo = _codigo(zap)
     linha = db.scalar(select(RecuperacaoSenha))
@@ -275,7 +275,7 @@ def test_codigo_whatsapp_expirado(client, db, zap):
 
 
 def test_codigo_whatsapp_nao_revela_conta_nem_telefone(client, db, zap):
-    criar_usuario(db, "Gestão/Recepção", email="semfone@exemplo.com")
+    criar_usuario(db, "Secretária", email="semfone@exemplo.com")
     a = client.post("/api/auth/forgot-codigo", json={"identificador": "semfone@exemplo.com"})
     b = client.post("/api/auth/forgot-codigo", json={"identificador": "nao.existe@exemplo.com"})
     assert a.status_code == b.status_code == 200 and a.json() == b.json()

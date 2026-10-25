@@ -15,7 +15,7 @@ def test_seed_e_idempotente_e_cria_identidade_e_perfis(db):
     seed.base(db)
     assert db.scalar(select(Identidade.nome_exibicao)) == "Studio Mayris Pilates"
     nomes = sorted(db.scalars(select(PerfilAcesso.nome)))
-    assert nomes == sorted(["Administrador", "Gestão/Recepção", "Financeiro", "Professor", "Somente leitura"])
+    assert nomes == sorted(["Full", "Professor", "Secretária"])
     assert db.get(ConfigEmail, 1) is not None
     assert not list(db.scalars(select(Usuario)))  # a base não cria usuário
 

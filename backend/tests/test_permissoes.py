@@ -27,7 +27,7 @@ def test_catalogo_cobre_as_areas_planejadas():
 
 def test_perfis_padrao_existem_e_so_tem_permissoes_conhecidas():
     nomes = [p["nome"] for p in PERFIS_PADRAO]
-    assert nomes == ["Administrador", "Gestão/Recepção", "Financeiro", "Professor", "Somente leitura"]
+    assert nomes == ["Full", "Professor", "Secretária"]
     for p in PERFIS_PADRAO:
         assert set(p["permissoes"]) <= TODAS, p["nome"]
     adm = PERFIS_PADRAO[0]
@@ -42,16 +42,16 @@ def test_perfil_professor_so_agenda_evolucao_e_avaliacao():
         assert proibida not in prof["permissoes"]
 
 
-def test_somente_leitura_nao_altera_nada_nem_ve_administracao():
-    p = next(p for p in PERFIS_PADRAO if p["nome"] == "Somente leitura")
-    assert all(x.endswith(".ver") for x in p["permissoes"])
-    assert "usuarios.ver" not in p["permissoes"] and "auditoria.ver" not in p["permissoes"]
-
-
-def test_gestao_nao_administra_nem_ve_financeiro_pesado():
-    p = next(p for p in PERFIS_PADRAO if p["nome"] == "Gestão/Recepção")["permissoes"]
-    assert "alunos.editar" in p and "agenda.editar" in p and "aulas.operar" in p
-    assert "usuarios.editar" not in p and "perfis.editar" not in p and "financeiro_dre.ver" not in p
+def test_secretaria_ve_aulas_de_todos_e_nao_toca_em_dinheiro_pesado_nem_administracao():
+    p = next(p for p in PERFIS_PADRAO if p["nome"] == "Secretária")
+    perms = p["permissoes"]
+    assert not p["somente_proprias_aulas"] and not p["administrador"]
+    for ok in ("agenda.ver", "aulas.operar", "aulas.evoluir", "alunos.editar", "contratos.enviar", "financeiro_receber.baixar",
+               "whatsapp.enviar", "comunicacao.enviar"):
+        assert ok in perms, ok
+    for proibida in ("financeiro_pagar.ver", "financeiro_bancos.ver", "financeiro_caixa.ver", "financeiro_dre.ver", "comissoes.ver",
+                     "receita_saude.ver", "configuracoes.ver", "usuarios.ver", "perfis.ver", "integracoes.ver", "auditoria.ver"):
+        assert proibida not in perms, proibida
 
 
 def test_rota_nao_mapeada_e_negada_por_padrao():
@@ -114,8 +114,8 @@ def test_perfil_customizado_vale_na_hora(client, db, token_admin):
     r = client.post("/api/config/perfis", headers=h, json={"nome": "Só auditoria", "permissoes": ["auditoria.ver"]})
     assert r.status_code == 201
     pid = r.json()["id"]
-    criar_usuario(db, "Somente leitura", email="aud@exemplo.com")
-    uid = criar_usuario(db, "Somente leitura", email="aud2@exemplo.com").id
+    criar_usuario(db, "Secretária", email="aud@exemplo.com")
+    uid = criar_usuario(db, "Secretária", email="aud2@exemplo.com").id
     client.patch(f"/api/config/usuarios/{uid}", headers=h, json={"perfil_acesso_id": pid})
     t = entrar(client, "aud2@exemplo.com").json()["access_token"]
     assert client.get("/api/auditoria", headers=auth(t)).status_code == 200
@@ -125,16 +125,16 @@ def test_perfil_customizado_vale_na_hora(client, db, token_admin):
 def test_administrador_padrao_nao_exclui_nem_perde_acesso_total(client, db, token_admin):
     h = auth(token_admin)
     perfis_ = client.get("/api/config/perfis", headers=h).json()
-    adm = next(p for p in perfis_ if p["nome"] == "Administrador")
+    adm = next(p for p in perfis_ if p["nome"] == "Full")
     assert client.delete(f"/api/config/perfis/{adm['id']}", headers=h).status_code == 400
-    r = client.put(f"/api/config/perfis/{adm['id']}", headers=h, json={"nome": "Administrador", "administrador": False})
+    r = client.put(f"/api/config/perfis/{adm['id']}", headers=h, json={"nome": "Full", "administrador": False})
     assert r.status_code == 400
 
 
 def test_nao_deixa_o_sistema_sem_administrador(client, db, admin, token_admin):
     h = auth(token_admin)
     assert client.delete(f"/api/config/usuarios/{admin.id}", headers=h).status_code == 400  # a si mesmo
-    outro = criar_usuario(db, "Administrador", email="adm2@exemplo.com")
+    outro = criar_usuario(db, "Full", email="adm2@exemplo.com")
     assert client.delete(f"/api/config/usuarios/{outro.id}", headers=h).status_code == 200
 
 
@@ -201,8 +201,8 @@ def test_escopo_sem_resolvedor_registrado_nega(db):
 
 
 def test_escopo_nao_restringe_quem_nao_e_professor(db, resolvedor_stub):
-    adm = criar_usuario(db, "Administrador", email="a@exemplo.com")
-    ges = criar_usuario(db, "Gestão/Recepção", email="g@exemplo.com")
+    adm = criar_usuario(db, "Full", email="a@exemplo.com")
+    ges = criar_usuario(db, "Secretária", email="g@exemplo.com")
     for u in (adm, ges):
         ctx = _CtxFalso(db, u)
         assert not ctx.somente_proprias_aulas()
@@ -217,7 +217,7 @@ def test_escopo_filtrar_proprias_em_consulta_sql(db, resolvedor_stub):
     db.execute(insert(t), [{"id": 1, "profissional_id": 10}, {"id": 2, "profissional_id": 11}, {"id": 3, "profissional_id": 10}])
     prof = criar_usuario(db, "Professor", email="prof@exemplo.com")
     outro = criar_usuario(db, "Professor", email="outro@exemplo.com")
-    adm = criar_usuario(db, "Administrador", email="a@exemplo.com")
+    adm = criar_usuario(db, "Full", email="a@exemplo.com")
 
     def ids(u):
         q = escopo.filtrar_proprias(_CtxFalso(db, u), select(t.c.id), t.c.profissional_id)

@@ -46,7 +46,7 @@ def admin_demonstracao(db: Session, *, email: str, login: str, senha: str) -> Us
     email, login = email.strip().lower(), login.strip().lower()
     if db.scalar(select(Usuario.id).where((Usuario.email == email) | (Usuario.login == login))):
         return None
-    admin = perfis.garantir_padrao(db)["Administrador"]
+    admin = perfis.garantir_padrao(db)["Full"]
     u = Usuario(nome="Administrador", email=email, login=login, senha_hash=hash_senha(senha), perfil_acesso_id=admin.id)
     db.add(u)
     db.flush()
@@ -71,7 +71,7 @@ def main() -> None:
         base(db)
         print(f"Base pronta: identidade '{NOME_ESTUDIO}', e-mail, IA e perfis de acesso padrão.")
         if a.somente_base or (settings.ambiente != "dev" and not a.com_admin):
-            print("Crie o primeiro acesso: python -m app.criar_usuario --email ... --nome ... --perfil Administrador")
+            print("Crie o primeiro acesso: python -m app.criar_usuario --email ... --nome ... --perfil Full")
             return
         senha = os.environ.get("SEED_ADMIN_SENHA") or (getpass.getpass("Senha do admin de demonstração: ") if sys.stdin.isatty() else "")
         if not senha:

@@ -86,32 +86,24 @@ def _todas_de(*prefixos: str, acoes: tuple[str, ...] | None = None) -> set[str]:
     return out
 
 
-_ADMIN = _todas_de("configuracoes", "usuarios", "perfis", "auditoria")
-_FIN = _todas_de("financeiro", "receita_saude", "comissoes")
-
-_GESTAO = (
-    (TODAS - _ADMIN - _FIN - {"integracoes.editar", "cadastros_termos.excluir", "cadastros_modelos.excluir"})
-    | _todas_de("financeiro_receber", acoes=("ver", "editar", "baixar"))
-    | {"configuracoes.ver"}
+_SECRETARIA = (
+    {"painel.ver", "ia.usar", "agenda.ver", "agenda.editar", "aulas.ver", "aulas.operar", "aulas.evoluir", "aulas.avaliar",
+     "alunos.ver", "alunos.editar", "contratos.ver", "contratos.editar", "contratos.enviar", "planos.ver",
+     "financeiro_receber.ver", "financeiro_receber.baixar", "whatsapp.ver", "whatsapp.enviar", "comunicacao.ver", "comunicacao.enviar"}
+    | _todas_de("cadastros", acoes=("ver",))
 )
 
-# Perfis criados de saída (o administrador edita/duplica à vontade). "Administrador" não é excluível.
+# Perfis criados de saída (decisão do Jefferson: só três; outros se criam pela matriz de permissões).
+# "Full" é o administrador (não excluível). Escopo da Secretária = SUPOSIÇÃO a confirmar com o Jefferson.
 PERFIS_PADRAO: list[dict] = [
-    {"nome": "Administrador", "descricao": "Acesso total, inclusive configurações, usuários e perfis.", "cor": "#6B1F3A",
+    {"nome": "Full", "descricao": "Acesso total a tudo, inclusive configurações, usuários e perfis.", "cor": "#6B1F3A",
      "administrador": True, "sistema": True, "somente_proprias_aulas": False, "permissoes": []},
-    {"nome": "Gestão/Recepção", "descricao": "Opera o estúdio no dia a dia; sem financeiro pesado nem administração.", "cor": "#B4536F",
-     "administrador": False, "sistema": False, "somente_proprias_aulas": False, "permissoes": sorted(_GESTAO)},
-    {"nome": "Financeiro", "descricao": "Contas, caixa, DRE, Receita Saúde e comissões; cadastros só para consulta.", "cor": "#C8962E",
-     "administrador": False, "sistema": False, "somente_proprias_aulas": False,
-     "permissoes": sorted(
-         _FIN | _todas_de("alunos", "contratos", "planos", "agenda", "aulas", "cadastros", "painel", acoes=("ver",))
-         | {"cadastros_fornecedores.editar", "cadastros_categorias.editar"})},
-    {"nome": "Professor", "descricao": "Só agenda/painel, evolução e avaliação dos alunos das próprias aulas. Sem financeiro.",
+    {"nome": "Professor", "descricao": "Vê só as próprias aulas: agenda/painel, evolução e avaliação. Sem financeiro, contratos, cadastros ou configurações.",
      "cor": "#2F7D6D", "administrador": False, "sistema": False, "somente_proprias_aulas": True,
      "permissoes": sorted({"painel.ver", "agenda.ver", "aulas.ver", "aulas.evoluir", "aulas.avaliar"})},
-    {"nome": "Somente leitura", "descricao": "Consulta tudo que não é administração, sem alterar nada.", "cor": "#64748B",
-     "administrador": False, "sistema": False, "somente_proprias_aulas": False,
-     "permissoes": sorted({p for p in TODAS if p.endswith(".ver")} - _ADMIN)},
+    {"nome": "Secretária", "descricao": "Opera o estúdio: aulas de todos os professores, alunos, contratos e recebimentos. Sem contas a pagar, caixa, DRE e administração.",
+     "cor": "#B4536F", "administrador": False, "sistema": False, "somente_proprias_aulas": False,
+     "permissoes": sorted(_SECRETARIA)},
 ]
 
 # ------------------------------------------------------------------------------------------------- rota -> permissão
