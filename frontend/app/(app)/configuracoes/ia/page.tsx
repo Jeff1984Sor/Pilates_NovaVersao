@@ -23,6 +23,12 @@ function Formulario({ cfg }: { cfg: ConfigIAOut }) {
   const [provedor, setProvedor] = useState(cfg.provedor);
   const [modelo, setModelo] = useState(cfg.modelo ?? "");
   const [chave, setChave] = useState("");
+  const lista = useQuery({
+    queryKey: ["config-ia-modelos", cfg.provedor, cfg.chave_final],
+    queryFn: () => api.get<string[]>("/config/ia/modelos"),
+    enabled: cfg.chave_definida && provedor === cfg.provedor,
+    retry: false,
+  });
   const salvar = useMutation({
     mutationFn: () => api.put<ConfigIAOut>("/config/ia", { ativo, provedor, modelo: modelo || null, chave: chave || null }),
     onSuccess: (novo) => {
@@ -53,8 +59,27 @@ function Formulario({ cfg }: { cfg: ConfigIAOut }) {
             ))}
           </NativeSelect>
         </Field>
-        <Field label="Modelo" dica="Ex.: gpt-4o-mini ou gemini-2.0-flash.">
-          <Input value={modelo} onChange={(e) => setModelo(e.target.value)} placeholder="nome do modelo" />
+        <Field
+          label="Modelo"
+          dica={
+            lista.isError
+              ? `${(lista.error as Error).message} Você também pode digitar o nome (ex.: gpt-4o-mini, gemini-2.0-flash).`
+              : lista.data
+                ? "Escolha na lista ou digite outro nome."
+                : "Salve a chave para listar os modelos, ou digite o nome (ex.: gpt-4o-mini, gemini-2.0-flash)."
+          }
+        >
+          <Input
+            list="modelos-ia"
+            value={modelo}
+            onChange={(e) => setModelo(e.target.value)}
+            placeholder={lista.isLoading ? "carregando modelos…" : "nome do modelo"}
+          />
+          <datalist id="modelos-ia">
+            {(lista.data ?? []).map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
         </Field>
       </div>
       <Field

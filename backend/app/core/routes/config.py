@@ -363,6 +363,21 @@ def ler_ia(ctx: Ctx):
     return _ia_out(ia.config(ctx.db))
 
 
+@router.get("/ia/modelos", response_model=list[str])
+def modelos_ia(ctx: Ctx, provedor: str | None = None):
+    """Modelos de texto disponíveis para a chave já salva (consulta o próprio provedor)."""
+    cfg = ia.config(ctx.db)
+    escolhido = provedor or cfg.provedor
+    if escolhido not in ia.PROVEDORES:
+        raise HTTPException(400, "Provedor desconhecido.")
+    if escolhido != cfg.provedor or not cfg.chave_cifrada:
+        raise HTTPException(400, "Salve a chave deste provedor primeiro para listar os modelos.")
+    try:
+        return ia.listar_modelos(escolhido, segredos.decifrar_texto(cfg.chave_cifrada))
+    except ia.IAIndisponivel as e:
+        raise HTTPException(502, str(e)) from e
+
+
 @router.put("/ia", response_model=ConfigIAOut)
 def salvar_ia(dados: ConfigIAIn, ctx: Ctx):
     cfg = ia.config(ctx.db)
