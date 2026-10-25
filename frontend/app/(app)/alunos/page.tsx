@@ -13,7 +13,6 @@ import { SemAcesso } from "@/components/mayacorp/sem-acesso";
 import { Pill } from "@/components/mayacorp/status-badge";
 import { UserAvatar } from "@/components/mayacorp/user-avatar";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebounce } from "@/hooks/use-debounce";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -73,14 +72,11 @@ export default function AlunosPage() {
         descricao="Cadastro, ficha e histórico de quem treina no estúdio."
         acoes={
           <>
-            <Tooltip>
-              <TooltipTrigger render={<span tabIndex={0} />}>
-                <Button variant="outline" disabled>
-                  <Sparkles /> Preencher com IA
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Em breve: ler documento e comprovante de endereço para preencher o cadastro.</TooltipContent>
-            </Tooltip>
+            {pode("ia.usar") && pode("alunos.editar") && (
+              <Button variant="outline" render={<Link href="/alunos/novo?ia=1" />}>
+                <Sparkles /> Preencher com IA
+              </Button>
+            )}
             {novoBotao}
           </>
         }

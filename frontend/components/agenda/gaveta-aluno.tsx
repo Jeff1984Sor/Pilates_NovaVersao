@@ -8,7 +8,6 @@ import {
   CircleCheck,
   ExternalLink,
   Loader2,
-  MessageCircle,
   Play,
   Trash2,
   UserX,
@@ -18,6 +17,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { BotoesWhatsappAula } from "@/components/comunicacao/botoes-whatsapp-aula";
 import { ConfirmDialog } from "@/components/mayacorp/confirm-dialog";
 import { Pill } from "@/components/mayacorp/status-badge";
 import { UserAvatar } from "@/components/mayacorp/user-avatar";
@@ -251,9 +251,7 @@ export function GavetaAluno({ reservaId, abaInicial = "evolucao", onFechar }: { 
                 )}
               </div>
               <div className="flex flex-wrap gap-1.5">
-                <Button size="xs" variant="ghost" disabled title={c.whatsapp.motivo}>
-                  <MessageCircle /> WhatsApp
-                </Button>
+                <BotoesWhatsappAula reservaId={c.id} telefone={c.aluno.telefone} />
                 {pode("alunos.ver") && (
                   <Button size="xs" variant="ghost" render={<Link href={`/alunos/${c.aluno.id}`} />}>
                     <ExternalLink /> Ficha do aluno

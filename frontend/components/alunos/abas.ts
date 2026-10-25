@@ -20,7 +20,7 @@ import { AbaAlunoAvaliacao } from "../agenda/aba-aluno-avaliacao";
 import { AbaAlunoEvolucao } from "../agenda/aba-aluno-evolucao";
 import { AbaAlunoFinanceiro } from "../financeiro/aba-aluno-financeiro";
 import { AbaAlunoContratos } from "../contratos/aba-aluno-contratos";
-import { AbaWhatsapp } from "./abas-esqueleto";
+import { AbaAlunoWhatsapp } from "../comunicacao/aba-aluno-whatsapp";
 
 export interface AbaAluno {
   /** Valor de `?aba=` na URL. */
@@ -38,15 +38,15 @@ export interface AbaAluno {
 }
 
 /**
- * Registro declarativo das abas da ficha do aluno. Para ligar a entrega de outro módulo, troque o `componente`
- * da linha correspondente (os esqueletos "Em construção" estão em `abas-esqueleto.tsx`).
+ * Registro declarativo das abas da ficha do aluno. Para acrescentar uma aba, crie o componente `{alunoId}` no módulo
+ * dono e registre a linha aqui.
  */
 export const ABAS_ALUNO: AbaAluno[] = [
   { id: "dados", rotulo: "Dados", icone: UserRound, componente: AbaDados, permissao: "alunos.ver", visivelProfessor: false },
   { id: "aulas", rotulo: "Aulas", icone: CalendarDays, componente: AbaAlunoAulas, permissao: "aulas.ver", visivelProfessor: false, atalho: true },
   { id: "contratos", rotulo: "Contratos", icone: FileSignature, componente: AbaAlunoContratos, permissao: "contratos.ver", visivelProfessor: false, atalho: true },
   { id: "financeiro", rotulo: "Financeiro", icone: ReceiptText, componente: AbaAlunoFinanceiro, permissao: "financeiro_receber.ver", visivelProfessor: false, atalho: true },
-  { id: "whatsapp", rotulo: "WhatsApp", icone: MessageCircle, componente: AbaWhatsapp, permissao: "whatsapp.ver", visivelProfessor: false, atalho: true },
+  { id: "whatsapp", rotulo: "WhatsApp", icone: MessageCircle, componente: AbaAlunoWhatsapp, permissao: "whatsapp.ver", visivelProfessor: false, atalho: true },
   { id: "evolucao", rotulo: "Evolução", icone: TrendingUp, componente: AbaAlunoEvolucao, permissao: "aulas.ver", visivelProfessor: true, atalho: true },
   { id: "avaliacoes", rotulo: "Avaliações", icone: ClipboardList, componente: AbaAlunoAvaliacao, permissao: "aulas.ver", visivelProfessor: true },
   { id: "documentos", rotulo: "Documentos", icone: FolderOpen, componente: AbaDocumentos, permissao: "alunos.ver", visivelProfessor: false },

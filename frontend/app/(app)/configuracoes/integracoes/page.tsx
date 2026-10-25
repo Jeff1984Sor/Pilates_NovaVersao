@@ -13,7 +13,7 @@ import type { StatusWhatsapp } from "@/lib/tipos-comunicacao";
 import { cn } from "@/lib/utils";
 
 // Sub-páginas que pertencem a outros agentes. Troque para `true` quando a tela existir (ou o coordenador ligar na integração).
-const DISPONIVEL = { totalpass: false, tokens: false };
+const DISPONIVEL = { totalpass: true, tokens: true };
 
 interface Cartao {
   titulo: string;

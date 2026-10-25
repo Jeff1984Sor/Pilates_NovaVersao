@@ -403,8 +403,9 @@ def _item_painel(r: Reserva, s: AulaSessao, a: Aluno, u: Unidade, sv: TipoServic
             "cobranca_pendente": (a.id in ctx.cobranca) if com_cobranca else None,
         },
         "ultima_evolucao": {"texto": evo[0], "criado_em": evo[1].isoformat()} if evo else {"texto": None, "criado_em": None},
-        # WhatsApp: ponto de extensão (onda de comunicação). Nada é enviado por aqui.
-        "whatsapp": {"disponivel": False, "motivo": "O envio por WhatsApp entra na onda de comunicação."},
+        # WhatsApp: o envio é feito pelo módulo de comunicação (rotas /whatsapp/...); a tela só mostra o botão a quem
+        # tem a permissão `whatsapp.enviar`. Nada é enviado por aqui.
+        "whatsapp": {"disponivel": True, "motivo": ""},
     }
 
 

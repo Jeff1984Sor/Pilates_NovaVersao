@@ -123,7 +123,7 @@ def test_painel_cartao_tem_plano_servicos_indicadores(client, db, aula_cheia, fu
     assert c["servicos"] == ["Pilates", "Alongamento"] and c["servico"] == "Pilates"
     assert c["status"] == "RESERVADA" and c["status_aula"] == "aguardando_chegar" and c["rotulo_status"] == "Aguardando"
     assert c["confirmacao"] is True and c["flags"]["tem_preliminares"] is False
-    assert c["whatsapp"]["disponivel"] is False  # ponto de extensão desabilitado
+    assert c["whatsapp"]["disponivel"] is True  # o envio é do módulo de comunicação (permissão whatsapp.enviar)
     assert c["ultima_evolucao"] == {"texto": None, "criado_em": None}
     assert {"id", "aula_sessao_id", "hora_inicio", "dt_inicio", "unidade", "profissional"} <= set(c)
     bruna = painel(client, full)["dias"][0]["horarios"][0]["profissionais"][1]["cartoes"][1]

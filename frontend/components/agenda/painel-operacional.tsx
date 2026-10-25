@@ -1,10 +1,11 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarCheck, CalendarDays, CalendarPlus, ClipboardEdit, MessageCircle, Play, Send, Sparkles } from "lucide-react";
+import { CalendarCheck, CalendarDays, CalendarPlus, ClipboardEdit, Play, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { BotoesWhatsappAula } from "@/components/comunicacao/botoes-whatsapp-aula";
 import { EmptyState } from "@/components/mayacorp/empty-state";
 import { NativeSelect } from "@/components/mayacorp/form";
 import { SearchInput } from "@/components/mayacorp/data-table";
@@ -117,13 +118,7 @@ function Cartao({
         <Button size="xs" variant="outline" onClick={() => onAbrir("evolucao")}>
           <ClipboardEdit /> Evolução
         </Button>
-        {/* ponto de extensão: o envio por WhatsApp entra na onda de comunicação */}
-        <Button size="xs" variant="ghost" disabled title={c.whatsapp.motivo}>
-          <MessageCircle /> WhatsApp
-        </Button>
-        <Button size="xs" variant="ghost" disabled title={c.whatsapp.motivo}>
-          <Send /> Enviar agora
-        </Button>
+        <BotoesWhatsappAula reservaId={c.id} telefone={c.aluno.telefone} />
       </div>
     </div>
   );

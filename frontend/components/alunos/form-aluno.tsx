@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
+import type { DadosAssistenteIA } from "@/lib/tipos-app-aluno";
 import type { AlunoEntrada, AlunoOut, OpcoesAluno } from "@/lib/tipos-alunos";
 import { cpfValido } from "@/lib/validacao";
 
@@ -85,16 +86,37 @@ export function useOpcoesAluno() {
  */
 export function FormAluno({
   aluno,
+  sugestao,
   onSalvo,
   onCancelar,
 }: {
   aluno: AlunoOut | null;
+  /** Rascunho do assistente de IA: preenche só os campos informados; nada é salvo até o usuário clicar em Salvar. */
+  sugestao?: DadosAssistenteIA | null;
   onSalvo: (a: AlunoOut) => void;
   onCancelar?: () => void;
 }) {
   const qc = useQueryClient();
   const opcoes = useOpcoesAluno();
   const [f, setF] = useState<Estado>(() => estadoInicial(aluno));
+  // Rascunho da IA: aplicado uma vez por sugestão nova (estado derivado durante a renderização, sem efeito).
+  const [sugestaoAplicada, setSugestaoAplicada] = useState<DadosAssistenteIA | null>(null);
+  if (sugestao && sugestao !== sugestaoAplicada) {
+    setSugestaoAplicada(sugestao);
+    setF((x) => ({
+      ...x,
+      nome: sugestao.nome ?? x.nome,
+      cpf: sugestao.cpf ? mascaraCpf(sugestao.cpf) : x.cpf,
+      semCpf: sugestao.cpf ? false : x.semCpf,
+      rg: sugestao.rg ?? x.rg,
+      nascimento: sugestao.data_nascimento ?? x.nascimento,
+      cep: sugestao.cep ? mascaraCep(sugestao.cep) : x.cep,
+      logradouro: sugestao.logradouro ?? x.logradouro,
+      numero: sugestao.numero ?? x.numero,
+      bairro: sugestao.bairro ?? x.bairro,
+      cidade: sugestao.cidade ?? x.cidade,
+    }));
+  }
   const [erros, setErros] = useState<Record<string, string>>({});
   const [foto, setFoto] = useState<{ blob: Blob; url: string } | null>(null);
   const numeroRef = useRef<HTMLInputElement>(null);

@@ -190,23 +190,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_tipo_servico')),
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_tipo_servico_codigo_legado'))
     )
-    op.create_table('totalpass_evento',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('event_id', sa.String(length=100), nullable=True),
-    sa.Column('slot_id', sa.String(length=100), nullable=True),
-    sa.Column('documento_usuario', sa.String(length=20), nullable=True),
-    sa.Column('status', sa.String(length=30), nullable=True),
-    sa.Column('payload', sa.JSON(), nullable=False),
-    sa.Column('recebido_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('processado_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
-    sa.Column('erro', sa.Text(), nullable=True),
-    sa.Column('codigo_legado', sa.Integer(), nullable=True),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_totalpass_evento')),
-    sa.UniqueConstraint('codigo_legado', name=op.f('uq_totalpass_evento_codigo_legado'))
-    )
-    op.create_index('ix_totalpass_evento_event_id', 'totalpass_evento', ['event_id'], unique=False)
-    op.create_index('ix_totalpass_evento_recebido_em', 'totalpass_evento', ['recebido_em'], unique=False)
-    op.create_index('ix_totalpass_evento_slot_id', 'totalpass_evento', ['slot_id'], unique=False)
     op.create_table('unidade',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('nome', sa.String(length=120), nullable=False),
@@ -297,9 +280,14 @@ def upgrade() -> None:
     sa.Column('place_id', sa.String(length=120), nullable=True),
     sa.Column('criar_aluno_automatico', sa.Boolean(), nullable=False),
     sa.Column('somente_dia', sa.Boolean(), nullable=False),
+    sa.Column('servico_padrao_id', sa.Integer(), nullable=True),
+    sa.Column('sync_ativo', sa.Boolean(), nullable=False),
+    sa.Column('sync_ultimo_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('sync_ultimo_resumo', sa.String(length=300), nullable=True),
     sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('codigo_legado', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['servico_padrao_id'], ['tipo_servico.id'], name=op.f('fk_totalpass_config_servico_padrao_id_tipo_servico'), ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['unidade_id'], ['unidade.id'], name=op.f('fk_totalpass_config_unidade_id_unidade'), ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_totalpass_config')),
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_totalpass_config_codigo_legado')),
@@ -763,6 +751,7 @@ def upgrade() -> None:
     sa.Column('confirmada_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
     sa.Column('desmarcada_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
     sa.Column('reposicao_ate', sa.Date(), nullable=True),
+    sa.Column('motivo_excecao_prazo', sa.Text(), nullable=True),
     sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('codigo_legado', sa.Integer(), nullable=True),
@@ -836,6 +825,27 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_evolucao_profissional_id'), 'evolucao', ['profissional_id'], unique=False)
     op.create_index(op.f('ix_evolucao_reserva_id'), 'evolucao', ['reserva_id'], unique=False)
+    op.create_table('totalpass_evento',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('event_id', sa.String(length=100), nullable=True),
+    sa.Column('slot_id', sa.String(length=100), nullable=True),
+    sa.Column('documento_usuario', sa.String(length=20), nullable=True),
+    sa.Column('status', sa.String(length=30), nullable=True),
+    sa.Column('payload', sa.JSON(), nullable=False),
+    sa.Column('recebido_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('processado_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('erro', sa.Text(), nullable=True),
+    sa.Column('resultado', sa.String(length=20), nullable=True),
+    sa.Column('reserva_id', sa.Integer(), nullable=True),
+    sa.Column('origem', sa.String(length=10), nullable=True),
+    sa.Column('codigo_legado', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['reserva_id'], ['reserva.id'], name=op.f('fk_totalpass_evento_reserva_id_reserva'), ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_totalpass_evento')),
+    sa.UniqueConstraint('codigo_legado', name=op.f('uq_totalpass_evento_codigo_legado'))
+    )
+    op.create_index('ix_totalpass_evento_event_id', 'totalpass_evento', ['event_id'], unique=False)
+    op.create_index('ix_totalpass_evento_recebido_em', 'totalpass_evento', ['recebido_em'], unique=False)
+    op.create_index('ix_totalpass_evento_slot_id', 'totalpass_evento', ['slot_id'], unique=False)
     op.create_table('comissao',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('profissional_id', sa.Integer(), nullable=False),
@@ -900,6 +910,10 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_comissao_profissional_id'), table_name='comissao')
     op.drop_index(op.f('ix_comissao_competencia'), table_name='comissao')
     op.drop_table('comissao')
+    op.drop_index('ix_totalpass_evento_slot_id', table_name='totalpass_evento')
+    op.drop_index('ix_totalpass_evento_recebido_em', table_name='totalpass_evento')
+    op.drop_index('ix_totalpass_evento_event_id', table_name='totalpass_evento')
+    op.drop_table('totalpass_evento')
     op.drop_index(op.f('ix_evolucao_reserva_id'), table_name='evolucao')
     op.drop_index(op.f('ix_evolucao_profissional_id'), table_name='evolucao')
     op.drop_table('evolucao')
@@ -971,10 +985,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_aluno_nome'), table_name='aluno')
     op.drop_table('aluno')
     op.drop_table('unidade')
-    op.drop_index('ix_totalpass_evento_slot_id', table_name='totalpass_evento')
-    op.drop_index('ix_totalpass_evento_recebido_em', table_name='totalpass_evento')
-    op.drop_index('ix_totalpass_evento_event_id', table_name='totalpass_evento')
-    op.drop_table('totalpass_evento')
     op.drop_table('tipo_servico')
     op.drop_table('termo_uso')
     op.drop_table('receita_saude_config')
