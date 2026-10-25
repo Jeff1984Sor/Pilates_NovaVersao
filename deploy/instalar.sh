@@ -3,7 +3,7 @@
 # Primeira instalação de um ambiente num servidor que JÁ RODA outros sistemas.
 # Regra: não atualizar, reiniciar nem reconfigurar nada que já exista. Só acrescentar.
 #
-#   sudo bash instalar.sh hml       # hml-pilates.mayacorp.com.br  (API 10041, web 10042)   <- placeholders
+#   sudo bash instalar.sh hml       # padrão hml-pilates.mayacorp.com.br (API 10041, web 10042); troque com DOMINIO_AMB=...
 #   sudo bash instalar.sh prod      # pilates-novo.mayacorp.com.br (API 10051, web 10052)   <- placeholders
 #
 # !!! PORTAS E DOMÍNIOS ABAIXO SÃO PLACEHOLDERS: VERIFICAR NO SERVIDOR ANTES DE USAR !!!
@@ -21,6 +21,8 @@ case "$AMB" in
   hml)  BRANCH=develop; API_PORTA=10041; WEB_PORTA=10042; DOMINIO=hml-pilates.mayacorp.com.br ;;
   *) echo "Ambiente inválido: $AMB (use prod ou hml)"; exit 1 ;;
 esac
+# Domínio escolhido na hora (ex.: DOMINIO_AMB=mayrispilates.mayacorp.com.br sudo -E bash instalar.sh hml)
+DOMINIO="${DOMINIO_AMB:-$DOMINIO}"
 REPO="${REPO:-https://github.com/Jeff1984Sor/Pilates_NovaVersao.git}"
 USUARIO=deploy
 BASE=/home/$USUARIO/pilates-nova
