@@ -1,7 +1,7 @@
 """Trilha de auditoria imutável."""
 
 import re
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -39,7 +39,7 @@ def _bloquear_sql_direto(conn, cursor, statement, parameters, context, executema
 
 
 def _jsonable(v: Any) -> Any:
-    if isinstance(v, datetime | date):
+    if isinstance(v, datetime | date | time):
         return v.isoformat()
     if isinstance(v, Decimal):
         return str(v)

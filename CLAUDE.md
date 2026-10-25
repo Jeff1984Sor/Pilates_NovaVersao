@@ -79,3 +79,4 @@ cd ../frontend && npm install && npm run dev
 - Serviços que outros módulos vão chamar ficam em `modules/<modulo>/servico.py` com assinatura estável e testada; regras de negócio vêm de `app/domain` (não reimplementar).
 - Todo endpoint: login + regra de permissão + `ctx.auditar(...)` nas ações sensíveis + teste; perfil Professor respeita `somente_proprias_aulas`.
 - Antes de entregar: `uv run python -m pytest -q backend/tests/<modulo> backend/tests/test_cobertura_rotas.py`, `npm run lint`, `npm run build`. A suíte completa é lenta; rode-a só ao final.
+- **Respostas de 25/10/2026:** fornecedores, categorias, subcategorias e termos passam a ter `ativo` (inativar em vez de excluir) · bloqueio recorrente pode ficar sem data final (pontual exige data final) · **Secretária edita** horários de funcionamento, bloqueios, termos e modelos (contrato e evolução) · valores nos documentos no formato `R$ 1.234,50`.

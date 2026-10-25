@@ -235,3 +235,21 @@ def test_contexto_real_expoe_o_escopo(client, db, token_admin):
     assert ctx.somente_proprias_aulas() is True and ctx.profissional_id() is None
     assert perfis.garantir_padrao(db)["Professor"].somente_proprias_aulas
     assert isinstance(db.scalar(select(PerfilAcesso).limit(1)), PerfilAcesso)
+
+
+def test_secretaria_edita_horarios_bloqueios_termos_e_modelos_mas_nao_financeiro_pago():
+    from app.core.permissoes import PERFIS_PADRAO
+
+    sec = next(p for p in PERFIS_PADRAO if p["nome"] == "Secretária")["permissoes"]
+    for p in ("cadastros_horarios.editar", "cadastros_bloqueios.editar", "cadastros_termos.editar", "cadastros_modelos.editar"):
+        assert p in sec, p
+    assert "cadastros_fornecedores.editar" not in sec and "financeiro_pagar.ver" not in sec
+    assert "cadastros_horarios.excluir" not in sec  # inativa, não exclui
+
+
+def test_auditoria_serializa_hora():
+    from datetime import time
+
+    from app.core.audit import _jsonable
+
+    assert _jsonable(time(9, 30)) == "09:30:00"

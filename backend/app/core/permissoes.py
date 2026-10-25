@@ -91,6 +91,8 @@ _SECRETARIA = (
      "alunos.ver", "alunos.editar", "contratos.ver", "contratos.editar", "contratos.enviar", "planos.ver",
      "financeiro_receber.ver", "financeiro_receber.baixar", "whatsapp.ver", "whatsapp.enviar", "comunicacao.ver", "comunicacao.enviar"}
     | _todas_de("cadastros", acoes=("ver",))
+    # decisão do Jefferson (25/10/2026): a Secretária também edita horários, bloqueios, termos e modelos
+    | {"cadastros_horarios.editar", "cadastros_bloqueios.editar", "cadastros_termos.editar", "cadastros_modelos.editar"}
 )
 
 # Perfis criados de saída (decisão do Jefferson: só três; outros se criam pela matriz de permissões).
@@ -101,7 +103,7 @@ PERFIS_PADRAO: list[dict] = [
     {"nome": "Professor", "descricao": "Vê só as próprias aulas: agenda/painel, evolução e avaliação. Sem financeiro, contratos, cadastros ou configurações.",
      "cor": "#2F7D6D", "administrador": False, "sistema": False, "somente_proprias_aulas": True,
      "permissoes": sorted({"painel.ver", "agenda.ver", "aulas.ver", "aulas.evoluir", "aulas.avaliar"})},
-    {"nome": "Secretária", "descricao": "Opera o estúdio: aulas de todos os professores, alunos, contratos e recebimentos. Sem contas a pagar, caixa, DRE e administração.",
+    {"nome": "Secretária", "descricao": "Opera o estúdio: aulas de todos os professores, alunos, contratos, recebimentos, horários, bloqueios e modelos. Sem contas a pagar, caixa, DRE e administração.",
      "cor": "#B4536F", "administrador": False, "sistema": False, "somente_proprias_aulas": False,
      "permissoes": sorted(_SECRETARIA)},
 ]
