@@ -152,8 +152,14 @@ class Conciliacao:
                 for t in self.tabelas.values()
             ],
             "somas": [
-                {"nome": s.nome, "origem": str(s.origem), "descartado": str(s.descartado), "esperado": str(s.esperado),
-                 "destino": str(s.destino), "ok": s.ok}
+                {
+                    "nome": s.nome,
+                    "origem": str(s.origem),
+                    "descartado": str(s.descartado),
+                    "esperado": str(s.esperado),
+                    "destino": str(s.destino),
+                    "ok": s.ok,
+                }
                 for s in self.somas
             ],
             "alertas": self.alertas,
@@ -171,7 +177,9 @@ class Conciliacao:
         add(f"- Modo: **{self.modo}**")
         add(f"- Origem: `{self.origem}`")
         add(f"- Destino: `{self.destino}`")
-        add(f"- Início: {self.inicio:%Y-%m-%d %H:%M:%S}" + (f" · Fim: {self.fim:%Y-%m-%d %H:%M:%S}" if self.fim else ""))
+        add(
+            f"- Início: {self.inicio:%Y-%m-%d %H:%M:%S}" + (f" · Fim: {self.fim:%Y-%m-%d %H:%M:%S}" if self.fim else "")
+        )
         add(f"- Resultado: **{'OK' if self.ok else 'FALHOU'}**")
         add("")
         if self.erros:
@@ -185,7 +193,9 @@ class Conciliacao:
 
         add("## Contagem por tabela")
         add("")
-        add("| Tabela | Origem | Descartados | Fundidos | Adiados | Esperado | Destino | Já existiam | Ajustados | OK |")
+        add(
+            "| Tabela | Origem | Descartados | Fundidos | Adiados | Esperado | Destino | Já existiam | Ajustados | OK |"
+        )
         add("|---|---:|---:|---:|---:|---:|---:|---:|---:|:--:|")
         for t in self.tabelas.values():
             destino = "—" if t.destino is None else t.destino
@@ -198,8 +208,12 @@ class Conciliacao:
         if motivos:
             add("### Motivos de descarte, fusão, adiamento e ajuste")
             for t in motivos:
-                for rotulo, dic in (("descartados", t.descartados), ("fundidos", t.fundidos), ("adiados", t.adiados),
-                                    ("ajustados", t.corrigidos)):
+                for rotulo, dic in (
+                    ("descartados", t.descartados),
+                    ("fundidos", t.fundidos),
+                    ("adiados", t.adiados),
+                    ("ajustados", t.corrigidos),
+                ):
                     for motivo, n in dic.items():
                         ex = t.exemplos.get(motivo)
                         sufixo = f" (ex.: {', '.join(map(str, ex))})" if ex else ""
@@ -211,7 +225,9 @@ class Conciliacao:
         add("| Soma | Origem | Descartado | Esperado | Destino | OK |")
         add("|---|---:|---:|---:|---:|:--:|")
         for s in self.somas:
-            add(f"| {s.nome} | {s.origem} | {s.descartado} | {s.esperado} | {s.destino} | {'sim' if s.ok else '**NÃO**'} |")
+            add(
+                f"| {s.nome} | {s.origem} | {s.descartado} | {s.esperado} | {s.destino} | {'sim' if s.ok else '**NÃO**'} |"
+            )
         add("")
 
         titulos = {

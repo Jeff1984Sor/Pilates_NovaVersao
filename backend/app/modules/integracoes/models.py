@@ -26,7 +26,9 @@ class WhatsappConfig(Base, Timestamped, CodigoLegado):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     unidade_id: Mapped[int] = mapped_column(ForeignKey("unidade.id", ondelete="CASCADE"), unique=True)
-    provedor: Mapped[ProvedorWhatsapp] = mapped_column(coluna_enum(ProvedorWhatsapp, 10), default=ProvedorWhatsapp.wasender)
+    provedor: Mapped[ProvedorWhatsapp] = mapped_column(
+        coluna_enum(ProvedorWhatsapp, 10), default=ProvedorWhatsapp.wasender
+    )
     url_api: Mapped[str | None] = mapped_column(String(300))
     usuario_api: Mapped[str | None] = mapped_column(String(150))
     credencial_cifrado: Mapped[str | None] = mapped_column(Text)  # token Wasender / senha Evolution

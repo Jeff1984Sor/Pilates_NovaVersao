@@ -6,24 +6,27 @@ from decimal import Decimal
 
 import pytest
 from cryptography.fernet import Fernet
-from sqlalchemy import func, select, text
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
+from app.core.db import Base
 from app.etl import transformacoes as tf
 from app.etl.__main__ import main
 from app.etl.carga import Carga, classificar_perfil
 from app.etl.fonte import Fonte
-from tests.dados.conftest import MIDIA_ORIGEM, ORIGEM, criar_engine
-
-from app.core.db import Base
 from app.modules import registrar_modelos
+from tests.dados.conftest import MIDIA_ORIGEM, ORIGEM, criar_engine
 
 
 def _rodar(engine, tmp_path, master_key, *, simular=False, midia=True):
     fonte = Fonte(f"sqlite:///{ORIGEM.as_posix()}")
     carga = Carga(
-        fonte, engine.url_texto, master_key=master_key, simular=simular,
-        midia_origem=MIDIA_ORIGEM if midia else None, midia_destino=(tmp_path / "storage") if midia else None,
+        fonte,
+        engine.url_texto,
+        master_key=master_key,
+        simular=simular,
+        midia_origem=MIDIA_ORIGEM if midia else None,
+        midia_destino=(tmp_path / "storage") if midia else None,
     )
     try:
         return carga.executar(), fonte
@@ -81,7 +84,10 @@ def test_contagens_batem_com_a_origem(ensaio):
 
 def test_descartes_tem_motivo(ensaio):
     _, conc, *_ = ensaio
-    assert "conta sem aluno resolvível (sem contrato, reserva ou aluno válidos)" in conc.tabelas["conta_receber"].descartados
+    assert (
+        "conta sem aluno resolvível (sem contrato, reserva ou aluno válidos)"
+        in conc.tabelas["conta_receber"].descartados
+    )
     assert "aluno inexistente (FK órfã)" in conc.tabelas["whatsapp_mensagem"].descartados
     assert sum(conc.tabelas["app_codigo"].descartados.values()) == 10
 
@@ -107,7 +113,9 @@ def test_amostra_de_20_sem_diferencas(ensaio):
 
 def test_cpf_so_digitos_e_sem_cpf_nulo(ensaio):
     eng, conc, *_ = ensaio
-    assert escalar(eng, "select count(*) from aluno where cpf like '%SEM_CPF%' or cpf like '%.%' or cpf like '%-%'") == 0
+    assert (
+        escalar(eng, "select count(*) from aluno where cpf like '%SEM_CPF%' or cpf like '%.%' or cpf like '%-%'") == 0
+    )
     assert escalar(eng, "select count(*) from aluno where cpf is not null and length(cpf) != 11") == 0
     assert escalar(eng, "select count(*) from aluno where sem_cpf and cpf is not null") == 0
     # 4 marcados sem CPF + 1 CPF lixo + 1 colisão após normalizar
@@ -149,7 +157,12 @@ def test_endereco_um_para_um_com_cep_digitos(ensaio):
 def test_sessoes_duplicadas_fundidas_e_reservas_reapontadas(ensaio):
     eng, conc, *_ = ensaio
     assert len(conc.alertas["sessoes_fundidas"]) == 25
-    assert escalar(eng, "select count(*) from reserva r left join aula_sessao s on s.id = r.aula_sessao_id where s.id is null") == 0
+    assert (
+        escalar(
+            eng, "select count(*) from reserva r left join aula_sessao s on s.id = r.aula_sessao_id where s.id is null"
+        )
+        == 0
+    )
     # conflito aluno x sessão fundida: reservas repetidas descartadas e relatadas (as dependências migram para a mantida)
     descartadas = [d for x in conc.alertas["reservas_fundidas"] for d in x["descartadas"]]
     assert len(descartadas) >= 3 and sum(conc.tabelas["reserva"].fundidos.values()) == len(descartadas)
@@ -159,8 +172,11 @@ def test_sessoes_duplicadas_fundidas_e_reservas_reapontadas(ensaio):
 
 def test_reservas_ativas_confere_e_hora_invertida_corrigida(ensaio):
     eng, conc, *_ = ensaio
-    erradas = q(eng, "select s.id from aula_sessao s where s.reservas_ativas != "
-                     "(select count(*) from reserva r where r.aula_sessao_id = s.id and r.status = 'RESERVADA')")
+    erradas = q(
+        eng,
+        "select s.id from aula_sessao s where s.reservas_ativas != "
+        "(select count(*) from reserva r where r.aula_sessao_id = s.id and r.status = 'RESERVADA')",
+    )
     assert erradas == []
     assert escalar(eng, "select count(*) from aula_sessao where hora_fim <= hora_inicio") == 0
     assert len(conc.alertas["sessoes_acima_capacidade"]) == 1  # dado sujo do antigo, só relatado
@@ -171,20 +187,48 @@ def test_reserva_contrato_inferido_onde_inequivoco(ensaio):
     com = escalar(eng, "select count(*) from reserva where contrato_id is not null")
     assert com > 400
     # avulsas e avaliativas nunca recebem contrato
-    assert escalar(eng, "select count(*) from reserva where contrato_id is not null and (aula_avulsa_id is not null or aula_avaliativa_id is not null)") == 0
+    assert (
+        escalar(
+            eng,
+            "select count(*) from reserva where contrato_id is not null and (aula_avulsa_id is not null or aula_avaliativa_id is not null)",
+        )
+        == 0
+    )
     cats = {x["categoria"] for x in conc.alertas["reservas_sem_contrato"]}
     assert "nenhum contrato do aluno cobre data/unidade/serviço" in cats
     # o contrato inferido pertence ao mesmo aluno
-    assert escalar(eng, "select count(*) from reserva r join contrato c on c.id = r.contrato_id where c.aluno_id != r.aluno_id") == 0
+    assert (
+        escalar(
+            eng, "select count(*) from reserva r join contrato c on c.id = r.contrato_id where c.aluno_id != r.aluno_id"
+        )
+        == 0
+    )
 
 
 def test_conta_receber_sempre_com_aluno_e_vinculos(ensaio):
     eng, conc, *_ = ensaio
     assert escalar(eng, "select count(*) from conta_receber where aluno_id is null") == 0
     # a conta com contrato inexistente entra sem contrato, com o aluno do campo antigo
-    assert escalar(eng, "select count(*) from conta_receber where descricao = 'Órfã de contrato' and contrato_id is null and aluno_id is not null") == 1
-    assert escalar(eng, "select count(*) from conta_receber cr join contrato c on c.id = cr.contrato_id where cr.aluno_id != c.aluno_id") == 0
-    assert {"tabela": "core_contasreceber", "coluna": "contrato_id", "pai": "core_contrato", "linhas": 1} in conc.alertas["fks_orfas_origem"]
+    assert (
+        escalar(
+            eng,
+            "select count(*) from conta_receber where descricao = 'Órfã de contrato' and contrato_id is null and aluno_id is not null",
+        )
+        == 1
+    )
+    assert (
+        escalar(
+            eng,
+            "select count(*) from conta_receber cr join contrato c on c.id = cr.contrato_id where cr.aluno_id != c.aluno_id",
+        )
+        == 0
+    )
+    assert {
+        "tabela": "core_contasreceber",
+        "coluna": "contrato_id",
+        "pai": "core_contrato",
+        "linhas": 1,
+    } in conc.alertas["fks_orfas_origem"]
 
 
 # ----------------------------------------------------------------------------------------- acesso e segredos
@@ -194,11 +238,20 @@ def test_usuarios_hash_django_copiado_e_perfis(ensaio):
     eng, conc, *_ = ensaio
     assert escalar(eng, "select count(*) from usuario where senha_hash like 'pbkdf2_sha256$%'") == 6
     assert escalar(eng, "select count(*) from usuario where senha_hash like '!%'") == 0
-    assert escalar(eng, "select count(*) from usuario where senha_hash is null") == 2  # senha inutilizável -> convite pendente
-    perfis = dict(q(eng, "select pa.nome, count(*) from profissional p join perfil_acesso pa on pa.id = p.perfil_acesso_id group by pa.nome"))
+    assert (
+        escalar(eng, "select count(*) from usuario where senha_hash is null") == 2
+    )  # senha inutilizável -> convite pendente
+    perfis = dict(
+        q(
+            eng,
+            "select pa.nome, count(*) from profissional p join perfil_acesso pa on pa.id = p.perfil_acesso_id group by pa.nome",
+        )
+    )
     assert perfis["Professor"] == 3  # 2 com login + 1 sem login
     assert any("Coordenação" in x for x in conc.alertas["perfis_desconhecidos"])
-    admin = q(eng, "select pa.nome from usuario u join perfil_acesso pa on pa.id = u.perfil_acesso_id where u.login = 'admin'")
+    admin = q(
+        eng, "select pa.nome from usuario u join perfil_acesso pa on pa.id = u.perfil_acesso_id where u.login = 'admin'"
+    )
     assert admin == [("Administrador",)]
 
 
@@ -212,7 +265,11 @@ def test_segredos_cifrados_e_token_preservado(ensaio):
     eng, _, chave, *_ = ensaio
     cif = tf.Cifrador(chave)
     wa = q(eng, "select credencial_cifrado, provedor from whatsapp_config")[0]
-    assert wa[0] != "FAKE-WASENDER-TOKEN-0001" and cif.decifrar(wa[0]) == "FAKE-WASENDER-TOKEN-0001" and wa[1] == "wasender"
+    assert (
+        wa[0] != "FAKE-WASENDER-TOKEN-0001"
+        and cif.decifrar(wa[0]) == "FAKE-WASENDER-TOKEN-0001"
+        and wa[1] == "wasender"
+    )
     tp = q(eng, "select partner_api_key_cifrado, place_api_key_cifrado, webhook_token_cifrado from totalpass_config")[0]
     assert [cif.decifrar(x) for x in tp] == ["FAKE-PARTNER-KEY-AAAA", "FAKE-PLACE-KEY-BBBB", "FAKE-WEBHOOK-TOKEN-CCCC"]
     h = hashlib.sha256(b"pilates_FAKE_token_integracao_0001").hexdigest()
@@ -229,9 +286,12 @@ def test_email_adiado_quando_core_nao_tem_config_email(ensaio):
 
 def test_email_carregado_cifrado_quando_config_email_existe(engine, tmp_path, master_key):
     with engine.begin() as c:
-        c.execute(text(
-            "create table config_email (id integer primary key, host varchar(200) not null, porta integer, usuario varchar(200), "
-            "senha_cifrado text, usar_tls boolean, remetente varchar(200), ativo boolean)"))
+        c.execute(
+            text(
+                "create table config_email (id integer primary key, host varchar(200) not null, porta integer, usuario varchar(200), "
+                "senha_cifrado text, usar_tls boolean, remetente varchar(200), ativo boolean)"
+            )
+        )
     conc, _ = _rodar(engine, tmp_path, master_key, midia=False)
     assert conc.ok
     host, senha = q(engine, "select host, senha_cifrado from config_email")[0]
@@ -258,8 +318,12 @@ def test_midia_copiada_com_hash_e_ausentes_relatados(ensaio):
     assert fotos and all(f.startswith("alunos/foto/") and (storage / f).exists() for f in fotos)
     assert escalar(eng, "select count(*) from aluno where termo_assinatura_path like 'assinaturas/termo/%'") > 0
     assert escalar(eng, "select count(*) from contrato where assinatura_path like 'assinaturas/contrato/%'") > 0
-    assert escalar(eng, "select count(*) from conta_pagar where comprovante_path like 'comprovantes/contas_pagar/%'") > 0
-    assert escalar(eng, "select count(*) from movimento_conta where comprovante_path like 'comprovantes/movimentos/%'") > 0
+    assert (
+        escalar(eng, "select count(*) from conta_pagar where comprovante_path like 'comprovantes/contas_pagar/%'") > 0
+    )
+    assert (
+        escalar(eng, "select count(*) from movimento_conta where comprovante_path like 'comprovantes/movimentos/%'") > 0
+    )
     assert not any(c.startswith("/") or "\\" in c for c in caminhos + fotos)
 
 
@@ -268,8 +332,22 @@ def test_midia_copiada_com_hash_e_ausentes_relatados(ensaio):
 
 def test_idempotencia_rodar_duas_vezes_nao_duplica(engine, tmp_path, master_key):
     conc1, _ = _rodar(engine, tmp_path, master_key)
-    tabelas = ["aluno", "contrato", "aula_sessao", "reserva", "conta_receber", "aluno_telefone", "usuario", "profissional",
-               "evolucao", "whatsapp_mensagem", "integracao_token", "horario_funcionamento_tipo_servico", "perfil_acesso", "receita_saude_config"]
+    tabelas = [
+        "aluno",
+        "contrato",
+        "aula_sessao",
+        "reserva",
+        "conta_receber",
+        "aluno_telefone",
+        "usuario",
+        "profissional",
+        "evolucao",
+        "whatsapp_mensagem",
+        "integracao_token",
+        "horario_funcionamento_tipo_servico",
+        "perfil_acesso",
+        "receita_saude_config",
+    ]
     antes = {t: escalar(engine, f"select count(*) from {t}") for t in tabelas}
     conc2, _ = _rodar(engine, tmp_path, master_key)
     depois = {t: escalar(engine, f"select count(*) from {t}") for t in tabelas}
@@ -298,8 +376,19 @@ def test_falha_com_codigo_de_saida_quando_total_diverge(engine, tmp_path, monkey
 
     monkeypatch.setattr(Carga, "_soma_sql", adulterada)
     rel = tmp_path / "rel" / "saida.md"
-    codigo = main(["--origem", str(ORIGEM), "--destino", engine.url_texto, "--simular", "--relatorio", str(rel),
-                   "--master-key", Fernet.generate_key().decode()])
+    codigo = main(
+        [
+            "--origem",
+            str(ORIGEM),
+            "--destino",
+            engine.url_texto,
+            "--simular",
+            "--relatorio",
+            str(rel),
+            "--master-key",
+            Fernet.generate_key().decode(),
+        ]
+    )
     assert codigo == 1
     texto = rel.read_text(encoding="utf-8")
     assert "FALHOU" in texto and "contrato.valor_total" in texto
@@ -308,8 +397,22 @@ def test_falha_com_codigo_de_saida_quando_total_diverge(engine, tmp_path, monkey
 def test_cli_gera_markdown_e_json(engine, tmp_path):
     rel = tmp_path / "saida.md"
     chave = Fernet.generate_key().decode()
-    codigo = main(["--origem", str(ORIGEM), "--destino", engine.url_texto, "--relatorio", str(rel), "--master-key", chave,
-                   "--midia-origem", str(MIDIA_ORIGEM), "--midia-destino", str(tmp_path / "st")])
+    codigo = main(
+        [
+            "--origem",
+            str(ORIGEM),
+            "--destino",
+            engine.url_texto,
+            "--relatorio",
+            str(rel),
+            "--master-key",
+            chave,
+            "--midia-origem",
+            str(MIDIA_ORIGEM),
+            "--midia-destino",
+            str(tmp_path / "st"),
+        ]
+    )
     assert codigo == 0
     assert "Resultado: **OK**" in rel.read_text(encoding="utf-8")
     dados = json.loads(rel.with_suffix(".json").read_text(encoding="utf-8"))
@@ -331,9 +434,15 @@ def test_origem_e_somente_leitura():
 # ----------------------------------------------------------------------------------------- transformações
 
 
-@pytest.mark.parametrize("bruto,esperado", [
-    ("529.982.247-25", "52998224725"), (" 52998224725 ", "52998224725"), ("529982247-25", "52998224725"), ("", ""),
-])
+@pytest.mark.parametrize(
+    "bruto,esperado",
+    [
+        ("529.982.247-25", "52998224725"),
+        (" 52998224725 ", "52998224725"),
+        ("529982247-25", "52998224725"),
+        ("", ""),
+    ],
+)
 def test_cpf_digitos(bruto, esperado):
     assert tf.normalizar_cpf_digitos(bruto) == esperado
 
@@ -343,17 +452,30 @@ def test_validar_cpf():
     assert not tf.validar_cpf("52998224724") and not tf.validar_cpf("11111111111") and not tf.validar_cpf("123")
 
 
-@pytest.mark.parametrize("bruto,esperado", [
-    ("(11) 91234-5678", "5511912345678"), ("11912345678", "5511912345678"), ("5511912345678", "5511912345678"),
-    ("+55 11 91234-5678", "5511912345678"), ("1134567890", "551134567890"), ("11 91234567", "5511991234567"),
-    ("123", None), ("", None), (None, None),
-])
+@pytest.mark.parametrize(
+    "bruto,esperado",
+    [
+        ("(11) 91234-5678", "5511912345678"),
+        ("11912345678", "5511912345678"),
+        ("5511912345678", "5511912345678"),
+        ("+55 11 91234-5678", "5511912345678"),
+        ("1134567890", "551134567890"),
+        ("11 91234567", "5511991234567"),
+        ("123", None),
+        ("", None),
+        (None, None),
+    ],
+)
 def test_telefone(bruto, esperado):
     assert tf.normalizar_telefone_br(bruto) == esperado
 
 
 def test_dinheiro_half_up_e_enum():
-    assert tf.dinheiro("37.505") == Decimal("37.51") and tf.dinheiro(None) is None and tf.dinheiro(Decimal("1")) == Decimal("1.00")
+    assert (
+        tf.dinheiro("37.505") == Decimal("37.51")
+        and tf.dinheiro(None) is None
+        and tf.dinheiro(Decimal("1")) == Decimal("1.00")
+    )
     from app.modules.agenda.models import StatusReserva
 
     assert tf.como_enum("concluida", StatusReserva, None) == (StatusReserva.CONCLUIDA, True)

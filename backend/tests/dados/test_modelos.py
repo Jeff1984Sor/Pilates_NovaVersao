@@ -33,7 +33,9 @@ def base(engine):
         prof = Profissional(nome="Prof", comissao_percentual=Decimal("10.00"))  # sem login: usuario_id nulo
         s.add_all([un, ts, prof])
         s.flush()
-        plano = Plano(nome="2x/sem", tipo_servico_id=ts.id, valor=Decimal("300.00"), aulas_por_semana=2, duracao_meses=3)
+        plano = Plano(
+            nome="2x/sem", tipo_servico_id=ts.id, valor=Decimal("300.00"), aulas_por_semana=2, duracao_meses=3
+        )
         s.add(plano)
         s.commit()
         yield engine, {"unidade": un.id, "servico": ts.id, "prof": prof.id, "plano": plano.id}
@@ -48,8 +50,13 @@ def _aluno(s: Session, unidade_id: int, nome="Ana", cpf: str | None = "529982247
 
 def _sessao(s: Session, ids: dict, dia=date(2026, 11, 3), hora=8, prof="padrao", **kw) -> AulaSessao:
     sess = AulaSessao(
-        unidade_id=ids["unidade"], tipo_servico_id=ids["servico"], profissional_id=ids["prof"] if prof == "padrao" else prof,
-        data=dia, hora_inicio=time(hora), hora_fim=time(hora, 50), **kw,
+        unidade_id=ids["unidade"],
+        tipo_servico_id=ids["servico"],
+        profissional_id=ids["prof"] if prof == "padrao" else prof,
+        data=dia,
+        hora_inicio=time(hora),
+        hora_fim=time(hora, 50),
+        **kw,
     )
     s.add(sess)
     s.flush()
@@ -60,16 +67,33 @@ def test_caso_completo(base):
     engine, ids = base
     with Session(engine) as s:
         a = _aluno(s, ids["unidade"])
-        s.add(AlunoEndereco(aluno_id=a.id, logradouro="Rua A", numero="1", cep="01310100", cidade="SP", bairro="Centro"))
+        s.add(
+            AlunoEndereco(aluno_id=a.id, logradouro="Rua A", numero="1", cep="01310100", cidade="SP", bairro="Centro")
+        )
         s.add(AlunoTelefone(aluno_id=a.id, ordem=1, numero="5511912345678"))
-        c = Contrato(aluno_id=a.id, plano_id=ids["plano"], unidade_id=ids["unidade"], profissional_id=ids["prof"],
-                     valor_aula=Decimal("37.50"), valor_parcela=Decimal("300.00"), valor_total=Decimal("900.00"),
-                     data_inicio=date(2026, 11, 3), data_fim=date(2027, 2, 3))
+        c = Contrato(
+            aluno_id=a.id,
+            plano_id=ids["plano"],
+            unidade_id=ids["unidade"],
+            profissional_id=ids["prof"],
+            valor_aula=Decimal("37.50"),
+            valor_parcela=Decimal("300.00"),
+            valor_total=Decimal("900.00"),
+            data_inicio=date(2026, 11, 3),
+            data_fim=date(2027, 2, 3),
+        )
         s.add(c)
         s.flush()
-        for i, venc in enumerate([date(2026, 11, 3), date(2026, 12, 3), date(2027, 1, 3)]):
-            s.add(ContaReceber(aluno_id=a.id, contrato_id=c.id, valor=Decimal("300.00"), vencimento=venc,
-                               competencia=venc.strftime("%Y-%m")))
+        for _i, venc in enumerate([date(2026, 11, 3), date(2026, 12, 3), date(2027, 1, 3)]):
+            s.add(
+                ContaReceber(
+                    aluno_id=a.id,
+                    contrato_id=c.id,
+                    valor=Decimal("300.00"),
+                    vencimento=venc,
+                    competencia=venc.strftime("%Y-%m"),
+                )
+            )
         sess = _sessao(s, ids)
         assert ocupar_vaga(s, sess.id)
         r = Reserva(aluno_id=a.id, aula_sessao_id=sess.id, contrato_id=c.id)
@@ -153,7 +177,11 @@ def test_fk_e_checks(base):
         with pytest.raises(IntegrityError):  # valor >= 0
             s.commit()
         s.rollback()
-        s.add(BloqueioAgenda(unidade_id=ids["unidade"], data_inicio=date(2026, 1, 1), hora_inicio=time(10), hora_fim=time(9)))
+        s.add(
+            BloqueioAgenda(
+                unidade_id=ids["unidade"], data_inicio=date(2026, 1, 1), hora_inicio=time(10), hora_fim=time(9)
+            )
+        )
         with pytest.raises(IntegrityError):  # hora_fim > hora_inicio
             s.commit()
         s.rollback()

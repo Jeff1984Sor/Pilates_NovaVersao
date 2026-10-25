@@ -38,7 +38,7 @@ def _cpf(rng: random.Random) -> str:
         if len(set(n)) == 1:
             continue
         for _ in range(2):
-            s = sum(v * w for v, w in zip(n, range(len(n) + 1, 1, -1)))
+            s = sum(v * w for v, w in zip(n, range(len(n) + 1, 1, -1), strict=False))
             d = (s * 10 % 11) % 10
             n.append(d)
         return "".join(map(str, n))
@@ -48,11 +48,60 @@ def _mascara(cpf: str) -> str:
     return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
 
 
-NOMES = ["Ana", "Beatriz", "Camila", "Daniela", "Eduarda", "Fernanda", "Gabriela", "Helena", "Isabela", "Juliana",
-         "Karina", "Larissa", "Marina", "Natalia", "Olivia", "Paula", "Rafaela", "Sabrina", "Tatiana", "Vanessa",
-         "Bruno", "Carlos", "Diego", "Eduardo", "Felipe", "Gustavo", "Henrique", "Igor", "Joao", "Lucas"]
-SOBRENOMES = ["Silva", "Souza", "Oliveira", "Santos", "Lima", "Costa", "Pereira", "Almeida", "Nunes", "Rocha",
-              "Ribeiro", "Carvalho", "Gomes", "Martins", "Araujo", "Barbosa", "Moreira", "Teixeira", "Melo", "Dias"]
+NOMES = [
+    "Ana",
+    "Beatriz",
+    "Camila",
+    "Daniela",
+    "Eduarda",
+    "Fernanda",
+    "Gabriela",
+    "Helena",
+    "Isabela",
+    "Juliana",
+    "Karina",
+    "Larissa",
+    "Marina",
+    "Natalia",
+    "Olivia",
+    "Paula",
+    "Rafaela",
+    "Sabrina",
+    "Tatiana",
+    "Vanessa",
+    "Bruno",
+    "Carlos",
+    "Diego",
+    "Eduardo",
+    "Felipe",
+    "Gustavo",
+    "Henrique",
+    "Igor",
+    "Joao",
+    "Lucas",
+]
+SOBRENOMES = [
+    "Silva",
+    "Souza",
+    "Oliveira",
+    "Santos",
+    "Lima",
+    "Costa",
+    "Pereira",
+    "Almeida",
+    "Nunes",
+    "Rocha",
+    "Ribeiro",
+    "Carvalho",
+    "Gomes",
+    "Martins",
+    "Araujo",
+    "Barbosa",
+    "Moreira",
+    "Teixeira",
+    "Melo",
+    "Dias",
+]
 
 
 def _telefones(rng: random.Random):
@@ -94,7 +143,6 @@ def main():
     from django.conf import settings
     from django.contrib.auth import get_user_model
     from django.core.management import call_command
-    from django.db import connection
     from django.utils import timezone
 
     settings.MEDIA_ROOT = str(midia)
@@ -126,12 +174,22 @@ def main():
     prof_b = m.Profissao.objects.create(cdProfissao=2, dsProfissao="Engenheiro")
     prof_c = m.Profissao.objects.create(cdProfissao=4, dsProfissao="Estudante")
     modelo = m.ModeloContrato.objects.create(
-        cdModeloContrato=1, dsNome="Contrato padrão (exemplo)", conteudo_html="<h1>Contrato</h1><p>{ALUNO_NOME} - {PLANO}</p>"
+        cdModeloContrato=1,
+        dsNome="Contrato padrão (exemplo)",
+        conteudo_html="<h1>Contrato</h1><p>{ALUNO_NOME} - {PLANO}</p>",
     )
-    m.ModeloContrato.objects.create(cdModeloContrato=2, dsNome="Contrato avulso", conteudo_html="<p>Avulso</p>", ativo=False)
-    termo = m.TermoUso.objects.create(cdTermoUso=1, nome="Termo de imagem", dsTermoUso="<p>Autorizo o uso de imagem de {ALUNO_NOME}.</p>")
-    m.ModeloEvolucao.objects.create(cdModeloEvolucao=1, titulo="Evolução padrão", texto="Aluna realizou a sessão sem intercorrências.")
-    m.ModeloEvolucao.objects.create(cdModeloEvolucao=3, titulo="Dor lombar", texto="Relata dor lombar leve.", ativo=False)
+    m.ModeloContrato.objects.create(
+        cdModeloContrato=2, dsNome="Contrato avulso", conteudo_html="<p>Avulso</p>", ativo=False
+    )
+    termo = m.TermoUso.objects.create(
+        cdTermoUso=1, nome="Termo de imagem", dsTermoUso="<p>Autorizo o uso de imagem de {ALUNO_NOME}.</p>"
+    )
+    m.ModeloEvolucao.objects.create(
+        cdModeloEvolucao=1, titulo="Evolução padrão", texto="Aluna realizou a sessão sem intercorrências."
+    )
+    m.ModeloEvolucao.objects.create(
+        cdModeloEvolucao=3, titulo="Dor lombar", texto="Relata dor lombar leve.", ativo=False
+    )
     cat_rec = m.Categoria.objects.create(cdCategoria=1, dsCategoria="Mensalidades", tipo="RECEITA")
     cat_des = m.Categoria.objects.create(cdCategoria=2, dsCategoria="Despesas fixas", tipo="DESPESA")
     cat_des2 = m.Categoria.objects.create(cdCategoria=3, dsCategoria="Material", tipo="DESPESA")
@@ -139,8 +197,14 @@ def main():
     sub_alu = m.Subcategoria.objects.create(cdSubcategoria=2, cdCategoria=cat_des, dsSubcategoria="Aluguel")
     sub_luz = m.Subcategoria.objects.create(cdSubcategoria=3, cdCategoria=cat_des, dsSubcategoria="Energia")
     sub_mat = m.Subcategoria.objects.create(cdSubcategoria=4, cdCategoria=cat_des2, dsSubcategoria="Bolas e faixas")
-    forns = [m.Fornecedor.objects.create(cdFornecedor=i, dsFornecedor=n) for i, n in
-             [(1, "Imobiliária Exemplo"), (2, "Companhia de Energia Fictícia"), (3, "Loja de Equipamentos Teste")]]
+    forns = [
+        m.Fornecedor.objects.create(cdFornecedor=i, dsFornecedor=n)
+        for i, n in [
+            (1, "Imobiliária Exemplo"),
+            (2, "Companhia de Energia Fictícia"),
+            (3, "Loja de Equipamentos Teste"),
+        ]
+    ]
 
     planos = []
     for cd, nome, valor, aulas, meses, avulso in [
@@ -151,12 +215,22 @@ def main():
         (5, "Aula avulsa", "80.00", 1, 1, True),
         (6, "Aula avulsa TotalPass / WellHub", "0.00", 1, 1, True),
     ]:
-        planos.append(m.Plano.objects.create(
-            cdPlano=cd, dsPlano=nome, cdTipoServico=ts_pilates, valor=Decimal(valor), aulas_por_semana=aulas,
-            duracao_meses=meses, is_avulso=avulso, recorrencia="SEMANAL" if avulso else "MENSAL",
-            categoria_receita=cat_rec, subcategoria_receita=sub_rec, modeloContrato=modelo,
-        ))
-    plano_avulso, plano_tp = planos[4], planos[5]
+        planos.append(
+            m.Plano.objects.create(
+                cdPlano=cd,
+                dsPlano=nome,
+                cdTipoServico=ts_pilates,
+                valor=Decimal(valor),
+                aulas_por_semana=aulas,
+                duracao_meses=meses,
+                is_avulso=avulso,
+                recorrencia="SEMANAL" if avulso else "MENSAL",
+                categoria_receita=cat_rec,
+                subcategoria_receita=sub_rec,
+                modeloContrato=modelo,
+            )
+        )
+    plano_avulso, _plano_tp = planos[4], planos[5]
     planos_contrato = planos[:4]
 
     # ----- profissionais e usuários (os signals do antigo criam o usuário de cada profissional) ------
@@ -172,8 +246,13 @@ def main():
     profissionais = []
     for i, (nome, perfil, email, senha, cref) in enumerate(defs, start=1):
         p = m.Profissional.objects.create(
-            cdProfissional=i * 2 - 1, profissional=nome, email=email, celular=_telefones(rng), crefito=cref,
-            cdPerfilAcesso=perfis[perfil], dtNascimento=date(1980 + i, 3, 10 + i),
+            cdProfissional=i * 2 - 1,
+            profissional=nome,
+            email=email,
+            celular=_telefones(rng),
+            crefito=cref,
+            cdPerfilAcesso=perfis[perfil],
+            dtNascimento=date(1980 + i, 3, 10 + i),
         )
         p.refresh_from_db()
         if p.user_id:
@@ -186,10 +265,12 @@ def main():
             u.save()
         profissionais.append(p)
     # superusuário (o signal cria um profissional "Padrao" para ele)
-    su = User.objects.create_superuser("admin", "admin@exemplo.invalid", "Senha-Falsa-Admin!")
+    User.objects.create_superuser("admin", "admin@exemplo.invalid", "Senha-Falsa-Admin!")
     # um profissional SEM login (user nulo) e o usuário órfão removido
     p_sem = m.Profissional.objects.create(
-        cdProfissional=40, profissional="Wilma Sem Login Teste", celular=_telefones(rng),
+        cdProfissional=40,
+        profissional="Wilma Sem Login Teste",
+        celular=_telefones(rng),
         cdPerfilAcesso=perfis["Professor"],
     )
     p_sem.refresh_from_db()
@@ -206,16 +287,44 @@ def main():
 
     # ----- horários / bloqueios ---------------------------------------------------------------------------
     for dia in range(0, 5):
-        hf = m.HorarioFuncionamento.objects.create(unidade=un, diaSemana=dia, horaInicio=time(7), horaFim=time(12 if dia == 4 else 21))
+        hf = m.HorarioFuncionamento.objects.create(
+            unidade=un, diaSemana=dia, horaInicio=time(7), horaFim=time(12 if dia == 4 else 21)
+        )
         hf.tipos_servico.add(ts_pilates)
-    m.HorarioFuncionamento.objects.create(unidade=un, tipoServico=ts_fisio, diaSemana=5, horaInicio=time(8), horaFim=time(12))
+    m.HorarioFuncionamento.objects.create(
+        unidade=un, tipoServico=ts_fisio, diaSemana=5, horaInicio=time(8), horaFim=time(12)
+    )
     for i, dia in enumerate(range(0, 4), start=1):
-        m.HorarioStudio.objects.create(cdHorario=i, unidade=un, tipoServico=ts_pilates, profissional=professores[0], diaSemana=dia,
-                                       horaInicio=time(8), horaFim=time(8, 50), capacidade=None if dia % 2 else 3)
-    m.BloqueioAgenda.objects.create(unidade=un, recorrente=True, diaSemana=2, dataInicio=date(2026, 1, 1),
-                                    horaInicio=time(12), horaFim=time(14), motivo="Almoço")
-    m.BloqueioAgenda.objects.create(unidade=un, tipoServico=ts_pilates, profissional=professores[1], recorrente=False,
-                                    dataInicio=date(2026, 11, 2), dataFim=date(2026, 11, 2), horaInicio=time(7), horaFim=time(21), motivo="Feriado")
+        m.HorarioStudio.objects.create(
+            cdHorario=i,
+            unidade=un,
+            tipoServico=ts_pilates,
+            profissional=professores[0],
+            diaSemana=dia,
+            horaInicio=time(8),
+            horaFim=time(8, 50),
+            capacidade=None if dia % 2 else 3,
+        )
+    m.BloqueioAgenda.objects.create(
+        unidade=un,
+        recorrente=True,
+        diaSemana=2,
+        dataInicio=date(2026, 1, 1),
+        horaInicio=time(12),
+        horaFim=time(14),
+        motivo="Almoço",
+    )
+    m.BloqueioAgenda.objects.create(
+        unidade=un,
+        tipoServico=ts_pilates,
+        profissional=professores[1],
+        recorrente=False,
+        dataInicio=date(2026, 11, 2),
+        dataFim=date(2026, 11, 2),
+        horaInicio=time(7),
+        horaFim=time(21),
+        motivo="Feriado",
+    )
 
     # ----- alunos ---------------------------------------------------------------------------------------------
     alunos = []
@@ -235,11 +344,19 @@ def main():
             cpfs_usados.add(cpf)
             kw = {"dsCPF": [cpf, _mascara(cpf), cpf, _mascara(cpf), f" {cpf}"][i % 5].strip()}
         a = m.Aluno(
-            cdAluno=cd_aluno, dsNome=nome, dsRg=f"{rng.randint(10, 99)}.{rng.randint(100, 999)}.{rng.randint(100, 999)}-{rng.randint(0, 9)}",
-            dsEmail=f"aluno{i}@exemplo.invalid" if i % 4 else "", dtNascimento=date(1960 + i % 40, 1 + i % 12, 1 + i % 27),
-            estado_civil=rng.choice(["SOLTEIRO", "CASADO", "", "DIVORCIADO"]), cdProfissao=rng.choice([prof_a, prof_b, prof_c, None]),
-            cdUnidade=un, cdTermoUso=termo if i % 3 == 0 else None, status="INATIVO" if i % 11 == 10 else "ATIVO",
-            autoriza_imagem=i % 3 == 0, cpf_pagador_recibo=_cpf(rng) if i % 13 == 0 else "", **kw,
+            cdAluno=cd_aluno,
+            dsNome=nome,
+            dsRg=f"{rng.randint(10, 99)}.{rng.randint(100, 999)}.{rng.randint(100, 999)}-{rng.randint(0, 9)}",
+            dsEmail=f"aluno{i}@exemplo.invalid" if i % 4 else "",
+            dtNascimento=date(1960 + i % 40, 1 + i % 12, 1 + i % 27),
+            estado_civil=rng.choice(["SOLTEIRO", "CASADO", "", "DIVORCIADO"]),
+            cdProfissao=rng.choice([prof_a, prof_b, prof_c, None]),
+            cdUnidade=un,
+            cdTermoUso=termo if i % 3 == 0 else None,
+            status="INATIVO" if i % 11 == 10 else "ATIVO",
+            autoriza_imagem=i % 3 == 0,
+            cpf_pagador_recibo=_cpf(rng) if i % 13 == 0 else "",
+            **kw,
         )
         if i % 3 == 0:
             a.termo_aceite_em = agora - timedelta(days=30 + i)
@@ -255,35 +372,47 @@ def main():
     # colisão de CPF após normalizar: mesmo CPF em formatos diferentes (permitido pelo unique textual do antigo)
     base = next(a for a in alunos if not a.sem_cpf)
     digitos = "".join(c for c in base.dsCPF if c.isdigit())
-    dup = m.Aluno.objects.create(cdAluno=cd_aluno + 3, dsNome="Duplicata Totalpass Teste", dsCPF=_mascara(digitos) if base.dsCPF == digitos else digitos,
-                                 cdUnidade=un, dsEmail="dup@exemplo.invalid")
+    dup = m.Aluno.objects.create(
+        cdAluno=cd_aluno + 3,
+        dsNome="Duplicata Totalpass Teste",
+        dsCPF=_mascara(digitos) if base.dsCPF == digitos else digitos,
+        cdUnidade=un,
+        dsEmail="dup@exemplo.invalid",
+    )
     alunos.append(dup)
     # CPF lixo (não tem 11 dígitos) numa conta criada pela integração
     lixo = m.Aluno.objects.create(cdAluno=cd_aluno + 4, dsNome="CPF Estranho Teste", dsCPF="123.456", cdUnidade=un)
     alunos.append(lixo)
 
     # endereço (OneToOne nos dois sentidos) e telefones (cdTelefone instável: ordem invertida em alguns)
-    cd_end, cd_tel = 0, 0
+    cd_end, _cd_tel = 0, 0
     for i, a in enumerate(alunos):
         if i % 5 != 4:
             cd_end += 1
             e = m.EnderecoAluno.objects.create(
-                cdEndereco=cd_end, cdAluno=a, dsLogradouro=f"Rua Exemplo {i}", dsNumero=str(10 + i), dsCEP=rng.choice(["01310-100", "01310100", "13010-000"]),
-                dsCidade="Cidade Exemplo", dsBairro="Centro",
+                cdEndereco=cd_end,
+                cdAluno=a,
+                dsLogradouro=f"Rua Exemplo {i}",
+                dsNumero=str(10 + i),
+                dsCEP=rng.choice(["01310-100", "01310100", "13010-000"]),
+                dsCidade="Cidade Exemplo",
+                dsBairro="Centro",
             )
             a.cdEndereco = e
             a.save(update_fields=["cdEndereco"])
     tel_rows = []
     for a in alunos:
-        for k in range(rng.choice([1, 1, 2, 3])):
+        for _ in range(rng.choice([1, 1, 2, 3])):
             tel_rows.append((a, _telefones(rng)))
     # cdTelefone gerados em ordem embaralhada por aluno: simula o delete-and-recreate
     cds = list(range(500, 500 + len(tel_rows)))
     rng.shuffle(cds)
-    for (a, tel), cd in zip(tel_rows, cds):
+    for (a, tel), cd in zip(tel_rows, cds, strict=False):
         m.TelefoneAluno.objects.create(cdTelefone=cd, cdAluno=a, dsTelefone=tel)
     # um telefone repetido no mesmo aluno
-    m.TelefoneAluno.objects.create(cdTelefone=9000, cdAluno=alunos[0], dsTelefone=tel_rows[0][1] if tel_rows[0][0] == alunos[0] else "11999990000")
+    m.TelefoneAluno.objects.create(
+        cdTelefone=9000, cdAluno=alunos[0], dsTelefone=tel_rows[0][1] if tel_rows[0][0] == alunos[0] else "11999990000"
+    )
 
     # ----- agenda: sessões -----------------------------------------------------------------------------------------------
     templates = []  # (weekday, hora, profissional)
@@ -298,27 +427,46 @@ def main():
             d = inicio + timedelta(weeks=semana, days=dia)
             cap = rng.choice([None, None, None, 2, 1]) if (semana + dia + hora) % 7 == 0 else None
             s = m.AulaSessao.objects.create(
-                unidade=un, tipoServico=ts_pilates, profissional=prof, data=d, horaInicio=time(hora), horaFim=time(hora, 50), capacidade=cap,
+                unidade=un,
+                tipoServico=ts_pilates,
+                profissional=prof,
+                data=d,
+                horaInicio=time(hora),
+                horaFim=time(hora, 50),
+                capacidade=cap,
             )
             sessoes[(d, hora, prof.pk)] = s
     sess_lista = list(sessoes.values())
     # sessões sem profissional (TotalPass)
     for k in range(10):
         d = inicio + timedelta(days=7 * k + 1)
-        s = m.AulaSessao.objects.create(unidade=un, tipoServico=ts_tp, profissional=None, data=d, horaInicio=time(11), horaFim=time(11, 50))
+        s = m.AulaSessao.objects.create(
+            unidade=un, tipoServico=ts_tp, profissional=None, data=d, horaInicio=time(11), horaFim=time(11, 50)
+        )
         sess_lista.append(s)
         sessoes[(d, 11, 0)] = s
     # duplicatas: mesma chave (unidade, serviço, profissional, data, início) criada duas vezes
     duplicatas = []
     for original in rng.sample(sess_lista[:300], 22) + [x for x in sess_lista if x.profissional_id is None][:3]:
         copia = m.AulaSessao.objects.create(
-            unidade=original.unidade, tipoServico=original.tipoServico, profissional=original.profissional, data=original.data,
-            horaInicio=original.horaInicio, horaFim=original.horaFim, capacidade=original.capacidade,
+            unidade=original.unidade,
+            tipoServico=original.tipoServico,
+            profissional=original.profissional,
+            data=original.data,
+            horaInicio=original.horaInicio,
+            horaFim=original.horaFim,
+            capacidade=original.capacidade,
         )
         duplicatas.append((original, copia))
     # sessão com horário invertido (dado sujo) e sessão acima da capacidade serão tratadas abaixo
-    suja = m.AulaSessao.objects.create(unidade=un, tipoServico=ts_pilates, profissional=prof_aulas[0], data=date(2026, 12, 1),
-                                       horaInicio=time(15), horaFim=time(15))
+    m.AulaSessao.objects.create(
+        unidade=un,
+        tipoServico=ts_pilates,
+        profissional=prof_aulas[0],
+        data=date(2026, 12, 1),
+        horaInicio=time(15),
+        horaFim=time(15),
+    )
 
     # ----- contratos, parcelas, reservas -----------------------------------------------------------------------------------------
     ativos = [a for a in alunos if a.status == "ATIVO" and not a.sem_cpf][:30]
@@ -347,10 +495,19 @@ def main():
         valor_aula = (plano.valor / (plano.aulas_por_semana * 4)).quantize(Decimal("0.01"))
         ass = ["NAO_ASSINADO", "ASSINADO", "ASSINADO_DIGITALMENTE"][i % 3]
         c = m.Contrato.objects.create(
-            cdContrato=cd_contrato, cdAluno=aluno, cdPlano=plano, recorrencia="MENSAL", cdUnidade=un,
-            cdProfissional=prof_aulas[i % 3], modo_pagamento=["PIX", "CREDITO", "DEBITO", "DINHEIRO", ""][i % 5],
-            valor_aula=valor_aula, valor_parcela=plano.valor, valor_total=plano.valor * plano.duracao_meses,
-            dtInicioContrato=inicio_c, dtFimContrato=fim_c, status=ass,
+            cdContrato=cd_contrato,
+            cdAluno=aluno,
+            cdPlano=plano,
+            recorrencia="MENSAL",
+            cdUnidade=un,
+            cdProfissional=prof_aulas[i % 3],
+            modo_pagamento=["PIX", "CREDITO", "DEBITO", "DINHEIRO", ""][i % 5],
+            valor_aula=valor_aula,
+            valor_parcela=plano.valor,
+            valor_total=plano.valor * plano.duracao_meses,
+            dtInicioContrato=inicio_c,
+            dtFimContrato=fim_c,
+            status=ass,
         )
         if ass == "ASSINADO_DIGITALMENTE":
             c.assinado_em = agora - timedelta(days=60)
@@ -372,8 +529,16 @@ def main():
             if i == 3 and k == 1:
                 status, pag = "CANCELADO", None
             m.ContasReceber.objects.create(
-                contrato=c, valor=parc["valor"], dtVencimento=venc, competencia=parc["competencia"], status=status, dtPagamento=pag,
-                descricao="", recibo_saude_gerado_em=agora - timedelta(days=3) if status == "PAGO" and k == 0 and i % 4 == 0 else None,
+                contrato=c,
+                valor=parc["valor"],
+                dtVencimento=venc,
+                competencia=parc["competencia"],
+                status=status,
+                dtPagamento=pag,
+                descricao="",
+                recibo_saude_gerado_em=agora - timedelta(days=3)
+                if status == "PAGO" and k == 0 and i % 4 == 0
+                else None,
             )
         # reservas nas semanas do contrato
         dias_semana = rng.sample(range(0, 5), plano.aulas_por_semana)
@@ -385,12 +550,17 @@ def main():
                 s = sessoes.get((d, hora, prof.pk))
                 if s and d >= inicio_c:
                     if d < HOJE:
-                        st = rng.choices(["CONCLUIDA", "FALTOU_AVISOU", "FALTOU_SEM_AVISAR", "CANCELADA"], [80, 7, 5, 8])[0]
+                        st = rng.choices(
+                            ["CONCLUIDA", "FALTOU_AVISOU", "FALTOU_SEM_AVISAR", "CANCELADA"], [80, 7, 5, 8]
+                        )[0]
                     else:
                         st = "RESERVADA" if ocupacao(s) < cap(s) else "PENDENTE"
                     extra = {}
                     if st == "CANCELADA":
-                        extra = {"desmarcada_em": agora - timedelta(days=rng.randint(1, 40)), "reposicao_ate": d + timedelta(days=30)}
+                        extra = {
+                            "desmarcada_em": agora - timedelta(days=rng.randint(1, 40)),
+                            "reposicao_ate": d + timedelta(days=30),
+                        }
                     if st == "RESERVADA" and rng.random() < 0.3:
                         extra = {"confirmada_em": agora - timedelta(hours=5)}
                     if st == "RESERVADA" and ocupacao(s) >= cap(s):
@@ -403,14 +573,25 @@ def main():
         outros = list(m.Reserva.objects.filter(aulaSessao=orig).select_related("aluno"))
         if outros and k % 3 == 0:
             ra = outros[0]
-            reservar(ra.aluno, copia, "RESERVADA" if copia.data >= HOJE else "CONCLUIDA")  # conflito (mesmo aluno nas duas)
-        novos = [a for a in alunos if (a.pk, orig.pk) not in reservas_criadas and (a.pk, copia.pk) not in reservas_criadas]
+            reservar(
+                ra.aluno, copia, "RESERVADA" if copia.data >= HOJE else "CONCLUIDA"
+            )  # conflito (mesmo aluno nas duas)
+        novos = [
+            a for a in alunos if (a.pk, orig.pk) not in reservas_criadas and (a.pk, copia.pk) not in reservas_criadas
+        ]
         if novos and k % 2 == 0:
             reservar(rng.choice(novos), copia, "RESERVADA" if copia.data >= HOJE else "CONCLUIDA")
 
     # sessão acima da capacidade (dado sujo do antigo): capacidade 1 com 2 RESERVADA
-    sobre = m.AulaSessao.objects.create(unidade=un, tipoServico=ts_pilates, profissional=prof_aulas[1], data=date(2026, 11, 10),
-                                        horaInicio=time(14), horaFim=time(14, 50), capacidade=1)
+    sobre = m.AulaSessao.objects.create(
+        unidade=un,
+        tipoServico=ts_pilates,
+        profissional=prof_aulas[1],
+        data=date(2026, 11, 10),
+        horaInicio=time(14),
+        horaFim=time(14, 50),
+        capacidade=1,
+    )
     reservar(alunos[1], sobre, "RESERVADA")
     reservar(alunos[2], sobre, "RESERVADA")
 
@@ -418,8 +599,16 @@ def main():
     for k in range(6):
         a = alunos[30 + k]
         av = m.AulaAvulsa.objects.create(
-            cdAulaAvulsa=k + 1, aluno=a, plano=plano_avulso, unidade=un, profissional=prof_aulas[0], recorrencia="SEMANAL",
-            quantidade=2, valor_aula=Decimal("80.00"), valor_total=Decimal("80.00"), dtInicio=date(2026, 9, 7) + timedelta(days=7 * k),
+            cdAulaAvulsa=k + 1,
+            aluno=a,
+            plano=plano_avulso,
+            unidade=un,
+            profissional=prof_aulas[0],
+            recorrencia="SEMANAL",
+            quantidade=2,
+            valor_aula=Decimal("80.00"),
+            valor_total=Decimal("80.00"),
+            dtInicio=date(2026, 9, 7) + timedelta(days=7 * k),
             dtFim=date(2026, 9, 21) + timedelta(days=7 * k),
         )
         for j in range(2):
@@ -429,18 +618,36 @@ def main():
                 continue
             r = reservar(a, s, "CONCLUIDA" if d < HOJE else "RESERVADA", pacote_avulso=av)
             if r:
-                m.ContasReceber.objects.create(reserva=r, valor=Decimal("80.00"), dtVencimento=d, competencia=d.strftime("%Y-%m"),
-                                               status="PAGO" if k % 2 else "ABERTO", dtPagamento=d if k % 2 else None,
-                                               aluno=a if k % 3 == 0 else None, descricao="Aula avulsa")
+                m.ContasReceber.objects.create(
+                    reserva=r,
+                    valor=Decimal("80.00"),
+                    dtVencimento=d,
+                    competencia=d.strftime("%Y-%m"),
+                    status="PAGO" if k % 2 else "ABERTO",
+                    dtPagamento=d if k % 2 else None,
+                    aluno=a if k % 3 == 0 else None,
+                    descricao="Aula avulsa",
+                )
     for k in range(5):
         a = alunos[40 + k]
         d = date(2026, 9, 14) + timedelta(days=k)
         s = next((x for key, x in sessoes.items() if key[0] == d and key[1] in (17, 18, 19)), None)
         av = m.AulaAvaliativa.objects.create(
-            cdAulaAvaliativa=k + 1, tipo=["AVALIATIVA", "AVALIATIVA", "TOTALPASS", "WELLHUB", "AVALIATIVA"][k], aluno=a, unidade=un,
-            profissional=prof_aulas[1], tipoServico=ts_pilates, data=d, horaInicio=time(17), horaFim=time(17, 50),
-            status=["REALIZADA", "CONVERTIDA", "REALIZADA", "CANCELADA", "AGENDADA"][k], queixa_principal="Dor nas costas (exemplo)",
-            objetivos="Fortalecimento", historico_saude="Sem restrições", observacoes="", contrato=contratos[k] if k == 1 and contratos[k].cdAluno_id == a.pk else None,
+            cdAulaAvaliativa=k + 1,
+            tipo=["AVALIATIVA", "AVALIATIVA", "TOTALPASS", "WELLHUB", "AVALIATIVA"][k],
+            aluno=a,
+            unidade=un,
+            profissional=prof_aulas[1],
+            tipoServico=ts_pilates,
+            data=d,
+            horaInicio=time(17),
+            horaFim=time(17, 50),
+            status=["REALIZADA", "CONVERTIDA", "REALIZADA", "CANCELADA", "AGENDADA"][k],
+            queixa_principal="Dor nas costas (exemplo)",
+            objetivos="Fortalecimento",
+            historico_saude="Sem restrições",
+            observacoes="",
+            contrato=contratos[k] if k == 1 and contratos[k].cdAluno_id == a.pk else None,
         )
         if s:
             reservar(a, s, "CONCLUIDA", aula_avaliativa=av)
@@ -450,14 +657,20 @@ def main():
         reservar(alunos[52 + k % 5], s, "CONCLUIDA" if s.data < HOJE else "RESERVADA")
 
     # conta de reserva "órfã de contrato": reserva sem contrato nem avulsa (ex.: reposição lançada à mão)
-    solta = m.Reserva.objects.filter(pacote_avulso__isnull=True, aula_avaliativa__isnull=True).first()
+    m.Reserva.objects.filter(pacote_avulso__isnull=True, aula_avaliativa__isnull=True).first()
 
     # evoluções e avaliações
     concluidas = list(m.Reserva.objects.filter(status="CONCLUIDA").order_by("id")[:160])
     for k, r in enumerate(concluidas):
-        m.EvolucaoAluno.objects.create(reserva=r, profissional=r.aulaSessao.profissional or prof_aulas[0], texto=f"Evolução sintética {k}: boa execução dos exercícios.")
+        m.EvolucaoAluno.objects.create(
+            reserva=r,
+            profissional=r.aulaSessao.profissional or prof_aulas[0],
+            texto=f"Evolução sintética {k}: boa execução dos exercícios.",
+        )
         if k % 8 == 0:
-            m.AvaliacaoAluno.objects.create(reserva=r, profissional=r.aulaSessao.profissional or prof_aulas[0], texto=f"Avaliação sintética {k}.")
+            m.AvaliacaoAluno.objects.create(
+                reserva=r, profissional=r.aulaSessao.profissional or prof_aulas[0], texto=f"Avaliação sintética {k}."
+            )
 
     # ----- financeiro ------------------------------------------------------------------------------------------------------------------
     for i in range(30):
@@ -468,72 +681,149 @@ def main():
         forn = forns[i % 3]
         sub = [sub_alu, sub_luz, sub_mat][i % 3]
         m.ContasPagar.objects.create(
-            cdContasPagar=i + 1, cdFornecedor=forn, cdCategoria=sub.cdCategoria, cdSubcategoria=sub, dtVencimento=venc,
-            valor=Decimal(str(round(rng.uniform(80, 2500), 2))), recorrencia=["", "MENSAL", "SEMANAL", "ANUAL"][i % 4] if i % 4 else "",
-            recorrencia_quantidade=3 if i % 4 == 1 else None, status=status, dtPagamento=venc if status == "PAGO" else None,
-            comprovante=arquivo(f"comprovantes/contas_pagar/comp_{i + 1}.pdf", existe=i != 2) if status == "PAGO" and i % 2 == 0 else None,
+            cdContasPagar=i + 1,
+            cdFornecedor=forn,
+            cdCategoria=sub.cdCategoria,
+            cdSubcategoria=sub,
+            dtVencimento=venc,
+            valor=Decimal(str(round(rng.uniform(80, 2500), 2))),
+            recorrencia=["", "MENSAL", "SEMANAL", "ANUAL"][i % 4] if i % 4 else "",
+            recorrencia_quantidade=3 if i % 4 == 1 else None,
+            status=status,
+            dtPagamento=venc if status == "PAGO" else None,
+            comprovante=arquivo(f"comprovantes/contas_pagar/comp_{i + 1}.pdf", existe=i != 2)
+            if status == "PAGO" and i % 2 == 0
+            else None,
             motivo_cancelamento="Lançamento duplicado" if status == "CANCELADO" else "",
         )
     contas_banc = [
-        m.ContaBancaria.objects.create(cdConta=1, banco="Banco Exemplo", agencia="0001", conta="12345-6", saldo_inicial=Decimal("1500.00")),
-        m.ContaBancaria.objects.create(cdConta=3, banco="Cooperativa Teste", agencia="0100", conta="9876-5", saldo_inicial=Decimal("0.00"), ativo=False),
+        m.ContaBancaria.objects.create(
+            cdConta=1, banco="Banco Exemplo", agencia="0001", conta="12345-6", saldo_inicial=Decimal("1500.00")
+        ),
+        m.ContaBancaria.objects.create(
+            cdConta=3,
+            banco="Cooperativa Teste",
+            agencia="0100",
+            conta="9876-5",
+            saldo_inicial=Decimal("0.00"),
+            ativo=False,
+        ),
     ]
     for i in range(40):
         m.MovimentoConta.objects.create(
-            conta=contas_banc[0 if i < 35 else 1], tipo="ENTRADA" if i % 3 else "SAIDA", valor=Decimal(str(round(rng.uniform(20, 900), 2))),
-            data=date(2026, 6, 1) + timedelta(days=i * 3), descricao=f"Movimento sintético {i}",
+            conta=contas_banc[0 if i < 35 else 1],
+            tipo="ENTRADA" if i % 3 else "SAIDA",
+            valor=Decimal(str(round(rng.uniform(20, 900), 2))),
+            data=date(2026, 6, 1) + timedelta(days=i * 3),
+            descricao=f"Movimento sintético {i}",
             comprovante=arquivo(f"comprovantes/movimentos/mov_{i}.pdf") if i % 10 == 0 else None,
         )
-    m.ReceitaSaudeConfig.objects.create(cpf_profissional=_cpf(rng), registro_profissional="CREFITO3-000001", codigo_ocupacao="231", descricao_padrao="Aulas de Pilates")
-    m.ReceitaSaudeConfig.objects.create(cpf_profissional=_cpf(rng), registro_profissional="CREFITO3-000002", codigo_ocupacao="231", descricao_padrao="Aulas de Pilates (2)")
+    m.ReceitaSaudeConfig.objects.create(
+        cpf_profissional=_cpf(rng),
+        registro_profissional="CREFITO3-000001",
+        codigo_ocupacao="231",
+        descricao_padrao="Aulas de Pilates",
+    )
+    m.ReceitaSaudeConfig.objects.create(
+        cpf_profissional=_cpf(rng),
+        registro_profissional="CREFITO3-000002",
+        codigo_ocupacao="231",
+        descricao_padrao="Aulas de Pilates (2)",
+    )
 
     # ----- documentos ---------------------------------------------------------------------------------------------------------------------
     for i in range(20):
         a = alunos[i]
         ctr = next((c for c in contratos if c.cdAluno_id == a.pk), None)
         m.AlunoDocumento.objects.create(
-            cdDocumento=i + 1, aluno=a, contrato=ctr if i % 2 == 0 else None, titulo=f"Documento sintético {i + 1}",
+            cdDocumento=i + 1,
+            aluno=a,
+            contrato=ctr if i % 2 == 0 else None,
+            titulo=f"Documento sintético {i + 1}",
             arquivo=arquivo(f"alunos/documentos/doc_{i + 1}.pdf", existe=i not in (4, 11, 17)),
-            origem="CONTRATO_PDF" if ctr and i % 2 == 0 else "UPLOAD", descricao="Arquivo de teste",
+            origem="CONTRATO_PDF" if ctr and i % 2 == 0 else "UPLOAD",
+            descricao="Arquivo de teste",
         )
 
     # ----- WhatsApp ----------------------------------------------------------------------------------------------------------------------------
     m.WhatsappConfiguracao.objects.create(
-        unidade=un, evolution_url="https://wasender.exemplo.invalid/api/send-message", evolution_usuario="usuario.teste",
-        evolution_senha="FAKE-WASENDER-TOKEN-0001", evolution_instance="", acompanhar_envios=True, numero_acompanhamento="11999990001",
-        avisar_aniversario=True, avisar_vencimento=True, avisar_atraso=True, variaveis_template={"studio": "Studio Exemplo"},
+        unidade=un,
+        evolution_url="https://wasender.exemplo.invalid/api/send-message",
+        evolution_usuario="usuario.teste",
+        evolution_senha="FAKE-WASENDER-TOKEN-0001",
+        evolution_instance="",
+        acompanhar_envios=True,
+        numero_acompanhamento="11999990001",
+        avisar_aniversario=True,
+        avisar_vencimento=True,
+        avisar_atraso=True,
+        variaveis_template={"studio": "Studio Exemplo"},
     )
     for i in range(160):
         a = alunos[i % len(alunos)]
         m.AlunoWhatsappMessage.objects.create(
-            aluno=a, contrato=contratos[i % len(contratos)] if i % 5 == 0 and contratos[i % len(contratos)].cdAluno_id == a.pk else None,
+            aluno=a,
+            contrato=contratos[i % len(contratos)]
+            if i % 5 == 0 and contratos[i % len(contratos)].cdAluno_id == a.pk
+            else None,
             tipo=rng.choice(["manual", "automated_reminder", "contract_link", "contract_renewal"]),
-            direcao="recebida" if i % 9 == 0 else "enviada", telefone=_telefones(rng), mensagem=f"Mensagem sintética {i}",
-            status="sent" if i % 17 else "failed", response_payload='{"ok": true}' if i % 17 else '{"error": "falha"}',
+            direcao="recebida" if i % 9 == 0 else "enviada",
+            telefone=_telefones(rng),
+            mensagem=f"Mensagem sintética {i}",
+            status="sent" if i % 17 else "failed",
+            response_payload='{"ok": true}' if i % 17 else '{"error": "falha"}',
             enviado_em=agora - timedelta(hours=i * 7),
         )
     for i in range(110):
         a = alunos[i % 40]
         m.WhatsappAgendamentoLog.objects.create(
-            tipo="automated_reminder", dedupe_key=f"automated_reminder:1:2026-10-{1 + i % 25:02d}:{a.pk}:{i}", unidade=un, aluno=a,
-            data_referencia=date(2026, 10, 1) + timedelta(days=i % 25), telefone=_telefones(rng), mensagem=f"Lembrete sintético {i}",
+            tipo="automated_reminder",
+            dedupe_key=f"automated_reminder:1:2026-10-{1 + i % 25:02d}:{a.pk}:{i}",
+            unidade=un,
+            aluno=a,
+            data_referencia=date(2026, 10, 1) + timedelta(days=i % 25),
+            telefone=_telefones(rng),
+            mensagem=f"Lembrete sintético {i}",
             enviado_em=agora - timedelta(hours=i * 5),
         )
     for i in range(10):
-        m.AlunoAppCodigo.objects.create(aluno=alunos[i], codigo=f"{rng.randint(0, 999999):06d}", expira_em=agora + timedelta(minutes=10 - i * 30), usado=i % 2 == 0)
+        m.AlunoAppCodigo.objects.create(
+            aluno=alunos[i],
+            codigo=f"{rng.randint(0, 999999):06d}",
+            expira_em=agora + timedelta(minutes=10 - i * 30),
+            usado=i % 2 == 0,
+        )
 
     # ----- TotalPass, e-mail, tokens ---------------------------------------------------------------------------------------------------------------
-    m.TotalpassConfiguracao.objects.create(unidade=un, partner_api_key="FAKE-PARTNER-KEY-AAAA", place_api_key="FAKE-PLACE-KEY-BBBB",
-                                           place_id="9999", webhook_token="FAKE-WEBHOOK-TOKEN-CCCC")
+    m.TotalpassConfiguracao.objects.create(
+        unidade=un,
+        partner_api_key="FAKE-PARTNER-KEY-AAAA",
+        place_api_key="FAKE-PLACE-KEY-BBBB",
+        place_id="9999",
+        webhook_token="FAKE-WEBHOOK-TOKEN-CCCC",
+    )
     for i in range(20):
         m.TotalpassWebhookEvent.objects.create(
-            event_id=f"evt-{i}", slot_id=f"slot-{i % 7}", user_document=_mascara(_cpf(rng)), status="canceled" if i % 6 == 0 else "booked",
-            payload={"event": "booking", "id": i, "user": {"name": f"Usuário Teste {i}"}}, processed_at=agora if i % 4 else None,
+            event_id=f"evt-{i}",
+            slot_id=f"slot-{i % 7}",
+            user_document=_mascara(_cpf(rng)),
+            status="canceled" if i % 6 == 0 else "booked",
+            payload={"event": "booking", "id": i, "user": {"name": f"Usuário Teste {i}"}},
+            processed_at=agora if i % 4 else None,
             error="" if i % 4 else "aluno não encontrado",
         )
-    m.EmailConfiguracao.objects.create(cdEmail=1, host="smtp.exemplo.invalid", porta=587, usuario="envio@exemplo.invalid", senha="FAKE-SMTP-PASS-9",
-                                       use_tls=True, remetente="Studio Exemplo <envio@exemplo.invalid>")
-    m.IntegracaoToken.objects.create(nome="Empresa Chatbot Exemplo", token="pilates_FAKE_token_integracao_0001", ultimo_uso=agora - timedelta(days=1))
+    m.EmailConfiguracao.objects.create(
+        cdEmail=1,
+        host="smtp.exemplo.invalid",
+        porta=587,
+        usuario="envio@exemplo.invalid",
+        senha="FAKE-SMTP-PASS-9",
+        use_tls=True,
+        remetente="Studio Exemplo <envio@exemplo.invalid>",
+    )
+    m.IntegracaoToken.objects.create(
+        nome="Empresa Chatbot Exemplo", token="pilates_FAKE_token_integracao_0001", ultimo_uso=agora - timedelta(days=1)
+    )
     m.IntegracaoToken.objects.create(nome="Agente IA Teste", token="pilates_FAKE_token_integracao_0002", ativo=False)
     m.IntegracaoToken.objects.create(nome="Parceiro sem uso", token="")  # o save() gera o token
 
@@ -563,8 +853,18 @@ def main():
         cur.execute("PRAGMA foreign_keys=ON")
 
     # fotos: estampa o hash esperado só para o relatório do gerador
-    n = {t: getattr(m, t).objects.count() for t in (
-        "Aluno", "Contrato", "ContasReceber", "AulaSessao", "Reserva", "EvolucaoAluno", "AlunoWhatsappMessage")}
+    n = {
+        t: getattr(m, t).objects.count()
+        for t in (
+            "Aluno",
+            "Contrato",
+            "ContasReceber",
+            "AulaSessao",
+            "Reserva",
+            "EvolucaoAluno",
+            "AlunoWhatsappMessage",
+        )
+    }
     h = hashlib.sha256(saida.read_bytes()).hexdigest()[:12] if saida.exists() else ""
     print("Origem sintética criada:", saida)
     print("Mídia:", midia)

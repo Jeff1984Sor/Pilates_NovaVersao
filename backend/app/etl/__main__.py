@@ -36,9 +36,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--simular", action="store_true", help="não grava nada (transação desfeita; mídia não é copiada)")
     p.add_argument("--midia-origem", type=Path, help="pasta media/ do sistema antigo")
     p.add_argument("--midia-destino", type=Path, help="pasta do storage do sistema novo")
-    p.add_argument("--relatorio", type=Path, required=True, help="arquivo .md do relatório (grava também .json ao lado)")
-    p.add_argument("--master-key", default=os.environ.get("MASTER_KEY"), help="chave Fernet; padrão: variável MASTER_KEY")
-    p.add_argument("--criar-esquema", action="store_true", help="cria as tabelas (create_all) se o destino estiver vazio; só para ensaios")
+    p.add_argument(
+        "--relatorio", type=Path, required=True, help="arquivo .md do relatório (grava também .json ao lado)"
+    )
+    p.add_argument(
+        "--master-key", default=os.environ.get("MASTER_KEY"), help="chave Fernet; padrão: variável MASTER_KEY"
+    )
+    p.add_argument(
+        "--criar-esquema",
+        action="store_true",
+        help="cria as tabelas (create_all) se o destino estiver vazio; só para ensaios",
+    )
     p.add_argument("--semente", type=int, default=20261025, help="semente da amostra aleatória")
     a = p.parse_args(argv)
 
@@ -46,14 +54,23 @@ def main(argv: list[str] | None = None) -> int:
         from app.core.config import settings
 
         a.master_key = settings.master_key
-        print("AVISO: MASTER_KEY não informada; usando a do ambiente do app (em prod/hml precisa ser a real).", file=sys.stderr)
+        print(
+            "AVISO: MASTER_KEY não informada; usando a do ambiente do app (em prod/hml precisa ser a real).",
+            file=sys.stderr,
+        )
     if bool(a.midia_origem) != bool(a.midia_destino) and not a.simular:
         p.error("--midia-origem e --midia-destino devem ser usados juntos")
 
     fonte = Fonte(_url(a.origem))
     carga = Carga(
-        fonte, _url(a.destino), master_key=a.master_key, simular=a.simular, midia_origem=a.midia_origem, midia_destino=a.midia_destino,
-        semente_amostra=a.semente, criar_esquema=a.criar_esquema,
+        fonte,
+        _url(a.destino),
+        master_key=a.master_key,
+        simular=a.simular,
+        midia_origem=a.midia_origem,
+        midia_destino=a.midia_destino,
+        semente_amostra=a.semente,
+        criar_esquema=a.criar_esquema,
     )
     try:
         conc = carga.executar()

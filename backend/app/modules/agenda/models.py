@@ -8,6 +8,7 @@ transações simultâneas não estouram a lotação. Funciona igual em PostgreSQ
 
 import enum
 from datetime import date, datetime, time
+from decimal import Decimal
 
 from sqlalchemy import (
     CheckConstraint,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     Time,
@@ -24,9 +26,6 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.orm import Mapped, Session, mapped_column
-from decimal import Decimal
-
-from sqlalchemy import Numeric
 
 from app.core.db import Base, Timestamped, UtcDateTime
 from app.modules.base import CodigoLegado, coluna_enum
@@ -104,7 +103,9 @@ def ocupar_vaga(db: Session, aula_sessao_id: int) -> bool:
 def liberar_vaga(db: Session, aula_sessao_id: int) -> None:
     t = AulaSessao.__table__
     db.execute(
-        update(t).where(t.c.id == aula_sessao_id, t.c.reservas_ativas > 0).values(reservas_ativas=t.c.reservas_ativas - 1)
+        update(t)
+        .where(t.c.id == aula_sessao_id, t.c.reservas_ativas > 0)
+        .values(reservas_ativas=t.c.reservas_ativas - 1)
     )
 
 
@@ -140,7 +141,9 @@ class AulaAvaliativa(Base, Timestamped, CodigoLegado):
     data: Mapped[date] = mapped_column(Date)
     hora_inicio: Mapped[time] = mapped_column(Time)
     hora_fim: Mapped[time] = mapped_column(Time)
-    status: Mapped[StatusAvaliativa] = mapped_column(coluna_enum(StatusAvaliativa, 20), default=StatusAvaliativa.AGENDADA)
+    status: Mapped[StatusAvaliativa] = mapped_column(
+        coluna_enum(StatusAvaliativa, 20), default=StatusAvaliativa.AGENDADA
+    )
     queixa_principal: Mapped[str | None] = mapped_column(Text)
     objetivos: Mapped[str | None] = mapped_column(Text)
     historico_saude: Mapped[str | None] = mapped_column(Text)

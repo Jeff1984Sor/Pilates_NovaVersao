@@ -171,7 +171,7 @@ def caminho_midia(campo: str, valor: Any) -> str | None:
         return None
     s = s.replace("\\", "/").lstrip("/")
     antigo, novo = _PREFIXOS_MIDIA[campo]
-    resto = s[len(antigo):] if s.startswith(antigo) else posixpath.basename(s)
+    resto = s[len(antigo) :] if s.startswith(antigo) else posixpath.basename(s)
     return novo + resto
 
 

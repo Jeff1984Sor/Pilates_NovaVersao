@@ -35,7 +35,9 @@ class Contrato(Base, Timestamped, CodigoLegado):
     profissional_id: Mapped[int] = mapped_column(ForeignKey("profissional.id"))
     recorrencia: Mapped[Recorrencia] = mapped_column(coluna_enum(Recorrencia, 10), default=Recorrencia.MENSAL)
     forma_pagamento: Mapped[FormaPagamento | None] = mapped_column(coluna_enum(FormaPagamento, 20))
-    valor_aula: Mapped[Decimal | None] = mapped_column(Numeric(15, 2))  # informativo: valor mensal / (aulas por semana x 4)
+    valor_aula: Mapped[Decimal | None] = mapped_column(
+        Numeric(15, 2)
+    )  # informativo: valor mensal / (aulas por semana x 4)
     valor_parcela: Mapped[Decimal] = mapped_column(Numeric(15, 2), default=0)
     valor_total: Mapped[Decimal] = mapped_column(Numeric(15, 2), default=0)
     data_inicio: Mapped[date] = mapped_column(Date)
