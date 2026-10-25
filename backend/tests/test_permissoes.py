@@ -196,8 +196,16 @@ def test_escopo_professor_sem_vinculo_nao_ve_nada(db, resolvedor_stub):
 
 
 def test_escopo_sem_resolvedor_registrado_nega(db):
-    prof = criar_usuario(db, "Professor", email="prof@exemplo.com")
-    assert escopo.resolver_profissional_id(db, prof) is None
+    """Sem resolvedor registrado o Professor não enxerga nada (nega por padrão).
+
+    O módulo de cadastros registra o resolvedor real ao ser importado; aqui voltamos ao estado "sem resolvedor"."""
+    anterior = escopo._resolvedor
+    escopo.registrar_resolvedor_profissional(escopo._sem_resolvedor)
+    try:
+        prof = criar_usuario(db, "Professor", email="prof@exemplo.com")
+        assert escopo.resolver_profissional_id(db, prof) is None
+    finally:
+        escopo.registrar_resolvedor_profissional(anterior)
 
 
 def test_escopo_nao_restringe_quem_nao_e_professor(db, resolvedor_stub):

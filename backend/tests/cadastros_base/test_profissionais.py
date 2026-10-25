@@ -98,7 +98,7 @@ def test_criar_com_acesso_exige_email_perfil_e_usuarios_editar(client, db, h_ful
 
 
 def test_email_ja_usado_por_outro_usuario_recusa_sem_criar_nada(client, db, h_full):
-    criar_usuario(db, "Secretária", email="ana@exemplo.com")
+    criar_usuario(db, "Secretária", email="ana@exemplo.com", login="outra.ana")  # login diferente: o conflito testado é o do e-mail
     r = client.post(PF, headers=h_full, json=base(acesso_sistema=True, perfil_acesso_id=perfil_id(db, "Professor")))
     assert r.status_code == 409 and "usuário" in r.json()["detail"]
     assert db.scalar(select(Profissional.id)) is None
@@ -112,7 +112,7 @@ def test_quem_edita_cadastros_mas_nao_gere_usuarios_nao_da_acesso(client, db, h_
     db.add(p)
     db.commit()
     criar_usuario(db, "Full", email="g@exemplo.com")  # só para ter admin
-    u = Usuario(nome="Gestora", email="gestora@exemplo.com", perfil_acesso_id=p.id, senha_hash=criar_usuario(db, "Full", email="x@exemplo.com").senha_hash)
+    u = Usuario(nome="Gestora", email="gestora@exemplo.com", login="gestora", perfil_acesso_id=p.id, senha_hash=criar_usuario(db, "Full", email="x@exemplo.com").senha_hash)
     db.add(u)
     db.commit()
     h = auth(entrar(client, "gestora@exemplo.com").json()["access_token"])
