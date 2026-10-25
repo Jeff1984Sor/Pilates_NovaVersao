@@ -80,3 +80,12 @@ def test_renderiza_para_postgresql(migracao):
     assert "CONSTRAINT fk_reserva_contrato_id_contrato FOREIGN KEY(contrato_id) REFERENCES contrato (id)" in sql
     assert "TIMESTAMP WITH TIME ZONE" in sql and "NUMERIC(15, 2)" in sql and "SERIAL" in sql
     assert "UNIQUE (dedupe_key)" in sql or "uq_whatsapp_agendamento_log_dedupe_key" in sql
+
+
+def test_migracao_nao_usa_default_numerico_em_booleano():
+    """PostgreSQL recusa `BOOLEAN DEFAULT 1` (só o SQLite aceita): o primeiro deploy real quebrou por isso."""
+    import re
+
+    texto = ARQUIVO.read_text(encoding="utf-8")
+    assert not re.search(r"sa\.Boolean\(\), server_default=sa\.text\('[01]'\)", texto)
+
