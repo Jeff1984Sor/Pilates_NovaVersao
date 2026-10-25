@@ -4,10 +4,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { ClientLogo } from "@/components/mayacorp/brand";
-import { ComunicadorProvider } from "@/components/comunicador/provider";
 import { AppShell } from "@/components/mayacorp/shell";
 import { useMontado } from "@/hooks/use-montado";
-import { useAuth, useTemToken } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 
 function TelaCarregando() {
   return (
@@ -27,19 +26,15 @@ function TelaCarregando() {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const montado = useMontado();
-  const temToken = useTemToken();
   const { logado, carregando } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (montado && !temToken) router.replace(`/login?volta=${encodeURIComponent(pathname)}`);
-  }, [montado, temToken, router, pathname]);
+    // sem sessão (cookie ausente/expirado e não renovável): volta ao login
+    if (montado && !carregando && !logado) router.replace(`/login?volta=${encodeURIComponent(pathname)}`);
+  }, [montado, carregando, logado, router, pathname]);
 
   if (!montado || !logado || carregando) return <TelaCarregando />;
-  return (
-    <ComunicadorProvider>
-      <AppShell>{children}</AppShell>
-    </ComunicadorProvider>
-  );
+  return <AppShell>{children}</AppShell>;
 }

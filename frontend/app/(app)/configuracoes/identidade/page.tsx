@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 
-import { MayaCorpAssinatura } from "@/components/mayacorp/brand";
 import { Field } from "@/components/mayacorp/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +18,8 @@ import type { IdentidadeOut } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [
-  { n: "Indigo MayaCorp", c: "#7C8FFF" },
-  { n: "Navy", c: "#1E2D6B" },
+  { n: "Marsala", c: "#B0486B" },
+  { n: "Vinho", c: "#4A1A2C" },
   { n: "Teal", c: "#1A8F5E" },
   { n: "Amber", c: "#F5A623" },
   { n: "Red", c: "#C94343" },
@@ -85,7 +84,7 @@ export default function IdentidadePage() {
   const brand = useBrand();
   const q = useQuery({ queryKey: ["identidade"], queryFn: () => api.get<IdentidadeOut>("/config/identidade") });
   const [nome, setNome] = useState("");
-  const [cor, setCor] = useState("#7C8FFF");
+  const [cor, setCor] = useState("#B0486B");
   const [usarCor, setUsarCor] = useState(false);
   const [assinatura, setAssinatura] = useState("");
   const [logoLocal, setLogoLocal] = useState<string | null>(null);
@@ -95,7 +94,7 @@ export default function IdentidadePage() {
     if (!q.data) return;
     setNome(q.data.nome_exibicao);
     setUsarCor(!!q.data.cor_destaque);
-    setCor(q.data.cor_destaque ?? "#7C8FFF");
+    setCor(q.data.cor_destaque ?? "#B0486B");
     setAssinatura(q.data.assinatura_email ?? "");
   }, [q.data]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -157,7 +156,7 @@ export default function IdentidadePage() {
           <p className="text-sm text-muted-foreground">PNG transparente ou SVG. Pré-visualização em fundo claro e escuro.</p>
           <p className="mt-2 mb-4 flex items-center gap-2 rounded-lg bg-brand/8 px-3 py-2 text-sm">
             <ImageUp className="size-4 shrink-0 text-info-ink" />
-            Este logo aparece no sistema, no login, nos e-mails, na NFS-e e na fatura.
+            Este logo aparece no sistema, no login, nos e-mails e nos documentos.
           </p>
           <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
             <div className="grid h-28 place-items-center rounded-xl border bg-[#F7F8FC] p-4">
@@ -235,7 +234,7 @@ export default function IdentidadePage() {
             </div>
           </Field>
           <Field label="Assinatura padrão dos e-mails" dica="Vai no fim dos e-mails enviados aos tomadores.">
-            <Textarea rows={4} value={assinatura} onChange={(e) => setAssinatura(e.target.value)} placeholder={"Atenciosamente,\nEquipe CFME Advogados"} />
+            <Textarea rows={4} value={assinatura} onChange={(e) => setAssinatura(e.target.value)} placeholder={"Atenciosamente,\nEquipe do estúdio"} />
           </Field>
           <div className="flex justify-end gap-2 border-t pt-4">
             <Button
@@ -244,7 +243,7 @@ export default function IdentidadePage() {
                 if (!q.data) return;
                 setNome(q.data.nome_exibicao);
                 setUsarCor(!!q.data.cor_destaque);
-                setCor(q.data.cor_destaque ?? "#7C8FFF");
+                setCor(q.data.cor_destaque ?? "#B0486B");
                 setAssinatura(q.data.assinatura_email ?? "");
               }}
             >
@@ -259,9 +258,8 @@ export default function IdentidadePage() {
 
       <div className="space-y-3 xl:sticky xl:top-[calc(var(--tb)+var(--faixa)+24px)] xl:h-fit">
         <p className="text-sm font-medium">Pré-visualização ao vivo</p>
-        <Preview nome={nome || "Cliente"} cor={usarCor ? cor : "#7C8FFF"} logo={logo} />
+        <Preview nome={nome || "Cliente"} cor={usarCor ? cor : "#B0486B"} logo={logo} />
         <p className="text-xs text-muted-foreground">A cor já está aplicada em todo o sistema enquanto você edita. Salve para valer para todos.</p>
-        <MayaCorpAssinatura className="text-muted-foreground" />
       </div>
     </div>
   );

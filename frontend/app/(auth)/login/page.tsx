@@ -1,23 +1,24 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, Lock, Mail, MailCheck, UserRound } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2, Lock, UserRound } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { MayaJusLogo } from "@/components/mayacorp/brand";
+import { MarcaLogo } from "@/components/mayacorp/brand";
 import { Field } from "@/components/mayacorp/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api, ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 const schema = z.object({
-  email: z.string().trim().min(1, "Informe seu e-mail ou usuário"),
+  identificador: z.string().trim().min(1, "Informe seu e-mail ou usuário"),
   senha: z.string().min(1, "Informe a senha"),
 });
 
@@ -30,17 +31,17 @@ function ComIcone({ icone: I, children }: { icone: React.ComponentType<{ classNa
   );
 }
 
-function Login({ onEsqueci }: { onEsqueci: () => void }) {
+function Login() {
   const { login } = useAuth();
   const router = useRouter();
   const [ver, setVer] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const form = useForm({ resolver: zodResolver(schema), defaultValues: { email: "", senha: "" } });
+  const form = useForm({ resolver: zodResolver(schema), defaultValues: { identificador: "", senha: "" } });
 
   const enviar = form.handleSubmit(async (v) => {
     setErro(null);
     try {
-      const u = await login(v.email, v.senha);
+      const u = await login(v.identificador, v.senha);
       toast.success(`Bem-vindo(a), ${u.nome.split(" ")[0]}!`);
       const volta = new URLSearchParams(window.location.search).get("volta");
       router.replace(volta && volta.startsWith("/") && !volta.startsWith("//") ? volta : "/");
@@ -51,15 +52,15 @@ function Login({ onEsqueci }: { onEsqueci: () => void }) {
 
   return (
     <form onSubmit={enviar} className="space-y-4">
-      <Field label="E-mail ou usuário" erro={form.formState.errors.email?.message}>
+      <Field label="E-mail ou usuário" erro={form.formState.errors.identificador?.message}>
         <ComIcone icone={UserRound}>
           <Input
-            {...form.register("email")}
+            {...form.register("identificador")}
             type="text"
             autoComplete="username"
             autoCapitalize="none"
             spellCheck={false}
-            placeholder="voce@cfme.com.br ou seu.usuario"
+            placeholder="voce@exemplo.com ou seu.usuario"
             className="h-11 pl-9"
             autoFocus
           />
@@ -97,9 +98,9 @@ function Login({ onEsqueci }: { onEsqueci: () => void }) {
         )}
       </AnimatePresence>
       <div className="flex justify-end">
-        <button type="button" onClick={onEsqueci} className="text-sm font-medium text-navy hover:underline dark:text-brand">
+        <Link href="/esqueci-senha" className="text-sm font-medium text-navy hover:underline dark:text-brand">
           Esqueci minha senha
-        </button>
+        </Link>
       </div>
       <Button
         type="submit"
@@ -114,75 +115,15 @@ function Login({ onEsqueci }: { onEsqueci: () => void }) {
   );
 }
 
-function Esqueci({ onVoltar }: { onVoltar: () => void }) {
-  const [email, setEmail] = useState("");
-  const [enviado, setEnviado] = useState(false);
-  const [carregando, setCarregando] = useState(false);
-  const enviar = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCarregando(true);
-    try {
-      await api.post("/auth/forgot", { email }, { auth: false });
-      setEnviado(true);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao enviar");
-    } finally {
-      setCarregando(false);
-    }
-  };
-  if (enviado)
-    return (
-      <div className="space-y-4 text-center">
-        <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-success/10">
-          <MailCheck className="size-7 text-success" />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Se <strong className="text-foreground">{email}</strong> estiver cadastrado, você receberá um link para criar uma nova senha.
-        </p>
-        <Button variant="outline" className="w-full" onClick={onVoltar}>
-          <ArrowLeft /> Voltar ao login
-        </Button>
-      </div>
-    );
-  return (
-    <form onSubmit={enviar} className="space-y-4">
-      <p className="text-sm text-muted-foreground">Informe seu e-mail e enviaremos um link para redefinir a senha.</p>
-      <ComIcone icone={Mail}>
-        <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="voce@cfme.com.br" className="h-11 pl-9" autoFocus />
-      </ComIcone>
-      <Button type="submit" disabled={carregando} className="h-11 w-full">
-        {carregando && <Loader2 className="animate-spin" />}
-        Enviar link
-      </Button>
-      <Button type="button" variant="ghost" className="w-full" onClick={onVoltar}>
-        <ArrowLeft /> Voltar
-      </Button>
-    </form>
-  );
-}
-
 export default function LoginPage() {
-  const [modo, setModo] = useState<"login" | "esqueci">("login");
   return (
     <div>
       <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
-        <MayaJusLogo className="mb-8 lg:hidden" />
-        <h1 className="text-2xl font-semibold tracking-tight">{modo === "login" ? "Entrar" : "Recuperar acesso"}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {modo === "login" ? "Acesse o MayaJus com seu e-mail ou usuário." : "Vamos te ajudar a voltar."}
-        </p>
+        <MarcaLogo className="mb-8 lg:hidden" />
+        <h1 className="text-2xl font-semibold tracking-tight">Entrar</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Acesse com seu e-mail ou usuário.</p>
       </div>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={modo}
-          initial={{ opacity: 0, x: modo === "login" ? -12 : 12 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: modo === "login" ? 12 : -12 }}
-          transition={{ duration: 0.18 }}
-        >
-          {modo === "login" ? <Login onEsqueci={() => setModo("esqueci")} /> : <Esqueci onVoltar={() => setModo("login")} />}
-        </motion.div>
-      </AnimatePresence>
+      <Login />
     </div>
   );
 }

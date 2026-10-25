@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth";
 export default function ConfiguracoesPage() {
   const { pode } = useAuth();
   const algum = NAV.find((g) => g.titulo === "Configurações")!.itens.some(
-    (i) => i.href.startsWith("/configuracoes") && !i.equipe && (!i.permissao || pode(i.permissao)),
+    (i) => i.href.startsWith("/configuracoes") && (!i.permissao || pode(i.permissao)),
   );
   return algum ? <Settings className="mx-auto mt-10 size-6 animate-pulse text-muted-foreground" /> : <SemAcesso />;
 }

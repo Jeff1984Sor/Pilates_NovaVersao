@@ -1,48 +1,35 @@
 import {
   ArrowLeftRight,
-  BadgeDollarSign,
+  Ban,
   BarChart3,
-  Briefcase,
-  Clock,
-  ListTodo,
-  Calculator,
-  CalendarClock,
-  ChartLine,
-  Download,
-  FilePlus2,
-  FolderTree,
-  ListOrdered,
-  PiggyBank,
-  Plus,
-  TrendingDown,
-  Wallet,
-  FileSearch,
-  FileSignature,
-  KanbanSquare,
-  ListChecks,
   Building2,
-  FileCheck2,
-  FileUp,
-  Fingerprint,
-  Gauge,
-  HandCoins,
+  CalendarCheck,
+  CalendarClock,
+  CalendarDays,
+  ClipboardList,
+  Clock,
+  FileSignature,
+  FileText,
+  FolderTree,
+  HeartPulse,
   Home,
-  KeyRound,
   Landmark,
-  Layers,
   LayoutDashboard,
+  Link2,
   Mail,
-  MessagesSquare,
+  Megaphone,
+  MessageCircle,
   Palette,
   Percent,
   ReceiptText,
   ScrollText,
+  ShieldCheck,
   Sparkles,
+  Stethoscope,
+  Tags,
   Truck,
   Users,
   UsersRound,
-  ShieldCheck,
-  Workflow,
   type LucideIcon,
 } from "lucide-react";
 
@@ -52,12 +39,9 @@ export interface NavItem {
   icone: LucideIcon;
   /** Permissão do perfil de acesso exigida ("recurso.acao"); sem ela, basta estar logado. */
   permissao?: string;
-  emBreve?: boolean;
-  /** Contador ao vivo exibido no item (ex.: mensagens não lidas). */
-  badge?: "comunicador" | "revisoes" | "tarefas";
+  /** Área planejada: aparece no menu, mas ainda não tem tela (não clicável). */
+  planejado?: boolean;
   atalho?: string;
-  /** Só para a equipe MayaCorp (ex.: chave da IA). */
-  equipe?: boolean;
   exato?: boolean;
 }
 
@@ -71,97 +55,79 @@ export const NAV: NavGrupo[] = [
     titulo: "Geral",
     itens: [
       { label: "Início", href: "/", icone: Home, exato: true },
-      { label: "Comunicador", href: "/comunicador", icone: MessagesSquare, permissao: "comunicador.usar", atalho: "G M", badge: "comunicador" },
+      { label: "Painel", href: "/dashboard", icone: LayoutDashboard, permissao: "painel.ver", atalho: "G D" },
+    ],
+  },
+  {
+    titulo: "Agenda",
+    itens: [
+      { label: "Grade semanal", href: "/agenda/semana", icone: CalendarDays, permissao: "agenda.ver", planejado: true },
+      { label: "Aulas do dia", href: "/agenda/aulas", icone: CalendarCheck, permissao: "aulas.ver", planejado: true },
+    ],
+  },
+  {
+    titulo: "Alunos",
+    itens: [{ label: "Alunos", href: "/alunos", icone: UsersRound, permissao: "alunos.ver", planejado: true }],
+  },
+  {
+    titulo: "Contratos",
+    itens: [
+      { label: "Contratos", href: "/contratos", icone: FileSignature, permissao: "contratos.ver", planejado: true },
+      { label: "Planos", href: "/planos", icone: ClipboardList, permissao: "planos.ver", planejado: true },
+    ],
+  },
+  {
+    titulo: "Financeiro",
+    itens: [
+      { label: "Contas a receber", href: "/financeiro/receber", icone: ReceiptText, permissao: "financeiro_receber.ver", planejado: true },
+      { label: "Contas a pagar", href: "/financeiro/pagar", icone: CalendarClock, permissao: "financeiro_pagar.ver", planejado: true },
+      { label: "Fluxo de caixa", href: "/financeiro/caixa", icone: ArrowLeftRight, permissao: "financeiro_caixa.ver", planejado: true },
+      { label: "DRE", href: "/financeiro/dre", icone: BarChart3, permissao: "financeiro_dre.ver", planejado: true },
+      { label: "Contas bancárias", href: "/financeiro/bancos", icone: Landmark, permissao: "financeiro_bancos.ver", planejado: true },
+      { label: "Receita Saúde", href: "/receita-saude", icone: HeartPulse, permissao: "receita_saude.ver", planejado: true },
+      { label: "Comissões", href: "/comissoes", icone: Percent, permissao: "comissoes.ver", planejado: true },
     ],
   },
   {
     titulo: "Cadastros",
     itens: [
-      { label: "Clientes", href: "/cadastros/clientes", icone: UsersRound, permissao: "clientes.ver", atalho: "G C" },
-      { label: "Contratos", href: "/faturamento/contratos", icone: FileSignature, permissao: "contratos.ver" },
-      { label: "Casos", href: "/faturamento/casos", icone: Briefcase, permissao: "casos.ver" },
-      { label: "Tarefas", href: "/faturamento/tarefas", icone: ListTodo, permissao: "tarefas.ver", badge: "tarefas" },
-      { label: "Timesheet", href: "/faturamento/timesheet", icone: Clock, permissao: "timesheet.ver" },
+      { label: "Unidades", href: "/cadastros/unidades", icone: Building2, permissao: "cadastros_unidades.ver", planejado: true },
+      { label: "Tipos de serviço", href: "/cadastros/servicos", icone: Tags, permissao: "cadastros_servicos.ver", planejado: true },
+      { label: "Profissionais", href: "/cadastros/profissionais", icone: Stethoscope, permissao: "cadastros_profissionais.ver", planejado: true },
+      { label: "Fornecedores", href: "/cadastros/fornecedores", icone: Truck, permissao: "cadastros_fornecedores.ver", planejado: true },
+      { label: "Categorias", href: "/cadastros/categorias", icone: FolderTree, permissao: "cadastros_categorias.ver", planejado: true },
+      { label: "Horários", href: "/cadastros/horarios", icone: Clock, permissao: "cadastros_horarios.ver", planejado: true },
+      { label: "Bloqueios", href: "/cadastros/bloqueios", icone: Ban, permissao: "cadastros_bloqueios.ver", planejado: true },
+      { label: "Termos", href: "/cadastros/termos", icone: ScrollText, permissao: "cadastros_termos.ver", planejado: true },
+      { label: "Modelos", href: "/cadastros/modelos", icone: FileText, permissao: "cadastros_modelos.ver", planejado: true },
     ],
   },
   {
-    titulo: "Faturamento",
+    titulo: "Comunicação",
     itens: [
-      { label: "Dashboard", href: "/dashboard", icone: LayoutDashboard, permissao: "dashboard.ver", atalho: "G D" },
-      { label: "Itens a faturar", href: "/faturamento/itens", icone: ListChecks, permissao: "itens_faturar.ver", atalho: "G I" },
-      { label: "Revisões", href: "/faturamento/revisoes", icone: FileSearch, permissao: "revisoes.ver", badge: "revisoes" },
-      { label: "Fluxo de Faturamento", href: "/faturamento/fluxo", icone: KanbanSquare, permissao: "faturas.ver" },
-      { label: "Faturas", href: "/nfse/faturas", icone: ReceiptText, permissao: "faturas.ver", atalho: "G F" },
-      { label: "Relatório de Faturamento", href: "/faturamento/relatorio", icone: BarChart3, permissao: "relatorio_faturamento.ver" },
-      { label: "Projeção de Impostos", href: "/faturamento/impostos", icone: Calculator, permissao: "impostos.ver" },
+      { label: "WhatsApp", href: "/comunicacao/whatsapp", icone: MessageCircle, permissao: "whatsapp.ver", planejado: true },
+      { label: "Comunicados", href: "/comunicacao/comunicados", icone: Megaphone, permissao: "comunicacao.ver", planejado: true },
+      { label: "Integrações", href: "/comunicacao/integracoes", icone: Link2, permissao: "integracoes.ver", planejado: true },
     ],
-  },
-  {
-    titulo: "Conta Bancária",
-    itens: [
-      { label: "Contas", href: "/financeiro/contas", icone: Wallet, permissao: "contas_bancarias.ver" },
-      { label: "Nova conta", href: "/financeiro/nova-conta", icone: Plus, permissao: "contas_bancarias.editar" },
-      { label: "Previsão de Caixa", href: "/financeiro/previsao-caixa", icone: ChartLine, permissao: "relatorios_fin.ver" },
-      { label: "Fluxo de Caixa", href: "/financeiro/fluxo-caixa", icone: ArrowLeftRight, permissao: "relatorios_fin.ver" },
-      { label: "DRE", href: "/financeiro/dre", icone: ListOrdered, permissao: "relatorios_fin.ver" },
-      { label: "Projeção de Despesas", href: "/financeiro/projecao-despesas", icone: TrendingDown, permissao: "relatorios_fin.ver" },
-    ],
-  },
-  {
-    titulo: "Contas a Pagar",
-    itens: [
-      { label: "Lançamentos", href: "/financeiro/pagar", icone: CalendarClock, permissao: "contas_pagar.ver", exato: true },
-      { label: "Nova conta", href: "/financeiro/pagar/nova", icone: FilePlus2, permissao: "contas_pagar.editar" },
-      { label: "Categorias e Subcategorias", href: "/financeiro/categorias", icone: FolderTree, permissao: "categorias_fin.ver" },
-      { label: "Fornecedores", href: "/financeiro/fornecedores", icone: Truck, permissao: "fornecedores.ver" },
-      { label: "Baixar modelo (.xlsx)", href: "/financeiro/pagar/modelo", icone: Download, permissao: "contas_pagar.editar" },
-    ],
-  },
-  {
-    titulo: "NFS-e · RPA 01",
-    itens: [
-      { label: "Painel", href: "/nfse", icone: Gauge, permissao: "nfse_notas.ver", exato: true, atalho: "G P" },
-      { label: "Nova emissão em lote", href: "/nfse/nova-emissao", icone: FileUp, permissao: "nfse_emissao.emitir", atalho: "N" },
-      { label: "Lotes", href: "/nfse/lotes", icone: Layers, permissao: "nfse_emissao.ver", atalho: "G L" },
-      { label: "Notas emitidas", href: "/nfse/notas", icone: FileCheck2, permissao: "nfse_notas.ver", atalho: "G N" },
-      { label: "Recebimentos", href: "/nfse/recebimentos", icone: HandCoins, permissao: "nfse_recebimentos.ver", atalho: "G R" },
-    ],
-  },
-  {
-    titulo: "Próximos robôs",
-    itens: [{ label: "Porto Seguro", href: "#", icone: Truck, emBreve: true }],
   },
   {
     titulo: "Configurações",
     itens: [
-      { label: "Identidade", href: "/configuracoes/identidade", icone: Palette, permissao: "cfg_identidade.ver" },
-      { label: "Empresas emissoras", href: "/cadastros/emissoras", icone: Building2, permissao: "cfg_emissoras.ver" },
-      { label: "Certificado digital", href: "/configuracoes/certificado", icone: KeyRound, permissao: "cfg_certificado.ver" },
-      { label: "Profissionais", href: "/configuracoes/usuarios", icone: Users, permissao: "cfg_profissionais.ver" },
-      { label: "Perfis de acesso", href: "/configuracoes/perfis", icone: ShieldCheck, permissao: "cfg_perfis.ver" },
-      { label: "Inteligência Artificial", href: "/configuracoes/ia", icone: Sparkles, equipe: true },
-      { label: "Automações", href: "/configuracoes/automacoes", icone: Workflow, permissao: "cfg_automacoes.ver" },
-      { label: "Prefeitura", href: "/configuracoes/prefeitura", icone: Landmark, permissao: "cfg_prefeitura.ver" },
-      { label: "Faturamento", href: "/configuracoes/faturamento", icone: BadgeDollarSign, permissao: "cfg_faturamento.ver" },
-      { label: "Financeiro", href: "/configuracoes/financeiro", icone: PiggyBank, permissao: "cfg_financeiro.ver" },
-      { label: "Parâmetros fiscais", href: "/configuracoes/parametros-fiscais", icone: Percent, permissao: "cfg_parametros.ver" },
-      { label: "Notificações e e-mail", href: "/configuracoes/notificacoes", icone: Mail, permissao: "cfg_notificacoes.ver" },
+      { label: "Identidade", href: "/configuracoes/identidade", icone: Palette, permissao: "configuracoes.ver" },
+      { label: "Usuários", href: "/configuracoes/usuarios", icone: Users, permissao: "usuarios.ver" },
+      { label: "Perfis de acesso", href: "/configuracoes/perfis", icone: ShieldCheck, permissao: "perfis.ver" },
+      { label: "E-mail", href: "/configuracoes/email", icone: Mail, permissao: "configuracoes.ver" },
+      { label: "Inteligência Artificial", href: "/configuracoes/ia", icone: Sparkles, permissao: "configuracoes.ver" },
       { label: "Auditoria", href: "/auditoria", icone: ScrollText, permissao: "auditoria.ver" },
     ],
   },
 ];
 
-export const ICONE_AUTOMACAO: Record<string, LucideIcon> = {
-  nfse: FileCheck2,
-  porto: Truck,
-  fingerprint: Fingerprint,
-};
-
-export function navPara(pode: ((permissao: string) => boolean) | undefined, equipeMayaCorp = false): NavGrupo[] {
+export function navPara(pode: ((permissao: string) => boolean) | undefined): NavGrupo[] {
   if (!pode) return [];
   return NAV.map((g) => ({
     ...g,
-    itens: g.itens.filter((i) => (!i.permissao || pode(i.permissao)) && (!i.equipe || equipeMayaCorp)),
+    itens: g.itens.filter((i) => !i.permissao || pode(i.permissao)),
   })).filter((g) => g.itens.length > 0);
 }
 
@@ -170,12 +136,12 @@ export function itemDaRota(pathname: string): NavItem | undefined {
   let melhor: NavItem | undefined;
   for (const g of NAV)
     for (const i of g.itens)
-      if (i.href !== "#" && i.href !== "/" && (pathname === i.href || pathname.startsWith(`${i.href}/`)))
+      if (!i.planejado && i.href !== "/" && (pathname === i.href || pathname.startsWith(`${i.href}/`)))
         if (!melhor || i.href.length > melhor.href.length) melhor = i;
   return melhor;
 }
 
 export function ativo(pathname: string, item: NavItem) {
-  if (item.href === "#") return false;
+  if (item.planejado) return false;
   return item.exato ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
 }

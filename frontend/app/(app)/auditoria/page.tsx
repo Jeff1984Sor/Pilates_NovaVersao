@@ -21,7 +21,7 @@ import { dataHora } from "@/lib/format";
 import type { AuditoriaOut, UsuarioOut } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const ENTIDADES = ["", "lote", "nfse", "rps", "emissora", "tomador", "certificado", "usuario", "identidade", "parametro_fiscal", "notificacao"];
+const ENTIDADES = ["", "usuario", "perfil_acesso", "identidade", "config_email", "config_ia", "sistema"];
 
 function tomAcao(a: string): "danger" | "success" | "warning" | "brand" | "neutral" {
   if (/cancel|exclu|delet|remov|desativ/i.test(a)) return "danger";

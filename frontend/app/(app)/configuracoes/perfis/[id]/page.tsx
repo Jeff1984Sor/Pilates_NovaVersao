@@ -60,15 +60,17 @@ interface Form {
   descricao: string;
   cor: string;
   administrador: boolean;
+  somente_proprias_aulas: boolean;
   permissoes: string[];
 }
 
-const vazio = (): Form => ({ nome: "", descricao: "", cor: CORES_PERFIL[1], administrador: false, permissoes: [] });
+const vazio = (): Form => ({ nome: "", descricao: "", cor: CORES_PERFIL[1], administrador: false, somente_proprias_aulas: false, permissoes: [] });
 const dePerfil = (p: PerfilAcessoOut): Form => ({
   nome: p.nome,
   descricao: p.descricao ?? "",
   cor: p.cor ?? COR_PADRAO,
   administrador: p.administrador,
+  somente_proprias_aulas: p.somente_proprias_aulas,
   permissoes: [...p.permissoes].sort(),
 });
 const chave = (f: Form) => JSON.stringify({ ...f, nome: f.nome.trim(), descricao: f.descricao.trim(), permissoes: [...f.permissoes].sort() });
@@ -120,7 +122,7 @@ function Cartao({ icone: I, titulo, acao, children, className }: { icone: React.
 function UsuariosDoPerfil({ perfil }: { perfil: PerfilAcessoOut }) {
   const qc = useQueryClient();
   const { pode, usuario: eu } = useAuth();
-  const editar = pode("cfg_profissionais.editar");
+  const editar = pode("usuarios.editar");
   const usuarios = useQuery({ queryKey: ["usuarios"], queryFn: () => api.get<UsuarioOut[]>("/config/usuarios") });
   const trocar = useMutation({
     mutationFn: ({ u, perfilId }: { u: UsuarioOut; perfilId: number }) => api.patch<UsuarioOut>(`/config/usuarios/${u.id}`, { perfil_acesso_id: perfilId }),
@@ -160,7 +162,7 @@ function UsuariosDoPerfil({ perfil }: { perfil: PerfilAcessoOut }) {
                     <p className="truncate text-sm font-medium">
                       {u.nome} {u.id === eu?.id && <span className="text-xs font-normal text-muted-foreground">(você)</span>}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">{u.cargo_nome ?? u.email}</p>
+                    <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                   </div>
                   {editar && u.id !== eu?.id && (
                     <PerfilAcessoSelect
@@ -210,7 +212,7 @@ export default function PerfilEditorPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { pode, usuario: eu } = useAuth();
-  const editar = pode("cfg_perfis.editar");
+  const editar = pode("perfis.editar");
   const perfis = usePerfisAcesso();
   const catalogo = useCatalogo();
   const perfil = perfis.data?.find((p) => p.id === pid);
@@ -268,7 +270,7 @@ export default function PerfilEditorPage() {
     set("permissoes", [...new Set(lista)].sort());
     toast.success(`Modelo "${nome}" aplicado`);
   };
-  const grupoConfig = catalogo.data?.grupos.find((g) => g.grupo === "Configurações");
+  const grupoConfig = catalogo.data?.grupos.find((g) => g.grupo === "Administração");
   const daConfig = new Set(grupoConfig?.recursos.flatMap(perms) ?? []);
 
   const salvar = useMutation({
@@ -278,6 +280,7 @@ export default function PerfilEditorPage() {
         descricao: f.descricao.trim() || null,
         cor: f.cor,
         administrador: f.administrador,
+        somente_proprias_aulas: !f.administrador && f.somente_proprias_aulas,
         permissoes: f.administrador ? [] : f.permissoes,
       };
       return pid ? api.put<PerfilAcessoOut>(`/config/perfis/${pid}`, body) : api.post<PerfilAcessoOut>("/config/perfis", body);
@@ -483,10 +486,20 @@ export default function PerfilEditorPage() {
                 </span>
                 <Switch id="perfil-admin" checked={f.administrador} disabled={perfil?.sistema || !editar} onCheckedChange={(v) => set("administrador", v)} />
               </label>
+              <label
+                htmlFor="perfil-proprias"
+                className={cn("flex cursor-pointer items-center gap-3 rounded-xl border p-3", f.somente_proprias_aulas && !f.administrador ? "border-brand/50 bg-brand/6" : "bg-background/50", (f.administrador || !editar) && "cursor-not-allowed opacity-60")}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">Somente as próprias aulas</span>
+                  <span className="block text-xs text-muted-foreground">Quem usa este perfil só enxerga as aulas e os alunos dos seus próprios horários (perfil Professor).</span>
+                </span>
+                <Switch id="perfil-proprias" checked={f.somente_proprias_aulas && !f.administrador} disabled={f.administrador || !editar} onCheckedChange={(v) => set("somente_proprias_aulas", v)} />
+              </label>
             </fieldset>
           </Cartao>
 
-          {perfil && pode("cfg_profissionais.ver") && <UsuariosDoPerfil perfil={perfil} />}
+          {perfil && pode("usuarios.ver") && <UsuariosDoPerfil perfil={perfil} />}
           {novo && <p className="px-1 text-xs text-muted-foreground">Depois de salvar, você poderá trazer pessoas para este perfil.</p>}
         </div>
 

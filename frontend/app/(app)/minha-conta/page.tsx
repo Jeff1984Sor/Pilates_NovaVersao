@@ -18,8 +18,6 @@ import { useAuth } from "@/lib/auth";
 import type { UsuarioMe } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const PERFIL = { admin: "Administrador", operador: "Operador", visualizador: "Visualizador" } as const;
-
 function TrocarSenha() {
   const [atual, setAtual] = useState("");
   const [nova, setNova] = useState("");
@@ -28,7 +26,7 @@ function TrocarSenha() {
   const trocar = useMutation({
     mutationFn: () => api.post("/auth/trocar-senha", { senha_atual: atual, nova_senha: nova }),
     onSuccess: () => {
-      toast.success("Senha alterada");
+      toast.success("Senha alterada", { description: "Os outros aparelhos conectados foram desconectados." });
       setAtual("");
       setNova("");
       setConfirma("");
@@ -122,7 +120,7 @@ export default function MinhaContaPage() {
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-xl font-semibold">{usuario.nome}</h2>
-              <p className="text-sm text-muted-foreground">Seu perfil: {usuario.perfil_acesso_nome ?? PERFIL[usuario.perfil]}</p>
+              <p className="text-sm text-muted-foreground">Seu perfil: {usuario.perfil_acesso_nome ?? "Sem perfil"}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={dz.open} disabled={enviar.isPending}>
