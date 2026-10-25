@@ -199,10 +199,9 @@ def _cliente_logado():
 
 
 def _limpar_banco():
-    from django.apps import apps
+    from django.core.management import call_command
 
-    for model in reversed(list(apps.get_app_config("core").get_models())):
-        model.objects.all().delete()
+    call_command("flush", verbosity=0, interactive=False)
 
 
 # ---------------------------------------------------------------------------
@@ -682,6 +681,235 @@ def sec_agenda():
     )
 
 
+def sec_financeiro():
+    from unittest import mock
+
+    from django.test import Client
+    from django.utils import timezone
+    from studiopilates.core import models, views
+
+    m = models
+    f = Fabrica().base(capacidade=5)
+    prof = f.profissional("Prof")
+    # categorias / planos
+    cat_r = m.Categoria.objects.create(cdCategoria=f.prox(), dsCategoria="Mensalidades", tipo="RECEITA")
+    sub_r1 = m.Subcategoria.objects.create(cdSubcategoria=f.prox(), cdCategoria=cat_r, dsSubcategoria="Planos 2x")
+    sub_r2 = m.Subcategoria.objects.create(cdSubcategoria=f.prox(), cdCategoria=cat_r, dsSubcategoria="Planos 3x")
+    cat_d = m.Categoria.objects.create(cdCategoria=f.prox(), dsCategoria="Fixas", tipo="DESPESA")
+    sub_d1 = m.Subcategoria.objects.create(cdSubcategoria=f.prox(), cdCategoria=cat_d, dsSubcategoria="Imovel")
+    sub_d2 = m.Subcategoria.objects.create(cdSubcategoria=f.prox(), cdCategoria=cat_d, dsSubcategoria="Servicos")
+    forn_a = m.Fornecedor.objects.create(cdFornecedor=f.prox(), dsFornecedor="Imobiliaria")
+    forn_b = m.Fornecedor.objects.create(cdFornecedor=f.prox(), dsFornecedor="Contador")
+
+    plano_a = f.plano(valor="300", aulas=2, meses=3)
+    plano_a.dsPlano = "Pilates 2x"
+    plano_a.categoria_receita, plano_a.subcategoria_receita = cat_r, sub_r1
+    plano_a.save()
+    plano_b = f.plano(valor="450", aulas=3, meses=3)
+    plano_b.dsPlano = "Pilates 3x"
+    plano_b.categoria_receita, plano_b.subcategoria_receita = cat_r, sub_r2
+    plano_b.save()
+    plano_c = f.plano(valor="100", aulas=1, meses=1)
+    plano_c.dsPlano = "Pilates 2x"  # mesmo nome do plano A, outra linha (a DRE agrupa por NOME)
+    plano_c.save()
+
+    ana, bia, caio = f.aluno("Ana"), f.aluno("Bia"), f.aluno("Caio")
+    c_a = f.contrato(ana, plano_a, prof, dt.date(2026, 9, 1), dt.date(2026, 12, 1))
+    c_b = f.contrato(bia, plano_b, prof, dt.date(2026, 9, 1), dt.date(2026, 12, 1))
+    c_c = f.contrato(caio, plano_c, prof, dt.date(2026, 9, 1), dt.date(2026, 12, 1))
+    sess = f.sessao(dt.date(2026, 10, 12), dt.time(9, 0), dt.time(9, 50), prof)
+    res = f.reserva(caio, sess)
+
+    def receber(**kw):
+        return m.ContasReceber.objects.create(**kw)
+
+    D = dt.date
+    receber(contrato=c_a, status="PAGO", valor=Decimal("300.00"), dtVencimento=D(2026, 10, 5), dtPagamento=D(2026, 10, 6))
+    receber(contrato=c_a, status="ABERTO", valor=Decimal("300.00"), dtVencimento=D(2026, 11, 5))
+    receber(reserva=res, status="PAGO", valor=Decimal("80.00"), dtVencimento=D(2026, 10, 12), dtPagamento=D(2026, 10, 12))
+    receber(aluno=ana, descricao="Avulso", status="ABERTO", valor=Decimal("50.00"), dtVencimento=D(2026, 10, 15))
+    receber(contrato=c_a, status="CANCELADO", valor=Decimal("100.00"), dtVencimento=D(2026, 10, 10))
+    receber(contrato=c_b, status="PAGO", valor=Decimal("450.00"), dtVencimento=D(2026, 10, 20), dtPagamento=D(2026, 10, 20))
+    receber(contrato=c_b, status="PAGO", valor=Decimal("450.00"), dtVencimento=D(2026, 10, 2), dtPagamento=D(2026, 9, 30))
+    receber(contrato=c_a, status="ABERTO", valor=Decimal("300.00"), dtVencimento=D(2026, 10, 1))
+    receber(contrato=c_c, status="PAGO", valor=Decimal("100.00"), dtVencimento=D(2026, 10, 25), dtPagamento=D(2026, 10, 25))
+    receber(contrato=c_a, status="PAGO", valor=Decimal("33.33"), dtVencimento=D(2026, 10, 31), dtPagamento=D(2026, 10, 31))
+    receber(contrato=c_b, status="ABERTO", valor=Decimal("12.00"), dtVencimento=D(2026, 10, 25))  # vence "hoje"
+
+    def pagar(**kw):
+        k = f.prox()
+        return m.ContasPagar.objects.create(cdContasPagar=k, **kw)
+
+    pagar(cdFornecedor=forn_a, cdCategoria=cat_d, cdSubcategoria=sub_d1, dtVencimento=D(2026, 10, 10), valor=Decimal("1500.00"), status="PAGO", dtPagamento=D(2026, 10, 9))
+    pagar(cdFornecedor=forn_b, cdCategoria=cat_d, cdSubcategoria=sub_d2, dtVencimento=D(2026, 10, 28), valor=Decimal("200.00"), status="AGENDADO")
+    pagar(cdFornecedor=forn_b, cdCategoria=cat_d, cdSubcategoria=sub_d2, dtVencimento=D(2026, 10, 15), valor=Decimal("999.00"), status="CANCELADO")
+    pagar(cdFornecedor=forn_b, cdCategoria=cat_d, cdSubcategoria=sub_d2, dtVencimento=D(2026, 10, 31), valor=Decimal("80.50"), status="PAGO", dtPagamento=D(2026, 10, 21))
+    pagar(cdFornecedor=forn_a, cdCategoria=cat_d, cdSubcategoria=sub_d1, dtVencimento=D(2026, 10, 1), valor=Decimal("100.00"), status="AGENDADO")
+    pagar(cdFornecedor=forn_a, cdCategoria=cat_d, cdSubcategoria=sub_d1, dtVencimento=D(2026, 9, 28), valor=Decimal("60.00"), status="PAGO", dtPagamento=D(2026, 10, 3))
+    pagar(cdFornecedor=forn_b, cdCategoria=cat_d, cdSubcategoria=sub_d2, dtVencimento=D(2026, 10, 25), valor=Decimal("7.00"), status="AGENDADO")  # vence "hoje"
+
+    conta1 = m.ContaBancaria.objects.create(cdConta=f.prox(), banco="B1", agencia="1", conta="1", saldo_inicial=Decimal("1000.00"))
+    conta2 = m.ContaBancaria.objects.create(cdConta=f.prox(), banco="B2", agencia="2", conta="2", saldo_inicial=Decimal("500.00"))
+    m.ContaBancaria.objects.create(cdConta=f.prox(), banco="B3", agencia="3", conta="3", saldo_inicial=Decimal("9999.00"), ativo=False)
+    for conta, tipo, valor, dia in [(conta1, "ENTRADA", "200.00", D(2026, 9, 15)), (conta1, "SAIDA", "50.00", D(2026, 9, 20)),
+                                    (conta1, "ENTRADA", "70.00", D(2026, 10, 5)), (conta2, "ENTRADA", "30.00", D(2026, 9, 1)),
+                                    (conta2, "SAIDA", "10.25", D(2026, 9, 30))]:
+        m.MovimentoConta.objects.create(conta=conta, tipo=tipo, valor=Decimal(valor), data=dia)
+
+    # --- entradas "cruas" (para o teste reconstruir os objetos puros)
+    receitas_db = []
+    for r in m.ContasReceber.objects.select_related("contrato", "contrato__cdAluno", "contrato__cdPlano", "contrato__cdPlano__categoria_receita",
+                                                    "contrato__cdPlano__subcategoria_receita", "reserva", "reserva__aluno", "reserva__aulaSessao",
+                                                    "reserva__aulaSessao__tipoServico").order_by("id"):
+        receitas_db.append({
+            "id": r.id, "status": r.status, "valor": r.valor, "vencimento": r.dtVencimento, "pagamento": r.dtPagamento,
+            "contrato_cd": r.contrato.cdContrato if r.contrato_id else None,
+            "aluno_do_contrato": r.contrato.cdAluno.dsNome if r.contrato_id else None,
+            "plano": r.contrato.cdPlano.dsPlano if r.contrato_id else None,
+            "categoria": r.contrato.cdPlano.categoria_receita.dsCategoria if r.contrato_id and r.contrato.cdPlano.categoria_receita_id else None,
+            "subcategoria": r.contrato.cdPlano.subcategoria_receita.dsSubcategoria if r.contrato_id and r.contrato.cdPlano.subcategoria_receita_id else None,
+            "reserva_aluno": r.reserva.aluno.dsNome if r.reserva_id else None,
+            "reserva_hora": r.reserva.aulaSessao.horaInicio if r.reserva_id else None,
+            "reserva_servico": r.reserva.aulaSessao.tipoServico.dsTipoServico if r.reserva_id else None,
+        })
+    despesas_db = [
+        {"id": p.id, "status": p.status, "valor": p.valor, "vencimento": p.dtVencimento, "pagamento": p.dtPagamento,
+         "fornecedor": str(p.cdFornecedor), "categoria": str(p.cdCategoria), "subcategoria": str(p.cdSubcategoria)}
+        for p in m.ContasPagar.objects.select_related("cdFornecedor", "cdCategoria", "cdSubcategoria").order_by("id")
+    ]
+    contas_banco = [(c.id, c.saldo_inicial, c.ativo) for c in m.ContaBancaria.objects.order_by("id")]
+    movimentos = [(mv.conta_id, mv.tipo, mv.valor, mv.data) for mv in m.MovimentoConta.objects.order_by("id")]
+
+    # --- fluxo de caixa (função interna por período)
+    def pack(d):
+        return {
+            "base": d["saldo_bancario_base"], "final": d["saldo_projetado_final"], "receitas": d["total_receitas"], "despesas": d["total_despesas"],
+            "lancamentos": [(x["data"], x["tipo"], x["origem"], x["descricao"], x["detalhe"], x["status"], x["valor"]) for x in d["lancamentos"]],
+            "diario": [(x["data"], x["receitas"], x["despesas"], x["saldo"]) for x in d["saldo_diario"]],
+            "semanal": [(x["inicio"], x["fim"], x["receitas"], x["despesas"], x["saldo"]) for x in d["saldo_semanal"]],
+        }
+
+    fluxos = []
+    for inicio, fim, conta in [(D(2026, 10, 1), D(2026, 10, 31), "all"), (D(2026, 10, 10), D(2026, 10, 17), "all"),
+                               (D(2026, 10, 1), D(2026, 10, 31), str(conta1.id)), (D(2026, 10, 1), D(2026, 10, 31), str(conta2.id)),
+                               (D(2026, 11, 1), D(2026, 11, 30), "all"), (D(2026, 10, 25), D(2026, 10, 25), "all")]:
+        d = views._build_fluxo_caixa_data_for_period(inicio, fim, conta_filtro=conta)
+        fluxos.append((inicio, fim, conta == "all", conta if conta == "all" else int(conta), pack(d)))
+
+    c = _cliente_logado()
+    resp = c.get("/financeiro/fluxo-caixa/?inicio=2026-10-01&fim=2026-10-31")
+    comp = resp.context["comparativo_mes_anterior"]
+    comparativo = dict(comp)
+
+    clamp = []
+    for base in [D(2026, 3, 31), D(2026, 1, 31), D(2026, 10, 31), D(2024, 3, 31), D(2026, 12, 31), D(2026, 1, 15)]:
+        for n in [-1, 1, -2, 2, -13]:
+            clamp.append((base, n, views._shift_month_clamped(base, n)))
+
+    # --- DRE
+    dres = []
+    for inicio, fim in [("2026-10-01", "2026-10-31"), ("2026-10-10", "2026-10-21"), ("2026-11-01", "2026-11-30"), ("2026-09-01", "2026-09-30")]:
+        resp = c.get(f"/financeiro/dre/relatorio/?inicio={inicio}&fim={fim}")
+        x = resp.context
+        import json as _json
+        dres.append((inicio, fim, {
+            "receita_bruta": x["receita_bruta"], "despesas_operacionais": x["despesas_operacionais"], "resultado_final": x["resultado_final"],
+            "resultado_label": x["resultado_label"], "saldo_anterior": x["saldo_bancario_anterior"], "saldo_final": x["saldo_bancario_final"],
+            "por_plano": list(zip(_json.loads(x["chart_receitas_labels"]), _json.loads(x["chart_receitas_values"]))),
+            "por_categoria": list(zip(_json.loads(x["chart_receitas_cat_labels"]), _json.loads(x["chart_receitas_cat_values"]))),
+            "por_subcategoria": list(zip(_json.loads(x["chart_receitas_sub_labels"]), _json.loads(x["chart_receitas_sub_values"]))),
+            "desp_categoria": list(zip(_json.loads(x["chart_despesas_labels"]), _json.loads(x["chart_despesas_values"]))),
+            "desp_subcategoria": list(zip(_json.loads(x["chart_despesas_sub_labels"]), _json.loads(x["chart_despesas_sub_values"]))),
+        }))
+        resp2 = c.get(f"/financeiro/dre/?inicio={inicio}&fim={fim}")
+        dres[-1][2]["simples"] = (resp2.context["total_receitas"], resp2.context["total_despesas"], resp2.context["resultado"], resp2.context["status_label"])
+
+    # --- atraso (ATRASADO derivado) com "hoje" fixo; e o efeito do now().date() em UTC
+    def com_agora(agora):
+        return mock.patch.object(views.timezone, "now", lambda: agora)
+
+    utc = dt.timezone.utc
+    atraso = {}
+    for rotulo, agora in [("tarde_brt", dt.datetime(2026, 10, 25, 15, 0, tzinfo=utc)), ("noite_brt_ja_amanha_utc", dt.datetime(2026, 10, 26, 1, 0, tzinfo=utc))]:
+        with com_agora(agora):
+            resp = c.get("/financeiro/contas-pagar/?status=ATRASADO&inicio=2026-01-01&fim=2026-12-31")
+            ids_pagar = sorted(o.id for o in resp.context["page"])
+            disp = {o.id: o.display_status for o in resp.context["page"]}
+            resp_all = c.get("/financeiro/contas-pagar/?inicio=2026-01-01&fim=2026-12-31")
+            disp_all = {o.id: o.display_status for o in resp_all.context["page"]}
+            dash = c.get("/")
+            atraso[rotulo] = {"pagar_atrasadas_ids": ids_pagar, "pagar_display": disp_all, "receber_atrasadas_dashboard": dash.context["contas_atrasadas"]}
+
+    # --- recorrência de contas a pagar (POST real)
+    recs = []
+    for rec, qtd, venc in [("SEMANAL", 4, D(2026, 10, 31)), ("MENSAL", 5, D(2026, 1, 31)), ("MENSAL", 14, D(2026, 11, 15)), ("ANUAL", 3, D(2024, 2, 29)),
+                           ("ANUAL", 3, D(2026, 10, 10)), ("MENSAL", 1, D(2026, 10, 10)), ("MENSAL", 0, D(2026, 10, 10)), ("", 5, D(2026, 10, 10)),
+                           ("SEMANAL", 2, D(2026, 12, 28)), ("MENSAL", 3, D(2026, 12, 29))]:
+        m.ContasPagar.objects.all().delete()
+        resp = c.post("/financeiro/contas-pagar/criar/", {
+            "cdFornecedor": forn_a.id, "cdCategoria": cat_d.id, "cdSubcategoria": sub_d1.id, "dtVencimento": venc.isoformat(),
+            "valor": "100.00", "recorrencia": rec, "recorrencia_quantidade": str(qtd),
+        })
+        criadas = [(p.dtVencimento, p.recorrencia, p.recorrencia_quantidade, p.status, p.valor) for p in m.ContasPagar.objects.order_by("cdContasPagar")]
+        recs.append((rec, qtd, venc, resp.status_code, criadas))
+
+    # --- cobrança de aula avulsa (R12) via view de agenda do pacote
+    _limpar_banco()
+    escrever(
+        "financeiro", RECEITAS=receitas_db, DESPESAS=despesas_db, CONTAS_BANCO=contas_banco, MOVIMENTOS=movimentos, FLUXOS=fluxos,
+        COMPARATIVO=comparativo, SHIFT_CLAMPED=clamp, DRES=dres, ATRASO=atraso, RECORRENCIAS=recs,
+    )
+
+
+def sec_avulsa():
+    from django.contrib.messages import get_messages
+
+    from studiopilates.core import models
+
+    m = models
+    D = dt.date
+    resultados = []
+
+    def cenario(rotulo, recorrencia_plano, valor_plano, quantidade, valor_informado, inicio, slot, dois_servicos=False):
+        _limpar_banco()
+        f = Fabrica().base(capacidade=3)
+        c = _cliente_logado()
+        prof = f.profissional("Prof")
+        extra = m.TipoServico.objects.create(cdTipoServico=f.prox(), dsTipoServico="Alongamento")
+        for dia in (0, 1, 2, 5):
+            h = m.HorarioFuncionamento.objects.create(unidade=f.unidade, diaSemana=dia, horaInicio=dt.time(9, 0), horaFim=dt.time(10, 0))
+            if dois_servicos:
+                h.tipos_servico.add(f.tipo, extra)
+        plano = f.plano(valor=valor_plano, aulas=1, meses=1, recorrencia=recorrencia_plano, avulso=True)
+        aluno = f.aluno("Aluno Avulso")
+        dados = {"plano": plano.id, "unidade": f.unidade.id, "profissional": prof.id, "quantidade": quantidade,
+                 "valor_aula": valor_informado, "dtInicio": inicio.isoformat()}
+        resp = c.post(f"/cadastros/alunos/{aluno.id}/aulas-avulsas/criar/", dados)
+        pacote = m.AulaAvulsa.objects.get()
+        info = {"recorrencia": pacote.recorrencia, "quantidade": pacote.quantidade, "valor_aula": pacote.valor_aula,
+                "valor_total": pacote.valor_total, "inicio": pacote.dtInicio, "fim": pacote.dtFim}
+        url = f"/cadastros/alunos/{aluno.id}/aulas-avulsas/{pacote.id}/agenda/"
+        resp = c.post(url, {"slot_1": slot, "prof_for_1": prof.id})
+        msgs = [x.message for x in get_messages(resp.wsgi_request)]
+        contas = [(x.dtVencimento, x.competencia, x.valor, x.status, x.contrato_id, x.reserva_id is not None)
+                  for x in m.ContasReceber.objects.order_by("dtVencimento", "id")]
+        reservas = [(r.aulaSessao.data, r.aulaSessao.tipoServico.dsTipoServico) for r in
+                    m.Reserva.objects.select_related("aulaSessao", "aulaSessao__tipoServico").order_by("aulaSessao__data", "aulaSessao__tipoServico__dsTipoServico")]
+        resultados.append({
+            "rotulo": rotulo, "plano": (recorrencia_plano, valor_plano), "entrada": (quantidade, valor_informado, inicio, slot),
+            "pacote": info, "mensagens": msgs, "contas": contas, "reservas": reservas,
+        })
+
+    cenario("semanal_valor_do_plano", "SEMANAL", "80", 3, "", D(2026, 11, 2), "0|09:00|09:50")
+    cenario("mensal_valor_informado", "MENSAL", "80", 3, "75.50", D(2026, 11, 2), "0|09:00|09:50")
+    cenario("cortesia_valor_zero", "SEMANAL", "80", 2, "0", D(2026, 11, 2), "0|09:00|09:50")
+    cenario("comeca_na_terca_slot_segunda_fora_do_periodo", "SEMANAL", "80", 4, "", D(2026, 11, 3), "0|09:00|09:50")
+    cenario("mensal_dia_31", "MENSAL", "60", 3, "", D(2026, 1, 31), "5|09:00|09:50")
+    cenario("dois_servicos_no_horario", "SEMANAL", "80", 2, "", D(2026, 11, 2), "0|09:00|09:50", dois_servicos=True)
+    _limpar_banco()
+    escrever("avulsa", CENARIOS=resultados)
+
+
 SECOES = {
     "precos": sec_precos,
     "parcelas": sec_parcelas,
@@ -691,6 +919,8 @@ SECOES = {
     "reposicao": sec_reposicao,
     "status_aula": sec_status_aula,
     "agenda": sec_agenda,
+    "financeiro": sec_financeiro,
+    "avulsa": sec_avulsa,
 }
 
 
