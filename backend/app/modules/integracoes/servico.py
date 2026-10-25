@@ -187,8 +187,8 @@ def totalpass_testar(ctx: Contexto, unidade_id: int) -> str:
 
 
 def totalpass_sincronizar(ctx: Contexto, unidade_id: int, dados: sc.SincronizarIn) -> sc.ResumoSyncOut:
-    from app.domain.financeiro import hoje_de_negocio
     from app.core.db import agora
+    from app.domain.financeiro import hoje_de_negocio
 
     u, c = config_da_unidade(ctx, unidade_id)
     if c is None:

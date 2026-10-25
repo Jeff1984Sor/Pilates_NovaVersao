@@ -210,9 +210,8 @@ def main():
     from studiopilates.core import models as m
 
     contratos = montar_cenario(m, CENARIO)
-    from fastapi.testclient import TestClient
-
     from api.main import app
+    from fastapi.testclient import TestClient
 
     cli = TestClient(app)
     saida = []

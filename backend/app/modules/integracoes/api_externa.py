@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import audit, ratelimit
@@ -30,7 +30,7 @@ from app.domain.financeiro import hoje_de_negocio
 from app.domain.telefone import chave_telefone
 from app.modules.agenda.models import AulaSessao, Reserva, StatusReserva
 from app.modules.alunos.models import Aluno, AlunoTelefone, DirecaoMensagem, StatusAluno, WhatsappMensagem
-from app.modules.cadastros.models import IntegracaoToken, Plano, Profissional, TipoServico, Unidade
+from app.modules.cadastros.models import Plano, Profissional, TipoServico, Unidade
 from app.modules.contratos.models import Contrato
 from app.modules.financeiro.models import ContaReceber, StatusReceber
 from app.modules.integracoes import tokens
@@ -377,4 +377,4 @@ def gravar_mensagem_whatsapp(dados: MensagemIn, t: Integrador, db: DB):
     return {"id": m.id, "cdAluno": aluno.codigo_legado, "direcao": direcao, "enviado_em": quando.isoformat()}
 
 
-__all__ = ["router", "autenticar_api_key", "TokenAutenticado", "IntegracaoToken", "func"]
+

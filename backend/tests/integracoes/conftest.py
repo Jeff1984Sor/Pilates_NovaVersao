@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
@@ -82,4 +81,4 @@ def novo_aluno(db, unidade_id: int, nome: str, n: int, **extra) -> Aluno:
     return a
 
 
-__all__ = ["Decimal", "cpf_valido", "novo_aluno"]
+
