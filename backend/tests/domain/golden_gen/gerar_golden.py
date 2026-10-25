@@ -1039,6 +1039,134 @@ def sec_tokens():
     )
 
 
+def sec_contratos():
+    from unittest import mock
+
+    from studiopilates.core import models, views
+
+    m = models
+    D = dt.date
+    f = Fabrica().base(capacidade=5)
+    c = _cliente_logado()
+    prof = f.profissional("Prof")
+    outra_unidade = m.Unidade.objects.create(cdUnidade=f.prox(), dsUnidade="Outra", capacidade=5, duracao_aula_minutos=50)
+    outro_tipo = m.TipoServico.objects.create(cdTipoServico=f.prox(), dsTipoServico="Alongamento")
+    plano = f.plano(valor="300", aulas=2, meses=1)
+    ana, bia = f.aluno("Ana"), f.aluno("Bia")
+    c1 = f.contrato(ana, plano, prof, D(2026, 11, 2), D(2026, 11, 30))
+    c2 = f.contrato(ana, plano, prof, D(2026, 11, 20), D(2026, 12, 20))   # sobrepoe c1 (mesmo aluno/unidade/servico)
+    c3 = f.contrato(bia, plano, prof, D(2026, 11, 2), D(2026, 11, 30))
+
+    rotulos = {}
+
+    def reserva(rotulo, aluno, data, ini=dt.time(9, 0), unidade=None, tipo=None, status="RESERVADA", avulsa=False, sessao=None, evolucao=False):
+        s = sessao or f.sessao(data, ini, dt.time(ini.hour, 50), prof, unidade=unidade, tipo=tipo)
+        r = m.Reserva.objects.create(aluno=aluno, aulaSessao=s, status=status)
+        if avulsa:
+            pacote = m.AulaAvulsa.objects.create(
+                cdAulaAvulsa=f.prox(), aluno=aluno, plano=plano, unidade=f.unidade, profissional=prof, quantidade=1,
+                valor_aula=Decimal("80"), valor_total=Decimal("80"), dtInicio=data, dtFim=data,
+            )
+            r.pacote_avulso = pacote
+            r.save()
+        if evolucao:
+            m.EvolucaoAluno.objects.create(reserva=r, profissional=prof, texto="evolucao")
+        rotulos[r.id] = rotulo
+        return r, s
+
+    compartilhada = f.sessao(D(2026, 11, 3), dt.time(8, 0), dt.time(8, 50), prof)
+    reserva("r1_compartilhada_com_bia", ana, D(2026, 11, 3), sessao=compartilhada)
+    reserva("r1b_bia_na_compartilhada", bia, D(2026, 11, 3), sessao=compartilhada)
+    reserva("r2_sozinha", ana, D(2026, 11, 10))
+    reserva("r3_outro_servico", ana, D(2026, 11, 12), tipo=outro_tipo)
+    reserva("r4_outra_unidade", ana, D(2026, 11, 14), unidade=outra_unidade)
+    reserva("r5_depois_do_fim", ana, D(2026, 12, 1))
+    reserva("r6_no_primeiro_dia", ana, D(2026, 11, 2))
+    reserva("r7_no_ultimo_dia", ana, D(2026, 11, 30), ini=dt.time(10, 0))
+    reserva("r8_aula_avulsa_no_periodo", ana, D(2026, 11, 5), avulsa=True)
+    reserva("r9_concluida", ana, D(2026, 11, 6), status="CONCLUIDA", evolucao=True)
+    reserva("r10_cancelada", ana, D(2026, 11, 9), status="CANCELADA")
+    reserva("r11_so_do_contrato_2", ana, D(2026, 12, 10))
+    reserva("r12_na_sobreposicao", ana, D(2026, 11, 25))
+    reserva("r13_antes_do_inicio", ana, D(2026, 11, 1))
+    reserva("r14_da_bia", bia, D(2026, 11, 11))
+
+    def conta(rotulo, **kw):
+        k = m.ContasReceber.objects.create(**kw)
+        rotulos[("c", k.id)] = rotulo
+        return k
+
+    conta("c1_pago", contrato=c1, status="PAGO", valor=Decimal("300"), dtVencimento=D(2026, 11, 5), dtPagamento=D(2026, 11, 5))
+    conta("c1_aberto", contrato=c1, status="ABERTO", valor=Decimal("300"), dtVencimento=D(2026, 12, 5))
+    conta("c1_cancelado", contrato=c1, status="CANCELADO", valor=Decimal("300"), dtVencimento=D(2026, 12, 6))
+    conta("c2_aberto", contrato=c2, status="ABERTO", valor=Decimal("300"), dtVencimento=D(2026, 12, 5))
+    conta("avulsa_da_ana", aluno=ana, status="ABERTO", valor=Decimal("50"), dtVencimento=D(2026, 11, 15))
+    conta("c3_da_bia", contrato=c3, status="ABERTO", valor=Decimal("300"), dtVencimento=D(2026, 11, 5))
+
+    # entradas "cruas" do cenario (para o teste reconstruir)
+    contratos_def = [(x.id, x.cdAluno_id, x.cdUnidade_id, x.cdPlano.cdTipoServico_id, x.dtInicioContrato, x.dtFimContrato) for x in m.Contrato.objects.order_by("id")]
+    reservas_def = [(r.id, rotulos[r.id], r.aluno_id, r.aulaSessao_id, r.aulaSessao.data, r.aulaSessao.unidade_id, r.aulaSessao.tipoServico_id,
+                     r.status, r.pacote_avulso_id, m.EvolucaoAluno.objects.filter(reserva=r).exists())
+                    for r in m.Reserva.objects.select_related("aulaSessao").order_by("id")]
+    contas_def = [(k.id, rotulos[("c", k.id)], k.contrato_id, k.status) for k in m.ContasReceber.objects.order_by("id")]
+
+    resumos = {}
+    resp = c.get(f"/contratos/{c1.id}/excluir/")
+    resumos["c1"] = dict(resp.context["delete_summary"])
+    resp = c.get(f"/contratos/{c3.id}/excluir/")
+    resumos["c3"] = dict(resp.context["delete_summary"])
+
+    # sem confirmacao: nada acontece
+    resp = c.post(f"/contratos/{c1.id}/excluir/", {})
+    sem_confirmar = (resp.status_code, m.Contrato.objects.filter(id=c1.id).exists(), m.Reserva.objects.count(), m.ContasReceber.objects.count())
+
+    sessoes_antes = set(m.AulaSessao.objects.values_list("id", flat=True))
+    resp = c.post(f"/contratos/{c1.id}/excluir/", {"confirm_delete": "1"})
+    apos_reservas = sorted(rotulos[i] for i in m.Reserva.objects.values_list("id", flat=True))
+    apos_contas = sorted(rotulos[("c", i)] for i in m.ContasReceber.objects.values_list("id", flat=True))
+    sessoes_apagadas = sorted(sessoes_antes - set(m.AulaSessao.objects.values_list("id", flat=True)))
+    evolucoes_restantes = m.EvolucaoAluno.objects.count()
+    todas_labels = sorted(rotulos[r[0]] for r in reservas_def)
+    apagadas = sorted(set(todas_labels) - set(apos_reservas))
+    contas_apagadas = sorted(set(v for k, v in rotulos.items() if isinstance(k, tuple)) - set(apos_contas))
+
+    # --- gestao de contratos (data fixa)
+    _limpar_banco()
+    f = Fabrica().base(capacidade=5)
+    c = _cliente_logado()
+    prof = f.profissional("Prof")
+    plano = f.plano()
+    hoje = D(2026, 10, 25)
+    fins = [("venceu_ontem", D(2026, 10, 24), D(2026, 9, 1)), ("vence_hoje", D(2026, 10, 25), D(2026, 9, 1)), ("vence_em_3", D(2026, 10, 28), D(2026, 9, 1)),
+            ("vence_em_7", D(2026, 11, 1), D(2026, 9, 1)), ("vence_em_8", D(2026, 11, 2), D(2026, 9, 1)), ("vence_em_30", D(2026, 11, 24), D(2026, 9, 1)),
+            ("vence_em_31", D(2026, 11, 25), D(2026, 9, 1)), ("comeca_amanha_vence_em_20", D(2026, 11, 14), D(2026, 10, 26)), ("comeca_amanha_vence_em_90", D(2027, 1, 23), D(2026, 10, 26)),
+            ("termina_hoje_comecou_hoje", D(2026, 10, 25), D(2026, 10, 25)), ("vencido_ha_um_ano", D(2025, 10, 25), D(2025, 1, 1))]
+    ids = {}
+    for rotulo, fim, ini in fins:
+        al = f.aluno(rotulo)
+        ct = f.contrato(al, plano, prof, ini, fim)
+        ids[ct.id] = rotulo
+    agora = dt.datetime(2026, 10, 25, 15, 0, tzinfo=dt.timezone.utc)
+    gestao = {}
+    with mock.patch.object(views.timezone, "now", lambda: agora):
+        for filtro in ["ativos", "vencendo", "vencidos", "todos", "xyz", ""]:
+            resp = c.get(f"/contratos/gestao/?filtro={filtro}")
+            gestao[filtro] = {
+                "filtro_efetivo": resp.context["filtro"],
+                "contratos": [(ids[x["obj"].id], x["dias_restantes"], x["situacao"], x["badge"]) for x in resp.context["contratos"]],
+                "resumo": dict(resp.context["resumo"]),
+            }
+        painel = c.get("/")
+        contratos_vencendo_painel = painel.context["contratos_vencendo"]
+        alertas = list(painel.context["alertas"])
+    _limpar_banco()
+    escrever(
+        "contratos", CONTRATOS=contratos_def, RESERVAS=reservas_def, CONTAS=contas_def, RESUMOS_CONFIRMACAO=resumos, SEM_CONFIRMAR=sem_confirmar,
+        RESERVAS_APAGADAS=apagadas, CONTAS_APAGADAS=contas_apagadas, SESSOES_APAGADAS_QTD=len(sessoes_apagadas), EVOLUCOES_RESTANTES=evolucoes_restantes,
+        HOJE=hoje, GESTAO=gestao, FINS=[(r, fim, ini) for r, fim, ini in fins], CONTRATOS_VENCENDO_PAINEL=contratos_vencendo_painel, ALERTAS=alertas,
+    )
+
+
 SECOES = {
     "precos": sec_precos,
     "parcelas": sec_parcelas,
@@ -1052,6 +1180,7 @@ SECOES = {
     "avulsa": sec_avulsa,
     "receita": sec_receita,
     "tokens": sec_tokens,
+    "contratos": sec_contratos,
 }
 
 
