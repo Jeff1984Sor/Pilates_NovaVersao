@@ -679,7 +679,7 @@ def calcular_slots(
             AulaSessao.unidade_id == unidade_id,
             AulaSessao.tipo_servico_id == tipo_servico_id,
             AulaSessao.data.between(inicio, fim),
-        )
+        ).execution_options(populate_existing=True)  # reservas_ativas é mexido por UPDATE direto: nunca ler do cache da sessão
     ).all()
     por_prof: dict[int, dict[dom_agenda.ChaveSessao, dom_agenda.SessaoExistente]] = {}
     for s in sessoes:
@@ -693,7 +693,7 @@ def calcular_slots(
     )
     if not slots and not janelas_unidade:
         todas = db.scalars(
-            select(AulaSessao).where(AulaSessao.unidade_id == unidade_id, AulaSessao.data.between(inicio, fim))
+            select(AulaSessao).where(AulaSessao.unidade_id == unidade_id, AulaSessao.data.between(inicio, fim)).execution_options(populate_existing=True)
         ).all()
         slots = dom_agenda.slots_por_sessoes_existentes(
             (s.data, s.hora_inicio, s.hora_fim, s.reservas_ativas, capacidade_da_sessao(db, s)) for s in todas

@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core import ia
 from app.modules.agenda import servico as srv
-from app.modules.agenda.models import Avaliacao, AulaSessao, Evolucao, Reserva, StatusReserva
+from app.modules.agenda.models import AulaSessao, Avaliacao, Evolucao, Reserva, StatusReserva
 from app.modules.alunos.models import Aluno
 from app.modules.cadastros.models import ModeloEvolucao, Profissional
 

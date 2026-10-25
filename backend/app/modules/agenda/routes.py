@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Response
@@ -26,7 +26,15 @@ from app.core.deps import Ctx
 from app.core.permissoes import adicionar_regras
 from app.modules.agenda import avulsa, consultas, evolucao
 from app.modules.agenda import servico as srv
-from app.modules.agenda.models import AulaAvaliativa, AulaAvulsa, AulaSessao, Avaliacao, Evolucao, Reserva, StatusReserva
+from app.modules.agenda.models import (
+    AulaAvaliativa,
+    AulaAvulsa,
+    AulaSessao,
+    Avaliacao,
+    Evolucao,
+    Reserva,
+    StatusReserva,
+)
 from app.modules.agenda.schemas import (
     AvaliacaoIn,
     AvaliativaIn,
@@ -148,6 +156,11 @@ def _reserva_dict(ctx: Ctx, r: Reserva) -> dict[str, Any]:
     }
 
 
+def _snap(obj) -> dict[str, Any]:
+    """Foto do registro para a auditoria. ``audit.snapshot`` do core não serializa ``time`` (hora da aula): convertemos aqui."""
+    return {k: (v.isoformat() if isinstance(v, time) else v) for k, v in audit.snapshot(obj).items()}
+
+
 def _agora() -> datetime:
     return agora_utc()
 
@@ -226,7 +239,7 @@ def _sessao_resp(ctx: Ctx, s: AulaSessao) -> dict:
 def criar_sessao(dados: SessaoIn, ctx: Ctx):
     with _erros(ctx):
         s = srv.criar_sessao(ctx.db, **dados.model_dump())
-        ctx.auditar("agenda.sessao.criar", "aula_sessao", s.id, descricao=f"Aula {s.data:%d/%m/%Y} {s.hora_inicio:%H:%M}", depois=audit.snapshot(s))
+        ctx.auditar("agenda.sessao.criar", "aula_sessao", s.id, descricao=f"Aula {s.data:%d/%m/%Y} {s.hora_inicio:%H:%M}", depois=_snap(s))
         ctx.db.commit()
     return _sessao_resp(ctx, s)
 
@@ -238,9 +251,9 @@ def editar_sessao(sessao_id: int, dados: SessaoPatch, ctx: Ctx):
         s = ctx.db.get(AulaSessao, sessao_id)
         if s is None:
             raise srv.NaoEncontrado("Aula não encontrada.")
-        antes = audit.snapshot(s)
+        antes = _snap(s)
         s = srv.editar_sessao_segura(ctx.db, sessao_id, campos)
-        a, d = audit.diff(antes, audit.snapshot(s))
+        a, d = audit.diff(antes, _snap(s))
         ctx.auditar("agenda.sessao.alterar", "aula_sessao", s.id, descricao=f"Aula {s.data:%d/%m/%Y} {s.hora_inicio:%H:%M}", antes=a, depois=d)
         ctx.db.commit()
     return _sessao_resp(ctx, s)
@@ -252,7 +265,7 @@ def excluir_sessao(sessao_id: int, ctx: Ctx):
         s = ctx.db.get(AulaSessao, sessao_id)
         if s is None:
             raise srv.NaoEncontrado("Aula não encontrada.")
-        antes = audit.snapshot(s)
+        antes = _snap(s)
         srv.excluir_sessao(ctx.db, sessao_id)
         ctx.auditar("agenda.sessao.excluir", "aula_sessao", sessao_id, descricao=f"Aula {antes['data']} {antes['hora_inicio']}", antes=antes)
         ctx.db.commit()
@@ -295,7 +308,7 @@ def criar_reserva(dados: ReservaIn, ctx: Ctx):
             )
             sessao_id = s.id
         r = srv.criar_reserva(ctx.db, dados.aluno_id, sessao_id)
-        ctx.auditar("agenda.reserva.criar", "reserva", r.id, descricao=_descricao_reserva(ctx, r), depois=audit.snapshot(r))
+        ctx.auditar("agenda.reserva.criar", "reserva", r.id, descricao=_descricao_reserva(ctx, r), depois=_snap(r))
         ctx.db.commit()
     return _reserva_dict(ctx, r)
 
@@ -408,9 +421,9 @@ def presenca(reserva_id: int, dados: PresencaIn, ctx: Ctx):
         raise HTTPException(403, "Seu perfil de acesso não permite esta ação.")
     r = _reserva_do_escopo(ctx, reserva_id)
     with _erros(ctx):
-        antes = audit.snapshot(r)
+        antes = _snap(r)
         r = srv.aplicar_acao_presenca(ctx.db, r.id, dados.acao, agora=_agora())
-        a, d = audit.diff(antes, audit.snapshot(r))
+        a, d = audit.diff(antes, _snap(r))
         ctx.auditar(f"aula.{dados.acao.strip().lower()}", "reserva", r.id, descricao=_descricao_reserva(ctx, r), antes=a, depois=d)
         ctx.db.commit()
     return _reserva_dict(ctx, r)
@@ -432,9 +445,9 @@ def desmarcar(reserva_id: int, ctx: Ctx):
     _nao_professor(ctx, "desmarcar")
     r = _reserva_do_escopo(ctx, reserva_id)
     with _erros(ctx):
-        antes = audit.snapshot(r)
+        antes = _snap(r)
         r = srv.desmarcar_reserva(ctx.db, r.id, agora=_agora(), eh_professor=ctx.somente_proprias_aulas())
-        a, d = audit.diff(antes, audit.snapshot(r))
+        a, d = audit.diff(antes, _snap(r))
         ctx.auditar("aula.desmarcar", "reserva", r.id, descricao=_descricao_reserva(ctx, r), antes=a, depois=d)
         ctx.db.commit()
     return _reserva_dict(ctx, r)
@@ -445,7 +458,7 @@ def remarcar(reserva_id: int, dados: RemarcarIn, ctx: Ctx):
     _nao_professor(ctx, "remarcar")
     r = _reserva_do_escopo(ctx, reserva_id)
     with _erros(ctx):
-        antes = audit.snapshot(r)
+        antes = _snap(r)
         r = srv.remarcar_reserva(
             ctx.db,
             r.id,
@@ -455,7 +468,7 @@ def remarcar(reserva_id: int, dados: RemarcarIn, ctx: Ctx):
             ignorar_prazo_reposicao=dados.ignorar_prazo_reposicao,
             agora=_agora(),
         )
-        a, d = audit.diff(antes, audit.snapshot(r))
+        a, d = audit.diff(antes, _snap(r))
         ctx.auditar("aula.remarcar", "reserva", r.id, descricao=_descricao_reserva(ctx, r), antes=a, depois=d)
         ctx.db.commit()
     return _reserva_dict(ctx, r)
@@ -468,7 +481,7 @@ def excluir_reserva(reserva_id: int, ctx: Ctx):
     r = _reserva_do_escopo(ctx, reserva_id)
     with _erros(ctx):
         descricao = _descricao_reserva(ctx, r)
-        antes = audit.snapshot(r)
+        antes = _snap(r)
         resumo = srv.excluir_reserva(ctx.db, r.id)
         ctx.auditar("aula.excluir", "reserva", reserva_id, descricao=descricao, antes=antes, depois=resumo)
         ctx.db.commit()
@@ -532,9 +545,9 @@ def criar_evolucao(reserva_id: int, dados: EvolucaoIn, ctx: Ctx):
 def editar_evolucao(evolucao_id: int, dados: AvaliacaoIn, ctx: Ctx):
     reg = _registro_do_escopo(ctx, Evolucao, evolucao_id, "Evolução")
     with _erros(ctx):
-        antes = audit.snapshot(reg)
+        antes = _snap(reg)
         reg = evolucao.atualizar_registro(ctx.db, "evolucoes", reg.id, dados.texto)
-        a, d = audit.diff(antes, audit.snapshot(reg))
+        a, d = audit.diff(antes, _snap(reg))
         ctx.auditar("evolucao.alterar", "evolucao", reg.id, antes=a, depois=d)
         ctx.db.commit()
     return evolucao.para_dict(ctx.db, reg)
@@ -544,7 +557,7 @@ def editar_evolucao(evolucao_id: int, dados: AvaliacaoIn, ctx: Ctx):
 def excluir_evolucao(evolucao_id: int, ctx: Ctx):
     reg = _registro_do_escopo(ctx, Evolucao, evolucao_id, "Evolução")
     with _erros(ctx):
-        antes = audit.snapshot(reg)
+        antes = _snap(reg)
         evolucao.excluir_registro(ctx.db, "evolucoes", reg.id)
         ctx.auditar("evolucao.excluir", "evolucao", evolucao_id, antes=antes)
         ctx.db.commit()
@@ -582,9 +595,9 @@ def criar_avaliacao(reserva_id: int, dados: AvaliacaoIn, ctx: Ctx):
 def editar_avaliacao(avaliacao_id: int, dados: AvaliacaoIn, ctx: Ctx):
     reg = _registro_do_escopo(ctx, Avaliacao, avaliacao_id, "Avaliação")
     with _erros(ctx):
-        antes = audit.snapshot(reg)
+        antes = _snap(reg)
         reg = evolucao.atualizar_registro(ctx.db, "avaliacoes", reg.id, dados.texto)
-        a, d = audit.diff(antes, audit.snapshot(reg))
+        a, d = audit.diff(antes, _snap(reg))
         ctx.auditar("avaliacao.alterar", "avaliacao", reg.id, antes=a, depois=d)
         ctx.db.commit()
     return evolucao.para_dict(ctx.db, reg)
@@ -594,7 +607,7 @@ def editar_avaliacao(avaliacao_id: int, dados: AvaliacaoIn, ctx: Ctx):
 def excluir_avaliacao(avaliacao_id: int, ctx: Ctx):
     reg = _registro_do_escopo(ctx, Avaliacao, avaliacao_id, "Avaliação")
     with _erros(ctx):
-        antes = audit.snapshot(reg)
+        antes = _snap(reg)
         evolucao.excluir_registro(ctx.db, "avaliacoes", reg.id)
         ctx.auditar("avaliacao.excluir", "avaliacao", avaliacao_id, antes=antes)
         ctx.db.commit()
@@ -654,7 +667,7 @@ def criar_avulsa(dados: AvulsaIn, ctx: Ctx):
             "aula_avulsa",
             pacote.id,
             descricao=f"{_nome_aluno(ctx, pacote.aluno_id)}: {len(res.reservas_criadas)} aula(s), {len(contas)} cobrança(s)",
-            depois={**audit.snapshot(pacote), "reservas": res.reservas_criadas, "contas": [c.id for c in contas], "conflitos": res.conflitos},
+            depois={**_snap(pacote), "reservas": res.reservas_criadas, "contas": [c.id for c in contas], "conflitos": res.conflitos},
         )
         ctx.db.commit()
     return {
@@ -700,7 +713,7 @@ def criar_avaliativa(dados: AvaliativaIn, ctx: Ctx):
             "aula_avaliativa",
             av.id,
             descricao=f"{_nome_aluno(ctx, av.aluno_id)} - {av.data:%d/%m/%Y} {av.hora_inicio:%H:%M} ({av.tipo})",
-            depois=audit.snapshot(av),
+            depois=_snap(av),
         )
         ctx.db.commit()
     return avulsa.avaliativa_para_dict(av) | {"reserva_id": reserva.id}
@@ -722,9 +735,9 @@ def salvar_ficha(avaliativa_id: int, dados: FichaAvaliativaIn, ctx: Ctx):
     if av is None or not escopo.pode_acessar_profissional(ctx, av.profissional_id):
         raise _nao_achou("Aula avaliativa não encontrada.")
     with _erros(ctx):
-        antes = audit.snapshot(av)
+        antes = _snap(av)
         av = avulsa.salvar_ficha_avaliativa(ctx.db, av.id, **dados.model_dump())
-        a, d = audit.diff(antes, audit.snapshot(av))
+        a, d = audit.diff(antes, _snap(av))
         ctx.auditar("aula_avaliativa.ficha", "aula_avaliativa", av.id, antes=a, depois=d)
         ctx.db.commit()
     return avulsa.avaliativa_para_dict(av)

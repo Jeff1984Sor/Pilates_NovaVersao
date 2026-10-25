@@ -146,6 +146,7 @@ def listar_sessoes(
         .where(AulaSessao.data.between(de, ate))
         .order_by(AulaSessao.data, AulaSessao.hora_inicio, AulaSessao.id)
         .limit(limite)
+        .execution_options(populate_existing=True)  # reservas_ativas muda por UPDATE direto: não ler do cache da sessão
     )
     if unidade_id:
         q = q.where(AulaSessao.unidade_id == unidade_id)
@@ -170,6 +171,7 @@ def detalhe_sessao(db: Session, sessao_id: int, *, profissional_id: int | None =
         .join(TipoServico, TipoServico.id == AulaSessao.tipo_servico_id)
         .outerjoin(Profissional, Profissional.id == AulaSessao.profissional_id)
         .where(AulaSessao.id == sessao_id)
+        .execution_options(populate_existing=True)
     )
     f = _escopo_prof(profissional_id)
     if f is not None:
@@ -622,7 +624,7 @@ def horarios_para_remarcar(db: Session, reserva_id: int, de: date, ate: date) ->
             AulaSessao.unidade_id == atual.unidade_id,
             AulaSessao.tipo_servico_id == atual.tipo_servico_id,
             AulaSessao.data.between(de, ate),
-        ).order_by(AulaSessao.data, AulaSessao.hora_inicio)
+        ).order_by(AulaSessao.data, AulaSessao.hora_inicio).execution_options(populate_existing=True)
     ).all()
     nomes = {p.id: p.nome for p in db.scalars(select(Profissional))}
     opcoes: list[dict] = []
