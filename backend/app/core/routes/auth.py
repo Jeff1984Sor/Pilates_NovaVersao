@@ -14,8 +14,8 @@ from app.core.ratelimit import limitar, verificar
 from app.core.schemas import (
     ForgotIn,
     LoginIn,
-    MePatch,
     Mensagem,
+    MePatch,
     RefreshIn,
     ResetCodigoIn,
     ResetIn,
