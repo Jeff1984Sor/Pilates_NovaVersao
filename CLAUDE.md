@@ -63,3 +63,19 @@ cd ../frontend && npm install && npm run dev
 - **Segredos de integração:** cifrar com `app.core.segredos.cifrar_texto`; cadastrados pela tela, nunca em código nem no `.env` de negócio.
 - **Frontend:** o navegador só fala com `/bff/*` (Next); tokens vivem em cookies httpOnly. Itens `planejado: true` em `components/mayacorp/nav.ts` viram clicáveis quando a tela existir.
 - **Perfis padrão:** Full, Professor e Secretária (outros pela matriz de permissões).
+
+## Decisões do Jefferson (registradas em 25/10/2026)
+
+- **Perfis padrão: Full, Professor e Secretária.** Professor vê só as aulas dele (nada de financeiro). Secretária vê as aulas de todos. Escopo da Secretária é suposição a confirmar (ver `docs/progresso-fundacao.md`).
+- **Todas as credenciais e integrações são cadastradas pelo usuário NA FERRAMENTA** (Configurações > Integrações): token do WhatsApp (Wasender/Evolution), chave da IA, chaves e token do webhook do TotalPass (futuro), SMTP. Nunca em `.env`/código. Regras: guardadas cifradas (`app.core.segredos`), **somente escrita** (a tela mostra "configurado" + últimos 4 caracteres, nunca o valor), botão "Testar conexão", só perfil Full altera, auditoria registra a troca sem o valor. O ETL **não migra** nenhum segredo; o usuário recadastra pela tela.
+- **Dados antigos:** entram no banco novo só no final, por ETL, com autorização.
+
+## Convenções para módulos desenvolvidos em paralelo (evitam conflito de merge)
+
+- Cada módulo é dono de `backend/app/modules/<modulo>/` (routes, schemas, servico, tarefas), `backend/tests/<modulo>/` e `frontend/app/(app)/<area>/` + `frontend/components/<area>/`. **Não edite arquivos de outro módulo** nem `core/` (peça por escrito ao coordenador em `docs/progresso-<modulo>.md`).
+- Permissões: registre as regras de rota do módulo com `adicionar_regras(...)` a partir do próprio módulo (não edite `_REGRAS` de `core/permissoes.py`). Se faltar um recurso no `CATALOGO`, anote o pedido no seu progresso.
+- Tipos do frontend em arquivo próprio `frontend/lib/tipos-<area>.ts` (não editar o `types.ts` compartilhado). No `nav.ts` altere somente as linhas do seu módulo (`planejado: false`).
+- Models existem em `backend/app/modules/*/models.py` (agente Dados). Mudança de modelo: faça via migração nova (`alembic revision --autogenerate`), nunca edite a `0001`. Avise o coordenador no progresso.
+- Serviços que outros módulos vão chamar ficam em `modules/<modulo>/servico.py` com assinatura estável e testada; regras de negócio vêm de `app/domain` (não reimplementar).
+- Todo endpoint: login + regra de permissão + `ctx.auditar(...)` nas ações sensíveis + teste; perfil Professor respeita `somente_proprias_aulas`.
+- Antes de entregar: `uv run python -m pytest -q backend/tests/<modulo> backend/tests/test_cobertura_rotas.py`, `npm run lint`, `npm run build`. A suíte completa é lenta; rode-a só ao final.

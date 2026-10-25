@@ -59,3 +59,15 @@ Login obrigatório global · JWT com `exp` · OTP com limite de pedidos/tentativ
 2. Módulos de API + telas: cadastros → alunos → agenda/reservas → contratos → financeiro/Receita Saúde.
 3. Comunicação (WhatsApp, scheduler), TotalPass, app do aluno, API de integração, IA.
 4. Hardening, hml, ensaio do ETL com cópia anonimizada, teste de paridade lado a lado, cutover.
+
+## Ondas — andamento
+
+- **Onda 1 (concluída e integrada em `develop`):** fundação do core, domínio puro (R1–R17, 2.531 testes golden master), modelo de dados (40+ tabelas) e ETL com conciliação. Ensaio ponta a ponta com dados sintéticos OK.
+- **Onda 2a (em andamento):** cadastros, alunos, agenda/reservas, financeiro/Receita Saúde.
+- **Onda 2b:** contratos (depende de agenda e financeiro).
+- **Onda 3:** WhatsApp (envio, scheduler R9, comunicado, aviso), TotalPass (R14, token pela tela), app do aluno (R15), API de integração, IA, telas de Configurações > Integrações.
+- **Onda 4:** hardening, hml, ensaio da carga em PostgreSQL com cópia anonimizada, conferência lado a lado, cutover.
+
+## Divergências do sistema antigo a decidir (ver `docs/progresso-dominio.md`)
+
+Valor da aula avulsa não multiplica pela quantidade (R1) · dia ≤ 28 já na 1ª parcela (R2) · remarcação com capacidade 0 passa (R3) · data em UTC no atraso/DRE (R7) · WhatsApp envia a telefone fixo/lixo e atraso sem limite (R9) · aula avulsa em horário com 2 serviços cobra 2× (R12) · excluir contrato apaga contas pagas e evoluções (R13) · bloqueio pontual sem data final vale para sempre.
