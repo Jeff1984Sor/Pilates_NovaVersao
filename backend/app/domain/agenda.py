@@ -427,3 +427,39 @@ def validar_selecao_nos_slots(
         if permitidos and s.profissional_id not in permitidos:
             return "Professor invalido para o horario selecionado."
     return None
+
+
+def valor_do_slot(dia_semana: int, inicio: time, fim: time) -> str:
+    """Valor serializado do slot na tela antiga: ``"0|08:00|08:50"``."""
+    return f"{dia_semana}|{inicio:%H:%M}|{fim:%H:%M}"
+
+
+def interpretar_valor_slot(valor: str) -> tuple[int, time, time]:
+    """Inverso de ``valor_do_slot``. Levanta ``ValueError("Horario invalido na selecao.")`` se o formato não bate."""
+    try:
+        dia_raw, inicio_raw, fim_raw = valor.split("|")
+        dia = int(dia_raw)
+        inicio = datetime.strptime(inicio_raw, "%H:%M").time()
+        fim = datetime.strptime(fim_raw, "%H:%M").time()
+    except ValueError as exc:
+        raise ValueError("Horario invalido na selecao.") from exc
+    return dia, inicio, fim
+
+
+def slots_por_sessoes_existentes(
+    sessoes: Iterable[tuple[date, time, time, int, int]],
+) -> dict[tuple[int, time, time], list[int]]:
+    """Plano B do antigo quando NÃO há horário de funcionamento configurado: os slots são os (dia, início, fim)
+    das sessões existentes no período que ainda têm vaga. ``sessoes``: ``(data, início, fim, ocupadas, capacidade)``.
+    Sem restrição de professor (lista vazia)."""
+    slots: dict[tuple[int, time, time], list[int]] = {}
+    for data, inicio, fim, ocupadas, capacidade in sessoes:
+        if ocupadas >= capacidade:
+            continue
+        slots[(data.weekday(), inicio, fim)] = []
+    return slots
+
+
+def mensagem_conflitos(conflitos: Sequence[str], limite: int = 5) -> str:
+    """Texto do aviso do antigo: ``"Conflitos ao reservar: a; b"`` (só os 5 primeiros)."""
+    return "Conflitos ao reservar: " + "; ".join(conflitos[:limite])

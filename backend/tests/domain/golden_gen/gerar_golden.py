@@ -49,6 +49,9 @@ def _boot() -> None:
     from django.core.management import call_command
 
     call_command("migrate", verbosity=0, interactive=False)
+    from django.test.utils import setup_test_environment
+
+    setup_test_environment()
 
 
 # ---------------------------------------------------------------------------
@@ -472,6 +475,213 @@ def sec_status_aula():
     _limpar_banco()
 
 
+def sec_agenda():
+    from django.contrib.messages import get_messages
+    from studiopilates.core import models, views
+
+    # --- slots a partir das janelas
+    janelas_casos = [
+        [(dt.time(8, 0), dt.time(12, 0))], [(dt.time(8, 30), dt.time(12, 0))], [(dt.time(9, 0), dt.time(10, 0))],
+        [(dt.time(7, 0), dt.time(9, 0)), (dt.time(14, 0), dt.time(18, 30))], [(dt.time(8, 0), dt.time(8, 40))],
+        [(dt.time(23, 0), dt.time(23, 59))], [(dt.time(6, 15), dt.time(7, 0))], [(dt.time(8, 0), dt.time(8, 50))],
+        [(dt.time(8, 0), dt.time(8, 49))], [],
+    ]
+    slots = []
+    for janelas in janelas_casos:
+        for dur in [50, 60, 30, 45, 20]:
+            ws = [SimpleNamespace(horaInicio=a, horaFim=b) for a, b in janelas]
+            slots.append((janelas, dur, views._generate_slots_for_date(dt.date(2026, 11, 2), ws, dur)))
+
+    # --- bloqueios (_is_slot_blocked)
+    defs = {
+        "pontual_aberto": dict(recorrente=False, diaSemana=None, dataInicio=dt.date(2026, 11, 16), dataFim=None, horaInicio=dt.time(8, 0), horaFim=dt.time(12, 0)),
+        "pontual_periodo": dict(recorrente=False, diaSemana=None, dataInicio=dt.date(2026, 11, 16), dataFim=dt.date(2026, 11, 18), horaInicio=dt.time(9, 0), horaFim=dt.time(10, 0)),
+        "recorrente_seg": dict(recorrente=True, diaSemana=0, dataInicio=dt.date(2026, 11, 1), dataFim=dt.date(2026, 12, 31), horaInicio=dt.time(10, 0), horaFim=dt.time(11, 0)),
+        "recorrente_sem_dia": dict(recorrente=True, diaSemana=None, dataInicio=dt.date(2026, 11, 1), dataFim=None, horaInicio=dt.time(8, 0), horaFim=dt.time(12, 0)),
+        "recorrente_qua_aberto": dict(recorrente=True, diaSemana=2, dataInicio=dt.date(2026, 11, 1), dataFim=None, horaInicio=dt.time(8, 0), horaFim=dt.time(9, 0)),
+    }
+    datas = [dt.date(2026, 10, 30), dt.date(2026, 11, 15), dt.date(2026, 11, 16), dt.date(2026, 11, 17), dt.date(2026, 11, 18),
+             dt.date(2026, 11, 19), dt.date(2026, 11, 23), dt.date(2026, 11, 25), dt.date(2026, 12, 31), dt.date(2027, 1, 4)]
+    horas = [(dt.time(8, 0), dt.time(8, 50)), (dt.time(9, 0), dt.time(9, 50)), (dt.time(10, 0), dt.time(10, 50)),
+             (dt.time(10, 50), dt.time(11, 40)), (dt.time(7, 10), dt.time(8, 0)), (dt.time(11, 0), dt.time(11, 50)), (dt.time(7, 0), dt.time(7, 59))]
+    bloqueados = []
+    for nome, d in defs.items():
+        b = SimpleNamespace(**d)
+        for dia in datas:
+            for ini, fim in horas:
+                bloqueados.append((nome, dia, ini, fim, views._is_slot_blocked([b], dia, ini, fim)))
+    # lista de bloqueios juntos
+    todos = [SimpleNamespace(**d) for d in defs.values()]
+    juntos = [(dia, ini, fim, views._is_slot_blocked(todos, dia, ini, fim)) for dia in datas for ini, fim in horas]
+
+    # --- datas da aula avulsa
+    alinhar = []
+    for base in [dt.date(2026, 10, 25), dt.date(2026, 10, 26), dt.date(2026, 10, 27), dt.date(2026, 12, 30), dt.date(2027, 1, 1)]:
+        for wd in range(7):
+            alinhar.append((base, wd, views._align_date_to_weekday(base, wd)))
+    avancar = []
+    for base in [dt.date(2026, 10, 26), dt.date(2026, 1, 31), dt.date(2026, 12, 28)]:
+        for rec in ["MENSAL", "SEMANAL", "OUTRO"]:
+            for idx in [0, 1, 2, 5, 13]:
+                avancar.append((base, rec, idx, views._advance_recorrencia_date(base, rec, idx)))
+
+    # --- _load_funcionamento e _load_bloqueios com banco
+    f = Fabrica().base(capacidade=3)
+    along = models.TipoServico.objects.create(cdTipoServico=f.prox(), dsTipoServico="Alongamento")
+    P, A = f.tipo, along
+    horarios_def = [
+        (0, dt.time(8, 0), dt.time(12, 0), True, "", ""),
+        (0, dt.time(14, 0), dt.time(18, 0), True, "P", ""),
+        (1, dt.time(8, 0), dt.time(12, 0), True, "", ""),
+        (2, dt.time(8, 0), dt.time(12, 0), True, "A", ""),
+        (3, dt.time(8, 0), dt.time(12, 0), True, "", "PA"),
+        (4, dt.time(8, 0), dt.time(12, 0), False, "", ""),
+        (4, dt.time(14, 0), dt.time(18, 0), True, "", ""),
+        (5, dt.time(8, 0), dt.time(10, 0), True, "A", ""),
+        (5, dt.time(10, 0), dt.time(12, 0), True, "", "A"),
+    ]
+    mapa = {"P": P, "A": A}
+    for dia, ini, fim, ativo, fk, m2m in horarios_def:
+        h = models.HorarioFuncionamento.objects.create(
+            unidade=f.unidade, tipoServico=mapa[fk] if fk else None, diaSemana=dia, horaInicio=ini, horaFim=fim, ativo=ativo
+        )
+        for letra in m2m:
+            h.tipos_servico.add(mapa[letra])
+    funcionamento = {}
+    for rotulo, tipo in [("todos", None), ("P", P.id), ("A", A.id)]:
+        resultado = views._load_funcionamento(f.unidade.id, tipo)
+        funcionamento[rotulo] = {dia: [(i.horaInicio, i.horaFim) for i in itens] for dia, itens in sorted(resultado.items())}
+
+    prof1 = f.profissional("P1")
+    prof2 = f.profissional("P2")
+    bloq_def = [
+        # (recorrente, dia, ini, fim, hora_ini, hora_fim, ativo, tipo, prof)
+        (False, None, dt.date(2026, 11, 10), None, dt.time(8, 0), dt.time(9, 0), True, "", ""),
+        (False, None, dt.date(2026, 11, 10), dt.date(2026, 11, 12), dt.time(8, 0), dt.time(9, 0), True, "P", ""),
+        (False, None, dt.date(2026, 11, 10), dt.date(2026, 11, 12), dt.time(8, 0), dt.time(9, 0), True, "A", ""),
+        (False, None, dt.date(2026, 11, 10), dt.date(2026, 11, 12), dt.time(8, 0), dt.time(9, 0), True, "", "1"),
+        (False, None, dt.date(2026, 11, 10), dt.date(2026, 11, 12), dt.time(8, 0), dt.time(9, 0), True, "", "2"),
+        (False, None, dt.date(2026, 11, 10), dt.date(2026, 11, 12), dt.time(8, 0), dt.time(9, 0), False, "", ""),
+        (True, 1, dt.date(2026, 9, 1), dt.date(2026, 10, 31), dt.time(8, 0), dt.time(9, 0), True, "", ""),
+        (True, 1, dt.date(2026, 9, 1), None, dt.time(8, 0), dt.time(9, 0), True, "", ""),
+        (False, None, dt.date(2026, 12, 20), dt.date(2026, 12, 31), dt.time(8, 0), dt.time(9, 0), True, "", ""),
+    ]
+    objetos = []
+    pmap = {"1": prof1, "2": prof2}
+    for rec, dia, ini, fim, hi, hf, ativo, tipo, prof in bloq_def:
+        objetos.append(models.BloqueioAgenda.objects.create(
+            unidade=f.unidade, tipoServico=mapa[tipo] if tipo else None, profissional=pmap[prof] if prof else None,
+            recorrente=rec, diaSemana=dia, dataInicio=ini, dataFim=fim, horaInicio=hi, horaFim=hf, ativo=ativo,
+        ))
+    indice = {o.id: i for i, o in enumerate(objetos)}
+    carregados = []
+    for tipo_rot, tipo in [("nenhum", None), ("P", P.id), ("A", A.id)]:
+        for prof_rot, prof in [("sem", None), ("1", prof1.id), ("2", prof2.id)]:
+            for ini, fim in [(dt.date(2026, 11, 1), dt.date(2026, 11, 30)), (dt.date(2026, 11, 11), dt.date(2026, 11, 11)),
+                             (dt.date(2026, 12, 1), dt.date(2026, 12, 19)), (dt.date(2026, 10, 1), dt.date(2026, 10, 5))]:
+                ids = [indice[b.id] for b in views._load_bloqueios(f.unidade.id, tipo, prof, ini, fim)]
+                carregados.append((tipo_rot, prof_rot, ini, fim, sorted(ids)))
+    _limpar_banco()
+
+    # --- contrato_agenda (view real)
+    from django.test import Client
+
+    def nova_base(cap=2):
+        _limpar_banco()
+        fb = Fabrica().base(capacidade=cap, duracao=50)
+        c = _cliente_logado()
+        p1 = fb.profissional("P1")
+        p2 = fb.profissional("P2")
+        return fb, c, p1, p2
+
+    def reservas_do_aluno(aluno):
+        return [(r.aulaSessao.data, r.aulaSessao.horaInicio, r.aulaSessao.horaFim, r.aulaSessao.profissional_id, r.status)
+                for r in models.Reserva.objects.filter(aluno=aluno).select_related("aulaSessao").order_by("aulaSessao__data", "aulaSessao__horaInicio")]
+
+    def post(c, contrato, dados):
+        resp = c.post(f"/contratos/{contrato.id}/agenda/", dados)
+        msgs = [m.message for m in get_messages(resp.wsgi_request)]
+        c.get(f"/contratos/{contrato.id}/agenda/")  # consome as mensagens para não acumularem
+        return resp.status_code, msgs
+
+    # Cenário A: horários configurados, bloqueio, sessão cheia
+    fb, c, p1, p2 = nova_base()
+    for dia, ini, fim in [(0, dt.time(8, 0), dt.time(11, 0)), (2, dt.time(9, 0), dt.time(10, 0))]:
+        models.HorarioFuncionamento.objects.create(unidade=fb.unidade, diaSemana=dia, horaInicio=ini, horaFim=fim)
+    aluno = fb.aluno("Aluna A")
+    plano = fb.plano(aulas=2)
+    contrato = fb.contrato(aluno, plano, p1, dt.date(2026, 11, 2), dt.date(2026, 11, 30))
+    models.BloqueioAgenda.objects.create(unidade=fb.unidade, profissional=p1, recorrente=False, dataInicio=dt.date(2026, 11, 16),
+                                         horaInicio=dt.time(8, 0), horaFim=dt.time(12, 0))
+    cheia = fb.sessao(dt.date(2026, 11, 23), dt.time(8, 0), dt.time(8, 50), p2)
+    fb.reserva(fb.aluno("X"), cheia)
+    fb.reserva(fb.aluno("Y"), cheia)
+    resp = c.get(f"/contratos/{contrato.id}/agenda/")
+    opcoes_a = [(o["value"], o["allowed_profs"]) for o in resp.context["slot_options"]]
+    admin_id = models.Profissional.objects.exclude(id__in=[p1.id, p2.id]).get().id
+    ids_a = {"admin": admin_id, "p1": p1.id, "p2": p2.id}
+    erros_a = []
+    casos_erro = {
+        "uma_so": {"slot_1": "0|09:00|09:50", "prof_for_1": p2.id},
+        "repetido": {"slot_1": "0|09:00|09:50", "prof_for_1": p2.id, "slot_2": "0|09:00|09:50", "prof_for_2": p2.id},
+        "mesmo_dia": {"slot_1": "0|09:00|09:50", "prof_for_1": p2.id, "slot_2": "0|10:00|10:50", "prof_for_2": p2.id},
+        "slot_inexistente": {"slot_1": "0|08:30|09:20", "prof_for_1": p2.id, "slot_2": "2|09:00|09:50", "prof_for_2": p2.id},
+        "prof_nao_permitido": {"slot_1": "0|09:00|09:50", "prof_for_1": p1.id, "slot_2": "2|09:00|09:50", "prof_for_2": p1.id},
+        "sem_prof": {"slot_1": "0|09:00|09:50", "slot_2": "2|09:00|09:50", "prof_for_2": p2.id},
+        "dia_nao_confere": {"slot_1": "0|09:00|09:50", "slot_day_1": "2", "prof_for_1": p2.id, "slot_2": "2|09:00|09:50", "prof_for_2": p2.id},
+        "formato_ruim": {"slot_1": "lixo", "prof_for_1": p2.id, "slot_2": "2|09:00|09:50", "prof_for_2": p2.id},
+        "parcial_depois_invalido": {"slot_1": "0|09:00|09:50", "prof_for_1": p2.id, "slot_2": "2|09:30|10:20", "prof_for_2": p2.id},
+    }
+    for nome, dados in casos_erro.items():
+        status, msgs = post(c, contrato, dados)
+        criadas = reservas_do_aluno(aluno)
+        erros_a.append((nome, status, msgs, criadas))
+        models.Reserva.objects.filter(aluno=aluno).delete()
+        models.AulaSessao.objects.filter(reserva__isnull=True).exclude(id=cheia.id).delete()
+    status, msgs = post(c, contrato, {"slot_1": "0|09:00|09:50", "prof_for_1": p2.id, "slot_2": "2|09:00|09:50", "prof_for_2": admin_id})
+    ok_a = (status, msgs, reservas_do_aluno(aluno))
+
+    # Cenário B: sem horários configurados (fallback pelas aulas existentes), com bloqueio e sessão cheia
+    fb, c, p1, p2 = nova_base()
+    aluno = fb.aluno("Aluna B")
+    plano = fb.plano(aulas=1)
+    contrato = fb.contrato(aluno, plano, p1, dt.date(2026, 11, 2), dt.date(2026, 11, 30))
+    fb.sessao(dt.date(2026, 11, 2), dt.time(8, 0), dt.time(8, 50), p1)
+    cheia = fb.sessao(dt.date(2026, 11, 23), dt.time(8, 0), dt.time(8, 50), p1)
+    fb.reserva(fb.aluno("X"), cheia)
+    fb.reserva(fb.aluno("Y"), cheia)
+    models.BloqueioAgenda.objects.create(unidade=fb.unidade, profissional=p1, recorrente=False, dataInicio=dt.date(2026, 11, 16),
+                                         dataFim=dt.date(2026, 11, 16), horaInicio=dt.time(8, 0), horaFim=dt.time(12, 0))
+    resp = c.get(f"/contratos/{contrato.id}/agenda/")
+    opcoes_b = [(o["value"], o["allowed_profs"]) for o in resp.context["slot_options"]]
+    status, msgs = post(c, contrato, {"slot_1": "0|08:00|08:50", "prof_for_1": p1.id})
+    ok_b = (status, msgs, reservas_do_aluno(aluno), {"p1": p1.id})
+
+    # Cenário C: contrato SEMANAL (4 semanas, 1 aula) com horários configurados
+    fb, c, p1, p2 = nova_base()
+    models.HorarioFuncionamento.objects.create(unidade=fb.unidade, diaSemana=0, horaInicio=dt.time(9, 0), horaFim=dt.time(10, 0))
+    models.HorarioFuncionamento.objects.create(unidade=fb.unidade, diaSemana=2, horaInicio=dt.time(9, 0), horaFim=dt.time(10, 0))
+    aluno = fb.aluno("Aluna C")
+    plano = fb.plano(aulas=3, recorrencia="SEMANAL")
+    contrato = fb.contrato(aluno, plano, p1, dt.date(2026, 11, 2), dt.date(2027, 2, 2), recorrencia="SEMANAL")
+    resp = c.get(f"/contratos/{contrato.id}/agenda/")
+    ctx = resp.context
+    semanal_info = (ctx["aulas_por_semana"], ctx["agenda_semanas"], [o["value"] for o in ctx["slot_options"]])
+    status, msgs = post(c, contrato, {"slot_1": "0|09:00|09:50", "prof_for_1": p1.id})
+    ok_c = (status, msgs, reservas_do_aluno(aluno))
+    models.Reserva.objects.filter(aluno=aluno).delete()
+    status, msgs = post(c, contrato, {"slot_1": "0|09:00|09:50", "prof_for_1": p1.id, "slot_2": "2|09:00|09:50", "prof_for_2": p1.id})
+    slot_extra_c = (status, msgs, reservas_do_aluno(aluno))
+    _limpar_banco()
+
+    escrever(
+        "agenda", SLOTS=slots, BLOQUEIOS_DEF=defs, BLOQUEADOS=bloqueados, BLOQUEADOS_JUNTOS=juntos, ALINHAR=alinhar,
+        AVANCAR=avancar, HORARIOS_DEF=horarios_def, FUNCIONAMENTO=funcionamento, BLOQ_DB_DEF=bloq_def, BLOQ_DB_CARREGADOS=carregados,
+        IDS_A=ids_a, OPCOES_A=opcoes_a, ERROS_A=erros_a, OK_A=ok_a, OPCOES_B=opcoes_b, OK_B=ok_b, SEMANAL_INFO=semanal_info,
+        OK_C=ok_c, SLOT_EXTRA_C=slot_extra_c,
+    )
+
+
 SECOES = {
     "precos": sec_precos,
     "parcelas": sec_parcelas,
@@ -480,6 +690,7 @@ SECOES = {
     "capacidade": sec_capacidade,
     "reposicao": sec_reposicao,
     "status_aula": sec_status_aula,
+    "agenda": sec_agenda,
 }
 
 
