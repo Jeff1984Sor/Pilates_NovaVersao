@@ -14,7 +14,7 @@ conexão, webhook, sincronização) e telas. Perfil **Full** configura; Secretá
    webhook, só o dia, criar aluno, serviço padrão, sync agendado), **Testar conexão**, **Gerar token do webhook**, **Sincronizar agora**,
    lista dos últimos eventos (resultado, motivo, CPF mascarado), webhook `POST /api/webhooks/totalpass` e sync diário (`registrar_tarefa`, 15 min,
    **desligado por padrão**).
-4. **Testes** (`backend/tests/integracoes`, 155 testes): golden do antigo (52 chamadas), tokens, webhook (cada ramo), tela/teste de conexão/sync/tarefa,
+4. **Testes** (`backend/tests/integracoes`, ~150 testes): golden do antigo (52 chamadas), tokens, webhook (cada ramo), tela/teste de conexão/sync/tarefa,
    eventos, permissões, auditoria e vazamento de segredos. Cliente HTTP do TotalPass **sempre falso** (`httpx.MockTransport`; um autouse troca a fábrica por
    uma que explode se algo tentar a internet).
 
