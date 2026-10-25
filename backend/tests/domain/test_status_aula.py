@@ -1,5 +1,5 @@
 """R5 e R6 - status exibido e conclusão automática. Caracterização contra views._map_status e services.concluir_aulas_passadas."""
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -36,7 +36,7 @@ def test_r5_em_aula_so_para_reservada_e_pendente_dentro_do_horario_inclusive():
 
 
 def test_r5_fusos_diferentes_sao_comparados_em_instante_absoluto():
-    utc = datetime(2026, 10, 26, 12, 30, tzinfo=timezone.utc)  # 09:30 em Brasília
+    utc = datetime(2026, 10, 26, 12, 30, tzinfo=UTC)  # 09:30 em Brasília
     assert sa.status_exibido("RESERVADA", INICIO, FIM, utc) == "em_aula"
 
 
@@ -76,6 +76,6 @@ def test_r6_hoje_so_depois_do_fim_da_aula_inclusive():
 
 def test_r6_virada_do_dia_usa_fuso_de_brasilia_nao_utc():
     # 27/10 01:30 UTC ainda é 26/10 22:30 em Brasília: a aula de 26/10 22:00-22:50 já terminou e a de 23:30 não.
-    agora_utc = datetime(2026, 10, 27, 1, 30, tzinfo=timezone.utc)
+    agora_utc = datetime(2026, 10, 27, 1, 30, tzinfo=UTC)
     assert sa.deve_concluir("RESERVADA", date(2026, 10, 26), time(22, 20), agora_utc)
     assert not sa.deve_concluir("RESERVADA", date(2026, 10, 26), time(23, 30), agora_utc)

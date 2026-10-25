@@ -3,9 +3,13 @@ import pytest
 
 from app.domain import telefone as tel
 from tests.domain.golden.golden_telefone import (
-    CLEAN_PHONE, ENTRADAS, FORMAT_LISTAS, FORMAT_WHATSAPP, PARES_MESMO, TELEFONE_CANON,
+    CLEAN_PHONE,
+    ENTRADAS,
+    FORMAT_LISTAS,
+    FORMAT_WHATSAPP,
+    PARES_MESMO,
+    TELEFONE_CANON,
 )
-
 
 # ---- os três comportamentos antigos, portados fielmente --------------------------------------------------
 

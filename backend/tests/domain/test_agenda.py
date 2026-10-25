@@ -228,7 +228,8 @@ def test_agenda_contrato_semanal_quatro_semanas_uma_aula():
     aulas = ag.aulas_por_semana_do_contrato("SEMANAL", 3)
     assert (aulas, ag.SEMANAS_AGENDA_CONTRATO_SEMANAL) == g.SEMANAL_INFO[:2]
     fim_agenda = ag.fim_da_agenda_do_contrato("SEMANAL", date(2026, 11, 2), date(2027, 2, 2))
-    selecoes = [_selecao("0|09:00|09:50", 10)]
+    prof_id = g.OK_C[2][0][3]
+    selecoes = [_selecao("0|09:00|09:50", prof_id)]
     plano = ag.planejar_agenda_contrato(selecoes, date(2026, 11, 2), fim_agenda, {}, {}, 2)
     assert sorted((r.data, r.inicio, r.fim, r.profissional_id, "RESERVADA") for r in plano.reservas) == g.OK_C[2]
     assert ag.validar_selecao(selecoes, aulas) is None

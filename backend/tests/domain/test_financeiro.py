@@ -3,7 +3,7 @@
 Caracterização contra _build_fluxo_caixa_data_for_period, dre_relatorio/dre_view, contas_pagar_list, create_view
 (recorrência) e aluno_aula_avulsa_agenda do sistema antigo (ver golden_gen/gerar_golden.py).
 """
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -11,7 +11,6 @@ import pytest
 from app.domain import financeiro as fin
 from tests.domain.golden import golden_avulsa as ga
 from tests.domain.golden import golden_financeiro as g
-
 
 # ---------------------------------------------------------------- entradas reconstruídas do golden ------------
 
@@ -201,8 +200,8 @@ def test_r7_status_exibido():
 
 @pytest.mark.parametrize("rotulo", ["tarde_brt", "noite_brt_ja_amanha_utc"])
 def test_r7_atraso_identico_ao_antigo_e_hoje_correto_no_fuso_de_negocio(rotulo):
-    agora = {"tarde_brt": datetime(2026, 10, 25, 15, 0, tzinfo=timezone.utc),
-             "noite_brt_ja_amanha_utc": datetime(2026, 10, 26, 1, 0, tzinfo=timezone.utc)}[rotulo]
+    agora = {"tarde_brt": datetime(2026, 10, 25, 15, 0, tzinfo=UTC),
+             "noite_brt_ja_amanha_utc": datetime(2026, 10, 26, 1, 0, tzinfo=UTC)}[rotulo]
     esperado_antigo = g.ATRASO[rotulo]
     pagar = {d["id"]: d for d in g.DESPESAS}
 

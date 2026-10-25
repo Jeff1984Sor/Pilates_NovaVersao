@@ -13,6 +13,7 @@ Nunca aponta para produção nem usa dados reais: o banco é criado do zero em u
 repositório (``%TEMP%``) e apagado ao final. Nenhuma mensagem de WhatsApp/e-mail é enviada (clientes
 substituídos por dublês).
 """
+# ruff: noqa
 from __future__ import annotations
 
 import datetime as dt
@@ -296,8 +297,8 @@ def sec_telefone():
 
 
 def sec_documentos():
-    from studiopilates.core.validators import validar_cpf
     from studiopilates.core import receita_saude
+    from studiopilates.core.validators import validar_cpf
 
     entradas = ["529.982.247-25", "52998224725", "111.111.111-11", "123", "", None, "390.533.447-05", "11144477735", "000.000.000-00",
                 "529.982.247-24", "5299822472", "529982247250", "abc", "529 982 247 25", "123.456.789-09", "12345678909", "98765432100"]
@@ -427,7 +428,6 @@ def sec_reposicao():
 def sec_status_aula():
     from unittest import mock
 
-    from django.utils import timezone
     from studiopilates.core import services, views
 
     tz = dt.timezone(dt.timedelta(hours=-3))
@@ -583,7 +583,6 @@ def sec_agenda():
     _limpar_banco()
 
     # --- contrato_agenda (view real)
-    from django.test import Client
 
     def nova_base(cap=2):
         _limpar_banco()
@@ -684,8 +683,6 @@ def sec_agenda():
 def sec_financeiro():
     from unittest import mock
 
-    from django.test import Client
-    from django.utils import timezone
     from studiopilates.core import models, views
 
     m = models
@@ -828,7 +825,7 @@ def sec_financeiro():
     def com_agora(agora):
         return mock.patch.object(views.timezone, "now", lambda: agora)
 
-    utc = dt.timezone.utc
+    utc = dt.UTC
     atraso = {}
     for rotulo, agora in [("tarde_brt", dt.datetime(2026, 10, 25, 15, 0, tzinfo=utc)), ("noite_brt_ja_amanha_utc", dt.datetime(2026, 10, 26, 1, 0, tzinfo=utc))]:
         with com_agora(agora):
@@ -863,7 +860,6 @@ def sec_financeiro():
 
 def sec_avulsa():
     from django.contrib.messages import get_messages
-
     from studiopilates.core import models
 
     m = models
@@ -1146,7 +1142,7 @@ def sec_contratos():
         al = f.aluno(rotulo)
         ct = f.contrato(al, plano, prof, ini, fim)
         ids[ct.id] = rotulo
-    agora = dt.datetime(2026, 10, 25, 15, 0, tzinfo=dt.timezone.utc)
+    agora = dt.datetime(2026, 10, 25, 15, 0, tzinfo=dt.UTC)
     gestao = {}
     with mock.patch.object(views.timezone, "now", lambda: agora):
         for filtro in ["ativos", "vencendo", "vencidos", "todos", "xyz", ""]:
@@ -1167,6 +1163,236 @@ def sec_contratos():
     )
 
 
+def sec_whatsapp():
+    from unittest import mock
+
+    from studiopilates.core import models, views
+    from studiopilates.core import whatsapp_scheduler as ws
+    from studiopilates.core.whatsapp_service import WhatsappService
+
+    m = models
+    D = dt.date
+    T = dt.time
+
+    # ---- templates padrão do modelo e renderização (as duas funções antigas)
+    campos = ["template_aviso_aluno", "template_aviso_professor", "template_link_contrato", "template_aviso_renovacao", "template_aniversario",
+              "template_fim_contrato", "template_vencimento_proximo", "template_mensalidade_atraso", "template_tres_meses"]
+    padroes = {c: m.WhatsappConfiguracao._meta.get_field(c).default for c in campos}
+    horarios_padrao = {c: m.WhatsappConfiguracao._meta.get_field(c).default for c in
+                       ["horario_aviso_aluno", "horario_aviso_professor", "horario_aviso_renovacao", "horario_aviso_aniversario", "horario_aviso_vencimento",
+                        "horario_aviso_atraso", "horario_aviso_tres_meses"]}
+    ligados_padrao = {c: m.WhatsappConfiguracao._meta.get_field(c).default for c in
+                      ["avisar_aluno", "avisar_professor", "avisar_renovacao", "avisar_aniversario", "avisar_vencimento", "avisar_atraso", "avisar_tres_meses",
+                       "avisar_fim_contrato", "enviar_link_contrato"]}
+
+    modelos = [
+        "Ola {aluno}", "  Ola {aluno}  ", "", "   ", None, "Oi {aluno}, {faltando} e {aluno}", "R$ {valor} em {data}", "{{literal}} {aluno}",
+        "{aluno", "aluno}", "{0}", "{aluno.nome}", "{valor:.2f}", "{aluno!r}", "Sem variaveis", "Multi\nlinha {aluno}\n{aluno}", "{aluno} {aluno}",
+        "{ALUNO}", "Chave {PIX_CHAVE}", "100% {aluno}", "{}", "{ aluno }", "{aluno:>10}|", "{n:03d}",
+    ]
+    contexto = dict(aluno="Ana", valor="300,00", data="27/10/2026", horario="08:00", n=5, vazio=None)
+    render_views = [(t, views._render_whatsapp_template(t, **contexto)) for t in modelos]
+    render_sched = [(t, ws._render_template(t, **contexto)) for t in modelos]
+
+    # ---- cenario para os avisos automaticos
+    f = Fabrica().base(capacidade=9)
+    outra_unidade = m.Unidade.objects.create(cdUnidade=f.prox(), dsUnidade="Outra", capacidade=5)
+    prof1 = f.profissional("Natalia", celular="(15) 98111-2222")
+    prof2 = f.profissional("Sem Celular", celular="")
+    tipo_alt = m.TipoServico.objects.create(cdTipoServico=f.prox(), dsTipoServico="Alongamento")
+    hoje = D(2026, 10, 26)       # segunda-feira
+    amanha = D(2026, 10, 27)
+    plano = f.plano(valor="300", aulas=2, meses=3)
+
+    ana = f.aluno("Ana", telefone="(15) 99776-2467", nascimento=D(1990, 10, 26))
+    bia = f.aluno("Bia", telefone="11 98888-7777", nascimento=D(1985, 10, 26), status="INATIVO")
+    caio = f.aluno("Caio", telefone=None, nascimento=D(2000, 2, 29))
+    duda = f.aluno("Duda", telefone="21 97777-6666", nascimento=D(1995, 10, 27))
+    edu = f.aluno("Edu", telefone="31 96666-5555")
+    fabi = f.aluno("Fabi", telefone="41 95555-4444", unidade=outra_unidade)
+    dani = f.aluno("Dani", telefone="51 94444-3333", nascimento=D(1992, 1, 1))
+    gabi = f.aluno("Gabi", telefone="(15) 3333-4444")        # so fixo
+    hugo = f.aluno("Hugo", telefone="123")                    # telefone invalido
+
+    def res(aluno, ini, status="RESERVADA", prof=prof1, tipo=None, unidade=None, dia=amanha):
+        s = f.sessao(dia, ini, T(ini.hour, 50), prof, tipo=tipo, unidade=unidade)
+        return f.reserva(aluno, s, status)
+
+    res(ana, T(8, 0))
+    res(ana, T(9, 0), status="PENDENTE", prof=prof2)
+    res(bia, T(10, 0), status="CONCLUIDA")
+    res(bia, T(11, 0), tipo=tipo_alt)
+    res(caio, T(8, 0))
+    res(duda, T(8, 0), status="CANCELADA")
+    res(edu, T(9, 0), status="FALTOU_AVISOU")
+    res(edu, T(10, 0), status="FALTOU_SEM_AVISAR")
+    res(fabi, T(8, 0), unidade=outra_unidade)
+    res(gabi, T(14, 0), prof=None)
+    res(hugo, T(15, 0))
+    res(dani, T(7, 0), status="PENDENTE")
+
+    def ctr(aluno, ini, fim, status="ASSINADO", unidade=None):
+        return f.contrato(aluno, plano, prof1, ini, fim, status=status, unidade=unidade)
+
+    k1 = ctr(ana, D(2026, 8, 3), hoje + dt.timedelta(days=7))
+    k2 = ctr(bia, D(2026, 8, 3), hoje + dt.timedelta(days=7), status="NAO_ASSINADO")
+    k3 = ctr(caio, D(2026, 8, 3), hoje + dt.timedelta(days=7), status="ASSINADO_DIGITALMENTE")
+    k4 = ctr(duda, D(2026, 8, 3), hoje + dt.timedelta(days=6))
+    k5 = ctr(dani, hoje - dt.timedelta(days=90), hoje + dt.timedelta(days=100))
+    k6 = ctr(edu, hoje - dt.timedelta(days=89), hoje + dt.timedelta(days=100))
+    k7 = ctr(gabi, hoje - dt.timedelta(days=90), hoje + dt.timedelta(days=100), status="NAO_ASSINADO")
+    k8 = ctr(fabi, hoje + dt.timedelta(days=0), hoje + dt.timedelta(days=7), unidade=outra_unidade)
+
+    def conta(contrato, status, venc, valor="300.00", **kw):
+        return m.ContasReceber.objects.create(contrato=contrato, status=status, valor=Decimal(valor), dtVencimento=venc, **kw)
+
+    cv1 = conta(k1, "ABERTO", amanha, "300.00")
+    cv2 = conta(k2, "ABERTO", amanha, "150.5")
+    conta(k1, "PAGO", amanha)
+    conta(k3, "ATRASADO", amanha)
+    conta(k1, "ABERTO", amanha + dt.timedelta(days=1))
+    m.ContasReceber.objects.create(aluno=ana, status="ABERTO", valor=Decimal("50"), dtVencimento=amanha)
+    conta(k8, "ABERTO", amanha)   # outra unidade
+    ca1 = conta(k1, "ABERTO", D(2026, 10, 1), "300.00")
+    ca2 = conta(k1, "ABERTO", D(2026, 10, 10), "300.00")
+    ca3 = conta(k2, "ATRASADO", D(2026, 10, 20), "80.00")
+    conta(k1, "PAGO", D(2026, 10, 1))
+    conta(k1, "CANCELADO", D(2026, 10, 1))
+    conta(k1, "ABERTO", hoje)
+
+    cfg = m.WhatsappConfiguracao.objects.create(unidade=f.unidade)
+    cfg_outra = m.WhatsappConfiguracao.objects.create(unidade=outra_unidade)
+
+    chamadas = []
+
+    def falso_send(self, aluno_obj, telefone, mensagem, tipo, contrato=None):
+        chamadas.append(("aluno", aluno_obj.dsNome, telefone, mensagem, str(tipo), contrato.cdContrato if contrato else None))
+        return {"ok": True}
+
+    class ClienteFalso:
+        def send_message(self, telefone, mensagem):
+            chamadas.append(("professor", None, telefone, mensagem, None, None))
+            return {"ok": True}
+
+    def rodar(nome, fn, *args, **kw):
+        antes = len(chamadas)
+        retorno = fn(*args, **kw)
+        logs = [(x.dedupe_key, x.tipo, x.telefone, x.data_referencia) for x in m.WhatsappAgendamentoLog.objects.order_by("id")]
+        return {"funcao": nome, "retorno": retorno, "chamadas": chamadas[antes:], "logs_total": len(logs)}
+
+    sleeps = mock.patch.object(ws.time, "sleep", lambda s: None)
+    with sleeps, mock.patch.object(WhatsappService, "send", falso_send), \
+            mock.patch.object(WhatsappService, "_get_client_for_unidade", lambda self, u: ClienteFalso()):
+        servico = WhatsappService()
+        execucoes = []
+        for rodada in (1, 2):   # a 2a rodada prova o dedupe
+            resultado = {}
+            for nome, fn, args in [
+                ("lembrete_aluno", ws._send_class_reminders, (servico, cfg, amanha)),
+                ("agenda_professor", ws._send_professor_schedule, (servico, cfg, amanha)),
+                ("renovacao", ws._send_contract_renewals, (servico, cfg, hoje + dt.timedelta(days=7))),
+                ("aniversario", ws._send_birthdays, (servico, cfg, hoje)),
+                ("vencimento", ws._send_payment_due, (servico, cfg, hoje)),
+                ("atraso", ws._send_payment_overdue, (servico, cfg, hoje)),
+                ("tres_meses", ws._send_three_months, (servico, cfg, hoje)),
+            ]:
+                r = rodar(nome, fn, *args)
+                if isinstance(r["retorno"], dict):
+                    r["entradas"] = [(e["aluno"], e["status"], e["telefone"], e["mensagem"]) for e in r["retorno"]["entries"]]
+                    r["retorno"] = {k: v for k, v in r["retorno"].items() if k != "entries"}
+                resultado[nome] = r
+            execucoes.append(resultado)
+        # resumo detalhado do lembrete (entries) a partir de um novo cálculo forçado
+        forcado = ws._send_class_reminders  # noqa: F841 (documentacao)
+        chaves_log = sorted(x.dedupe_key for x in m.WhatsappAgendamentoLog.objects.all())
+
+        # templates em branco + force=True: usa os fallbacks do codigo (ou nao envia)
+        m.WhatsappAgendamentoLog.objects.all().delete()
+        cfg.template_aviso_aluno = ""
+        cfg.template_aviso_professor = ""
+        cfg.template_aviso_renovacao = ""
+        cfg.template_aniversario = ""
+        cfg.template_vencimento_proximo = ""
+        cfg.template_mensalidade_atraso = ""
+        cfg.template_tres_meses = ""
+        cfg.save()
+        branco = {}
+        for nome, fn, args in [
+            ("lembrete_aluno", ws._send_class_reminders, (servico, cfg, amanha)),
+            ("agenda_professor", ws._send_professor_schedule, (servico, cfg, amanha)),
+            ("renovacao", ws._send_contract_renewals, (servico, cfg, hoje + dt.timedelta(days=7))),
+            ("aniversario", ws._send_birthdays, (servico, cfg, hoje)),
+            ("vencimento", ws._send_payment_due, (servico, cfg, hoje)),
+            ("atraso", ws._send_payment_overdue, (servico, cfg, hoje)),
+            ("tres_meses", ws._send_three_months, (servico, cfg, hoje)),
+        ]:
+            r = rodar(nome, fn, *args, force=True)
+            if isinstance(r["retorno"], dict):
+                r["entradas"] = [(e["aluno"], e["status"], e["telefone"], e["mensagem"]) for e in r["retorno"]["entries"]]
+                r["retorno"] = {k: v for k, v in r["retorno"].items() if k != "entries"}
+            branco[nome] = r
+
+        # montar_mensagem_lembrete direto (UI ao vivo)
+        cfg.template_aviso_aluno = "Aluno {aluno} {aulas} | {horarios} | {unidade} {data} {tipo_servico} {horario}"
+        reservas_ana = ws.reservas_lembrete_por_aluno(cfg, amanha)
+        grupo_ana = next(v for k, v in reservas_ana.items() if v[0].aluno.dsNome == "Ana")
+        mensagem_ui = ws.montar_mensagem_lembrete(cfg, grupo_ana, amanha)
+
+    # ---- _run_jobs: quais avisos disparam em cada horario (sem PG: o advisory lock e simulado)
+    m.WhatsappAgendamentoLog.objects.all().delete()
+    m.WhatsappConfiguracao.objects.filter(pk=cfg.pk).update(
+        template_aviso_aluno="L {aluno}", template_aviso_professor="P {horario}", template_aviso_renovacao="R {aluno}",
+        template_aniversario="A {aluno}", template_vencimento_proximo="V {aluno}", template_mensalidade_atraso="T {aluno}",
+        template_tres_meses="M {aluno}", avisar_aniversario=True, avisar_vencimento=True, avisar_atraso=True, avisar_tres_meses=True,
+    )
+    m.WhatsappConfiguracao.objects.filter(pk=cfg_outra.pk).update(avisar_aluno=False, avisar_professor=False, avisar_renovacao=False)
+    quando = {}
+    for hhmm in [(0, 0), (8, 59), (9, 0), (9, 5), (10, 0), (17, 59), (18, 0), (18, 5), (19, 0), (23, 55)]:
+        m.WhatsappAgendamentoLog.objects.all().delete()
+        agora = dt.datetime(2026, 10, 26, hhmm[0], hhmm[1], tzinfo=__import__("zoneinfo").ZoneInfo("America/Sao_Paulo"))
+        antes = len(chamadas)
+        fake_conn = mock.MagicMock()
+        fake_conn.cursor.return_value.__enter__.return_value.fetchone.return_value = (True,)
+        with sleeps, mock.patch.object(WhatsappService, "send", falso_send), \
+                mock.patch.object(WhatsappService, "_get_client_for_unidade", lambda self, u: ClienteFalso()), \
+                mock.patch.object(ws, "connection", fake_conn), \
+                mock.patch.object(ws.timezone, "now", lambda a=agora: a), mock.patch.object(ws.timezone, "localtime", lambda value=None, a=agora: a), \
+                mock.patch.object(ws.timezone, "localdate", lambda value=None, a=agora: a.date()):
+            ws._run_jobs()
+        tipos = sorted(set(l.dedupe_key.split(":")[0] for l in m.WhatsappAgendamentoLog.objects.all()))
+        quando[f"{hhmm[0]:02d}:{hhmm[1]:02d}"] = tipos
+
+    respostas = [
+        {"error": "Session not connected"}, {"error": "x", "response": {"message": "WhatsApp session is not connected"}}, {"error": "timeout"},
+        {"ok": True}, None, "texto", {"error": None, "response": {"message": "Session disconnected: please connect"}},
+        {"error": "Rate", "retry_after": 12}, {"error": "x", "response": {"retry_after": "30"}}, {"retry_after": "abc", "error": "y"},
+        {"error": "x", "retry_after": 2}, {"error": "x", "retry_after": 0}, {"status": "sent"}, {"error": "SESSION CONNECT lost"}, {"response": "ok"},
+    ]
+    sessao_caiu = [(r, ws._is_session_down(r)) for r in respostas]
+    retry = []
+    for r in respostas:
+        pausas = []
+        with mock.patch.object(ws.time, "sleep", lambda sec: pausas.append(sec)):
+            final = ws._send_with_retry(lambda r=r: r, attempts=3, pause_seconds=5.0)
+        retry.append((r, pausas, final))
+
+    definicoes = {
+        "alunos": [(a.id, a.dsNome, a.cdUnidade_id, a.status, a.dtNascimento, [t.dsTelefone for t in a.telefones.all()]) for a in m.Aluno.objects.order_by("id")],
+        "reservas": [(r.id, r.aluno_id, r.status, r.aulaSessao.data, r.aulaSessao.horaInicio, r.aulaSessao.tipoServico.dsTipoServico, r.aulaSessao.unidade_id,
+                      r.aulaSessao.unidade.dsUnidade, r.aulaSessao.profissional_id) for r in m.Reserva.objects.select_related("aulaSessao", "aulaSessao__tipoServico", "aulaSessao__unidade").order_by("id")],
+        "profissionais": [(p.id, p.profissional, p.celular) for p in m.Profissional.objects.exclude(profissional__startswith="admin").order_by("id")],
+        "contratos": [(k.id, k.cdContrato, k.cdAluno_id, k.cdUnidade_id, k.dtInicioContrato, k.dtFimContrato, k.status) for k in m.Contrato.objects.order_by("id")],
+        "contas": [(c.id, c.contrato_id, c.status, c.valor, c.dtVencimento) for c in m.ContasReceber.objects.order_by("id")],
+        "unidades": {f.unidade.id: f.unidade.dsUnidade, outra_unidade.id: outra_unidade.dsUnidade},
+        "principal": f.unidade.id,
+    }
+    escrever(
+        "whatsapp", PADROES=padroes, HORARIOS_PADRAO=horarios_padrao, LIGADOS_PADRAO=ligados_padrao, MODELOS=modelos, CONTEXTO=contexto,
+        RENDER_VIEWS=render_views, RENDER_SCHEDULER=render_sched, HOJE=hoje, AMANHA=amanha, DEFINICOES=definicoes, EXECUCOES=execucoes,
+        CHAVES_LOG=chaves_log, EM_BRANCO=branco, MENSAGEM_UI=mensagem_ui, QUANDO=quando, SESSAO_CAIU=sessao_caiu, RETRY=retry,
+    )
+
+
 SECOES = {
     "precos": sec_precos,
     "parcelas": sec_parcelas,
@@ -1181,6 +1407,7 @@ SECOES = {
     "receita": sec_receita,
     "tokens": sec_tokens,
     "contratos": sec_contratos,
+    "whatsapp": sec_whatsapp,
 }
 
 

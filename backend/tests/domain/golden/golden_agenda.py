@@ -857,14 +857,14 @@ BLOQ_DB_CARREGADOS = [
 ]
 
 # valor gerado pelo sistema antigo em 2026-10-25
-IDS_A = {'admin': 3, 'p1': 4, 'p2': 5}
+IDS_A = {'admin': 1, 'p1': 2, 'p2': 3}
 
 # valor gerado pelo sistema antigo em 2026-10-25
 OPCOES_A = [
-    ('0|08:00|08:50', [3]),
-    ('0|09:00|09:50', [3, 5]),
-    ('0|10:00|10:50', [3, 5]),
-    ('2|09:00|09:50', [3, 5]),
+    ('0|08:00|08:50', [1]),
+    ('0|09:00|09:50', [1, 3]),
+    ('0|10:00|10:50', [1, 3]),
+    ('2|09:00|09:50', [1, 3]),
 ]
 
 # valor gerado pelo sistema antigo em 2026-10-25
@@ -875,11 +875,11 @@ ERROS_A = [
         302,
         ['Nao repita o mesmo horario.'],
         [
-            (date(2026, 11, 2), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 9), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 16), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 23), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 30), time(9, 0), time(9, 50), 5, 'RESERVADA'),
+            (date(2026, 11, 2), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 9), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 16), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 23), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 30), time(9, 0), time(9, 50), 3, 'RESERVADA'),
         ],
     ),
     (
@@ -887,11 +887,11 @@ ERROS_A = [
         302,
         ['Selecione apenas um horario por dia.'],
         [
-            (date(2026, 11, 2), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 9), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 16), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 23), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 30), time(9, 0), time(9, 50), 5, 'RESERVADA'),
+            (date(2026, 11, 2), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 9), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 16), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 23), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 30), time(9, 0), time(9, 50), 3, 'RESERVADA'),
         ],
     ),
     ('slot_inexistente', 302, ['Horario invalido para o dia selecionado.'], []),
@@ -901,10 +901,10 @@ ERROS_A = [
         302,
         ['Selecione o professor em todos os horarios.'],
         [
-            (date(2026, 11, 4), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 11), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 18), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 25), time(9, 0), time(9, 50), 5, 'RESERVADA'),
+            (date(2026, 11, 4), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 11), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 18), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 25), time(9, 0), time(9, 50), 3, 'RESERVADA'),
         ],
     ),
     ('dia_nao_confere', 302, ['Dia e horario nao conferem.'], []),
@@ -914,11 +914,11 @@ ERROS_A = [
         302,
         ['Horario invalido para o dia selecionado.'],
         [
-            (date(2026, 11, 2), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 9), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 16), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 23), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-            (date(2026, 11, 30), time(9, 0), time(9, 50), 5, 'RESERVADA'),
+            (date(2026, 11, 2), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 9), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 16), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 23), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+            (date(2026, 11, 30), time(9, 0), time(9, 50), 3, 'RESERVADA'),
         ],
     ),
 ]
@@ -928,15 +928,15 @@ OK_A = (
     302,
     ['Agenda criada com sucesso.'],
     [
-        (date(2026, 11, 2), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-        (date(2026, 11, 4), time(9, 0), time(9, 50), 3, 'RESERVADA'),
-        (date(2026, 11, 9), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-        (date(2026, 11, 11), time(9, 0), time(9, 50), 3, 'RESERVADA'),
-        (date(2026, 11, 16), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-        (date(2026, 11, 18), time(9, 0), time(9, 50), 3, 'RESERVADA'),
-        (date(2026, 11, 23), time(9, 0), time(9, 50), 5, 'RESERVADA'),
-        (date(2026, 11, 25), time(9, 0), time(9, 50), 3, 'RESERVADA'),
-        (date(2026, 11, 30), time(9, 0), time(9, 50), 5, 'RESERVADA'),
+        (date(2026, 11, 2), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+        (date(2026, 11, 4), time(9, 0), time(9, 50), 1, 'RESERVADA'),
+        (date(2026, 11, 9), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+        (date(2026, 11, 11), time(9, 0), time(9, 50), 1, 'RESERVADA'),
+        (date(2026, 11, 16), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+        (date(2026, 11, 18), time(9, 0), time(9, 50), 1, 'RESERVADA'),
+        (date(2026, 11, 23), time(9, 0), time(9, 50), 3, 'RESERVADA'),
+        (date(2026, 11, 25), time(9, 0), time(9, 50), 1, 'RESERVADA'),
+        (date(2026, 11, 30), time(9, 0), time(9, 50), 3, 'RESERVADA'),
     ],
 )
 
@@ -948,11 +948,11 @@ OK_B = (
     200,
     ['Conflitos ao reservar: Bloqueio em 2026-11-16 08:00; Sem vaga em 2026-11-23 08:00'],
     [
-        (date(2026, 11, 2), time(8, 0), time(8, 50), 7, 'RESERVADA'),
-        (date(2026, 11, 9), time(8, 0), time(8, 50), 7, 'RESERVADA'),
-        (date(2026, 11, 30), time(8, 0), time(8, 50), 7, 'RESERVADA'),
+        (date(2026, 11, 2), time(8, 0), time(8, 50), 2, 'RESERVADA'),
+        (date(2026, 11, 9), time(8, 0), time(8, 50), 2, 'RESERVADA'),
+        (date(2026, 11, 30), time(8, 0), time(8, 50), 2, 'RESERVADA'),
     ],
-    {'p1': 7},
+    {'p1': 2},
 )
 
 # valor gerado pelo sistema antigo em 2026-10-25
@@ -963,10 +963,10 @@ OK_C = (
     302,
     ['Agenda criada com sucesso.'],
     [
-        (date(2026, 11, 2), time(9, 0), time(9, 50), 10, 'RESERVADA'),
-        (date(2026, 11, 9), time(9, 0), time(9, 50), 10, 'RESERVADA'),
-        (date(2026, 11, 16), time(9, 0), time(9, 50), 10, 'RESERVADA'),
-        (date(2026, 11, 23), time(9, 0), time(9, 50), 10, 'RESERVADA'),
+        (date(2026, 11, 2), time(9, 0), time(9, 50), 2, 'RESERVADA'),
+        (date(2026, 11, 9), time(9, 0), time(9, 50), 2, 'RESERVADA'),
+        (date(2026, 11, 16), time(9, 0), time(9, 50), 2, 'RESERVADA'),
+        (date(2026, 11, 23), time(9, 0), time(9, 50), 2, 'RESERVADA'),
     ],
 )
 
@@ -975,9 +975,9 @@ SLOT_EXTRA_C = (
     302,
     ['Agenda criada com sucesso.'],
     [
-        (date(2026, 11, 2), time(9, 0), time(9, 50), 10, 'RESERVADA'),
-        (date(2026, 11, 9), time(9, 0), time(9, 50), 10, 'RESERVADA'),
-        (date(2026, 11, 16), time(9, 0), time(9, 50), 10, 'RESERVADA'),
-        (date(2026, 11, 23), time(9, 0), time(9, 50), 10, 'RESERVADA'),
+        (date(2026, 11, 2), time(9, 0), time(9, 50), 2, 'RESERVADA'),
+        (date(2026, 11, 9), time(9, 0), time(9, 50), 2, 'RESERVADA'),
+        (date(2026, 11, 16), time(9, 0), time(9, 50), 2, 'RESERVADA'),
+        (date(2026, 11, 23), time(9, 0), time(9, 50), 2, 'RESERVADA'),
     ],
 )

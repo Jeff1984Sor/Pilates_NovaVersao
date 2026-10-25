@@ -5,6 +5,7 @@ fastapi e pydantic-settings (pode ser o venv do projeto novo). Usa SQLite em arq
 
     <python do projeto novo> backend/tests/domain/golden_gen/gerar_golden_comissao.py
 """
+# ruff: noqa
 from __future__ import annotations
 
 import datetime as dt
@@ -26,15 +27,14 @@ sys.path.insert(0, os.path.join(ANTIGO, "backend"))
 sys.path.append(AQUI)  # para importar o gerador principal (escrever)
 os.chdir(tempfile.gettempdir())
 
-from fastapi import HTTPException  # noqa: E402
-from gerar_golden import escrever  # noqa: E402
-
 from app.core.database import Base, SessionLocal, engine, import_all_models  # noqa: E402
 from app.modules.comissoes import models as cm  # noqa: E402,F401
 from app.modules.comissoes.service import ComissaoService, parse_competencia  # noqa: E402
 from app.modules.contratos.models import Contrato  # noqa: E402
 from app.modules.financeiro.models import ContasReceber, ContaStatus  # noqa: E402
 from app.modules.profissionais.models import Profissional  # noqa: E402
+from fastapi import HTTPException  # noqa: E402
+from gerar_golden import escrever  # noqa: E402
 
 
 def main() -> None:

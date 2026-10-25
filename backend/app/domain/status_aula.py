@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, time
-from typing import Protocol, TypeVar
+from typing import Protocol
 from zoneinfo import ZoneInfo
 
 FUSO_NEGOCIO = ZoneInfo("America/Sao_Paulo")
@@ -58,9 +58,6 @@ class _ReservaConclusivel(Protocol):
     hora_fim: time
 
 
-T = TypeVar("T", bound=_ReservaConclusivel)
-
-
 def deve_concluir(status: str, data_aula: date, hora_fim: time, agora: datetime) -> bool:
     """RESERVADA/PENDENTE cuja aula já terminou: dia anterior, ou hoje com ``hora_fim <= hora atual``.
 
@@ -73,7 +70,7 @@ def deve_concluir(status: str, data_aula: date, hora_fim: time, agora: datetime)
     return data_aula < hoje or (data_aula == hoje and hora_fim <= local.time())
 
 
-def reservas_a_concluir(agora: datetime, reservas: Iterable[T]) -> list[T]:
+def reservas_a_concluir[T: _ReservaConclusivel](agora: datetime, reservas: Iterable[T]) -> list[T]:
     """Subconjunto de ``reservas`` (objetos com ``status``, ``data`` e ``hora_fim``) que viram CONCLUIDA."""
     return [r for r in reservas if deve_concluir(r.status, r.data, r.hora_fim, agora)]
 

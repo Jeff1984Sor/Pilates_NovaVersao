@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import random
 import string
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
@@ -78,7 +78,7 @@ def test_r10_chaves_de_fallback_como_secret_key_fallbacks():
 
 
 def test_r10_aceita_datetime_com_fuso_como_agora():
-    agora = datetime.fromtimestamp(g.T0 + 3600, tz=timezone.utc)
+    agora = datetime.fromtimestamp(g.T0 + 3600, tz=UTC)
     assert tk.verificar_token_contrato(g.TOKEN_CONTRATO, g.CHAVE, agora) == 123
 
 

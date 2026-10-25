@@ -10,7 +10,6 @@ import pytest
 from app.domain import contratos as ct
 from tests.domain.golden import golden_contratos as g
 
-
 # ---------------------------------------------------------------- reconstrução do cenário --------------------
 
 def _contratos() -> list[ct.ContratoRef]:
@@ -88,7 +87,7 @@ def test_r13_sessao_compartilhada_nao_e_apagada_enquanto_houver_reserva_de_outro
     ],
 )
 def test_r13_inferencia_periodo_unidade_servico_inclusive_nas_pontas(rotulo, cai):
-    reserva = next(r for r, meta in zip(_reservas(), g.RESERVAS) if meta[1] == rotulo)
+    reserva = next(r for r, meta in zip(_reservas(), g.RESERVAS, strict=True) if meta[1] == rotulo)
     assert ct.reserva_cai_no_contrato_antigo(_contratos()[0], reserva) is cai
 
 
