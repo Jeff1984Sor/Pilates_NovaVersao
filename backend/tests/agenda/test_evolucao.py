@@ -1,6 +1,7 @@
 """Evolução e avaliação por reserva: CRUD, modelo como ponto de partida, finalizar, histórico, exportação e IA."""
 
 import io
+from datetime import time
 
 from sqlalchemy import select
 
@@ -80,7 +81,7 @@ def test_evolucao_com_status_de_falta(client, db, cenario, full):
 
 
 def test_evolucao_sem_profissional_na_aula_exige_informar(client, db, cenario, full):
-    ses = fabrica.sessao(db, cenario.un, cenario.srv, None, inicio=__import__("datetime").time(16, 0))
+    ses = fabrica.sessao(db, cenario.un, cenario.srv, None, inicio=time(16, 0))
     r = fabrica.reserva_direta(db, cenario.a1, ses)
     db.commit()
     h = auth(full)
@@ -102,7 +103,7 @@ def test_falha_na_finalizacao_desfaz_a_evolucao(client, db, cenario, full):
 
 def test_avaliacao_crud_e_historico_do_aluno(client, db, cenario, full):
     r1 = nova_reserva(db, cenario)
-    ses2 = fabrica.sessao(db, cenario.un, cenario.srv, cenario.prof, inicio=__import__("datetime").time(10, 0))
+    ses2 = fabrica.sessao(db, cenario.un, cenario.srv, cenario.prof, inicio=time(10, 0))
     r2 = fabrica.reserva_direta(db, cenario.a1, ses2).id
     db.commit()
     h = auth(full)
@@ -116,7 +117,7 @@ def test_avaliacao_crud_e_historico_do_aluno(client, db, cenario, full):
 
 def test_historico_de_evolucoes_do_aluno_traz_as_de_todas_as_aulas(client, db, cenario, full):
     r1 = nova_reserva(db, cenario)
-    ses2 = fabrica.sessao(db, cenario.un, cenario.srv, cenario.prof, inicio=__import__("datetime").time(10, 0))
+    ses2 = fabrica.sessao(db, cenario.un, cenario.srv, cenario.prof, inicio=time(10, 0))
     r2 = fabrica.reserva_direta(db, cenario.a1, ses2).id
     db.commit()
     h = auth(full)

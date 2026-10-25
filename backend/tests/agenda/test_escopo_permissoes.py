@@ -1,8 +1,11 @@
 """Perfil Professor (R11/R4): só as próprias aulas; Full/Secretária/Professor nas rotas; login obrigatório."""
 
+from datetime import time
+
 from sqlalchemy import select
 
 from app.core.models import Auditoria
+from app.core.security import hash_senha
 from app.modules.agenda import servico
 from tests.agenda import fabrica
 from tests.conftest import auth
@@ -57,7 +60,7 @@ def test_professor_nao_edita_evolucao_alheia(client, db, cenario, outro_professo
 
 def test_professor_ve_o_aluno_das_proprias_aulas_e_so_as_aulas_dele(client, db, cenario, outro_professor, professor):
     # a aluna "alheia" também faz uma aula com a Natalia: passa a ser aluna dela, mas a aula da outra continua escondida
-    ses = fabrica.sessao(db, cenario.un, cenario.srv, cenario.prof, inicio=__import__("datetime").time(14, 0))
+    ses = fabrica.sessao(db, cenario.un, cenario.srv, cenario.prof, inicio=time(14, 0))
     db.commit()
     fabrica.reserva_direta(db, outro_professor.aluna, ses)
     db.commit()
@@ -156,7 +159,7 @@ def test_sem_permissao_de_aulas_nao_entra(client, db, cenario):
     from app.core.models import Usuario
 
     u = Usuario(nome="Sem nada", email="vazio@exemplo.com", perfil_acesso_id=db.scalar(select(PerfilAcesso.id).where(PerfilAcesso.nome == "Vazio")),
-                senha_hash=__import__("app.core.security", fromlist=["hash_senha"]).hash_senha("Senha@Forte1"))
+                senha_hash=hash_senha("Senha@Forte1"))
     db.add(u)
     db.commit()
     t = entrar(client, "vazio@exemplo.com").json()["access_token"]

@@ -1,6 +1,6 @@
 """Fixtures da agenda: modelos registrados e cenário mínimo (unidade, serviço, professor, alunos)."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 
 import pytest
 from sqlalchemy import select
@@ -88,7 +88,7 @@ def outro_professor(client, db, cenario):
     u = criar_usuario(db, "Professor", email="prof2@exemplo.com")
     p2 = fabrica.profissional(db, "Outra Professora", usuario_id=u.id)
     aluna = fabrica.aluno(db, cenario.un, "Aluna Alheia")
-    ses = fabrica.sessao(db, cenario.un, cenario.srv, p2, inicio=__import__("datetime").time(10, 0))
+    ses = fabrica.sessao(db, cenario.un, cenario.srv, p2, inicio=time(10, 0))
     db.commit()
     from app.modules.agenda import servico
 
