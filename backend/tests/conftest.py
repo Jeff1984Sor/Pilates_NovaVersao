@@ -10,6 +10,10 @@ os.environ["DATABASE_URL"] = f"sqlite:///{(_TMP / 'test.db').as_posix()}"
 os.environ["STORAGE_DIR"] = str(_TMP / "storage")
 os.environ["MIGRAR_NA_SUBIDA"] = "false"
 os.environ["WORKER_EMBUTIDO"] = "false"
+# o .env do servidor (hml/prod) não pode vazar para os testes
+os.environ["ALLOWED_HOSTS"] = '["localhost", "127.0.0.1", "testserver"]'
+os.environ["CORS_ORIGINS"] = '["http://localhost:3000", "http://127.0.0.1:3000"]'
+os.environ["FRONTEND_URL"] = "http://localhost:3000"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
