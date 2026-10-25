@@ -35,6 +35,7 @@ CATALOGO: list[dict] = [
         {"id": "alunos", "nome": "Alunos (cadastro, ficha, documentos)", "acoes": ["ver", "editar", "excluir"]},
         {"id": "agenda", "nome": "Agenda (grade semanal e horários das aulas)", "acoes": ["ver", "editar", "excluir"]},
         {"id": "aulas", "nome": "Aulas (painel operacional, evolução e avaliação)", "acoes": ["ver", "operar", "evoluir", "avaliar"]},
+        {"id": "reposicoes", "nome": "Reposições (pedidos dos alunos: só a gerência aprova)", "acoes": ["ver", "editar"]},
     ]},
     {"grupo": "Contratos", "recursos": [
         {"id": "contratos", "nome": "Contratos (precificação, parcelas, assinatura)", "acoes": ["ver", "editar", "excluir", "enviar"]},
