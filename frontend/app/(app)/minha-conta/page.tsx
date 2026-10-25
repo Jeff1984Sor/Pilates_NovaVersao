@@ -6,6 +6,7 @@ import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { useState } from "react";
 
+import { MeuProfissionalCard } from "@/components/cadastros/meu-profissional";
 import { Mono } from "@/components/mayacorp/brand";
 import { Field } from "@/components/mayacorp/form";
 import { PageHeader } from "@/components/mayacorp/page-header";
@@ -149,6 +150,8 @@ export default function MinhaContaPage() {
             </div>
           </Field>
         </div>
+
+        <MeuProfissionalCard />
 
         <TrocarSenha />
       </div>
