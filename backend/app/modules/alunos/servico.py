@@ -669,6 +669,19 @@ def gerar_link_assinatura_termo(a: Aluno) -> str:  # pragma: no cover - ponto de
     raise NotImplementedError("Link de assinatura do termo ainda não disponível.")
 
 
+ROTULOS_ESTADO_CIVIL = {"SOLTEIRO": "Solteiro(a)", "CASADO": "Casado(a)", "DIVORCIADO": "Divorciado(a)", "VIUVO": "Viúvo(a)",
+                         "SEPARADO": "Separado(a)", "UNIAO_ESTAVEL": "União estável", "OUTRO": "Outro"}
+
+
+def opcoes(db: Session) -> sc.Opcoes:
+    return sc.Opcoes(
+        unidades=[sc.OpcaoUnidade(id=u.id, nome=u.nome, ativo=u.ativo) for u in db.scalars(select(Unidade).order_by(Unidade.nome))],
+        profissoes=[sc.OpcaoSimples(id=p.id, nome=p.nome) for p in db.scalars(select(Profissao).order_by(Profissao.nome))],
+        termos=[sc.OpcaoSimples(id=t.id, nome=t.nome) for t in db.scalars(select(TermoUso).order_by(TermoUso.nome))],
+        estados_civis=[sc.OpcaoTexto(id=i, nome=n) for i, n in ROTULOS_ESTADO_CIVIL.items()],
+    )
+
+
 # ------------------------------------------------------------------------------------------------ CEP (ViaCEP)
 _CACHE_CEP: dict[str, tuple[float, sc.CepOut | None]] = {}
 TTL_CEP_S = 600

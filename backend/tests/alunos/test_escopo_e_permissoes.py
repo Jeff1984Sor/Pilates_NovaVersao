@@ -114,7 +114,7 @@ def test_somente_leitura_nao_escreve(client, db, h, criar):
 def test_todas_as_rotas_de_alunos_exigem_login(client, criar):
     a = criar()
     i = a["id"]
-    for metodo, url in [("get", "/api/alunos"), ("get", "/api/alunos/busca?q=ab"), ("get", "/api/alunos/cep/01310100"),
+    for metodo, url in [("get", "/api/alunos"), ("get", "/api/alunos/busca?q=ab"), ("get", "/api/alunos/opcoes"), ("get", "/api/alunos/cep/01310100"),
                         ("post", "/api/alunos"), ("get", f"/api/alunos/{i}"), ("get", f"/api/alunos/{i}/resumo"),
                         ("put", f"/api/alunos/{i}"), ("delete", f"/api/alunos/{i}"), ("get", f"/api/alunos/{i}/vinculos"),
                         ("post", f"/api/alunos/{i}/inativar"), ("post", f"/api/alunos/{i}/reativar"),

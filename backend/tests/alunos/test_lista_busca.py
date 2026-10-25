@@ -69,3 +69,11 @@ def test_busca_rapida_limita_resultados(client, h, base, db):
     db.commit()
     assert len(client.get("/api/alunos/busca", headers=h, params={"q": "marta"}).json()) == 8
     assert len(client.get("/api/alunos/busca", headers=h, params={"q": "marta", "limite": 3}).json()) == 3
+
+
+def test_opcoes_para_os_selects(client, h, base):
+    o = client.get("/api/alunos/opcoes", headers=h).json()
+    assert o["unidades"] == [{"id": base["unidade_id"], "nome": "Unidade Teste", "ativo": True}]
+    assert [p["nome"] for p in o["profissoes"]] == ["Engenheira"] and [t["nome"] for t in o["termos"]] == ["Termo de imagem"]
+    assert {e["id"] for e in o["estados_civis"]} >= {"SOLTEIRO", "CASADO", "UNIAO_ESTAVEL"}
+    assert client.get("/api/alunos/opcoes").status_code == 401

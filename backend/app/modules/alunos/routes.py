@@ -50,6 +50,12 @@ def busca_rapida(ctx: Ctx, q: str = Query("", max_length=100), limite: int = Que
     return servico.busca_rapida(ctx, q, limite)
 
 
+@router.get("/opcoes", response_model=sc.Opcoes)
+def opcoes(ctx: Ctx):
+    """Unidades, profissões, termos e estados civis para os selects do cadastro."""
+    return servico.opcoes(ctx.db)
+
+
 @router.get("/cep/{cep}", response_model=sc.CepOut)
 def consultar_cep(cep: str, ctx: Ctx):
     return servico.buscar_cep(cep)

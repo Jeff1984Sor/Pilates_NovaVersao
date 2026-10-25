@@ -224,3 +224,28 @@ class CepOut(Schema):
     bairro: str
     cidade: str
     uf: str
+
+
+class OpcaoUnidade(Schema):
+    id: int
+    nome: str
+    ativo: bool
+
+
+class OpcaoSimples(Schema):
+    id: int
+    nome: str
+
+
+class OpcaoTexto(Schema):
+    id: str
+    nome: str
+
+
+class Opcoes(Schema):
+    """Listas para os selects do cadastro (evita depender das rotas de Cadastros e de permissões diferentes)."""
+
+    unidades: list[OpcaoUnidade]
+    profissoes: list[OpcaoSimples]
+    termos: list[OpcaoSimples]
+    estados_civis: list[OpcaoTexto]
