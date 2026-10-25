@@ -158,7 +158,7 @@ def test_sem_permissao_de_aulas_nao_entra(client, db, cenario):
     db.commit()
     from app.core.models import Usuario
 
-    u = Usuario(nome="Sem nada", email="vazio@exemplo.com", perfil_acesso_id=db.scalar(select(PerfilAcesso.id).where(PerfilAcesso.nome == "Vazio")),
+    u = Usuario(nome="Sem nada", email="vazio@exemplo.com", login="vazio", perfil_acesso_id=db.scalar(select(PerfilAcesso.id).where(PerfilAcesso.nome == "Vazio")),
                 senha_hash=hash_senha("Senha@Forte1"))
     db.add(u)
     db.commit()

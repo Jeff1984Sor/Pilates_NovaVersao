@@ -78,7 +78,6 @@ def test_secretaria_nao_mexe_em_fornecedores_e_categorias(client, secretaria, me
     assert _pede(client, metodo, url, secretaria, corpo).status_code == 403
 
 
-@pytest.mark.xfail(strict=False, reason="aguarda catálogo do coordenador: Secretária edita horários, bloqueios, termos e modelos")
 @pytest.mark.parametrize("metodo,url,corpo", AGENDA_DOCS)
 def test_secretaria_edita_horarios_bloqueios_termos_e_modelos(client, secretaria, metodo, url, corpo):
     """Decisão do Jefferson: a Secretária edita horários (funcionamento e studio), bloqueios, termos e modelos.
@@ -117,7 +116,7 @@ def test_perfil_com_so_ver_consulta_mas_nao_escreve(client, db):
     p = PerfilAcesso(nome="Leitura de horários", permissoes=["cadastros_horarios.ver"])
     db.add(p)
     db.flush()
-    db.add(Usuario(nome="Leitor", email="leitor@exemplo.com", perfil_acesso_id=p.id, senha_hash=hash_senha(SENHA)))
+    db.add(Usuario(nome="Leitor", email="leitor@exemplo.com", login="leitor", perfil_acesso_id=p.id, senha_hash=hash_senha(SENHA)))
     db.commit()
     tk = auth(entrar(client, "leitor@exemplo.com").json()["access_token"])
     assert client.get("/api/cadastros/horarios", headers=tk).status_code == 200

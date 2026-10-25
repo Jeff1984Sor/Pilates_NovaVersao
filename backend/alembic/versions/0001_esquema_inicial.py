@@ -23,6 +23,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('nome', sa.String(length=120), nullable=False),
     sa.Column('tipo', sa.Enum('RECEITA', 'DESPESA', name='tipocategoria', native_enum=False, length=10), nullable=False),
+    sa.Column('ativo', sa.Boolean(), server_default=sa.text('1'), nullable=False),
     sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('codigo_legado', sa.Integer(), nullable=True),
@@ -73,6 +74,7 @@ def upgrade() -> None:
     op.create_table('fornecedor',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('nome', sa.String(length=120), nullable=False),
+    sa.Column('ativo', sa.Boolean(), server_default=sa.text('1'), nullable=False),
     sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('codigo_legado', sa.Integer(), nullable=True),
@@ -171,6 +173,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('nome', sa.String(length=80), nullable=False),
     sa.Column('conteudo_html', sa.Text(), nullable=False),
+    sa.Column('ativo', sa.Boolean(), server_default=sa.text('1'), nullable=False),
     sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('codigo_legado', sa.Integer(), nullable=True),
@@ -271,28 +274,11 @@ def upgrade() -> None:
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_horario_funcionamento_codigo_legado'))
     )
     op.create_index(op.f('ix_horario_funcionamento_unidade_id'), 'horario_funcionamento', ['unidade_id'], unique=False)
-    op.create_table('movimento_conta',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('conta_id', sa.Integer(), nullable=False),
-    sa.Column('tipo', sa.Enum('ENTRADA', 'SAIDA', name='tipomovimento', native_enum=False, length=10), nullable=False),
-    sa.Column('valor', sa.Numeric(precision=15, scale=2), nullable=False),
-    sa.Column('data', sa.Date(), nullable=False),
-    sa.Column('descricao', sa.String(length=200), nullable=True),
-    sa.Column('comprovante_path', sa.String(length=500), nullable=True),
-    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('codigo_legado', sa.Integer(), nullable=True),
-    sa.CheckConstraint('valor >= 0', name=op.f('ck_movimento_conta_valor_nao_negativo')),
-    sa.ForeignKeyConstraint(['conta_id'], ['conta_bancaria.id'], name=op.f('fk_movimento_conta_conta_id_conta_bancaria')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_movimento_conta')),
-    sa.UniqueConstraint('codigo_legado', name=op.f('uq_movimento_conta_codigo_legado'))
-    )
-    op.create_index(op.f('ix_movimento_conta_conta_id'), 'movimento_conta', ['conta_id'], unique=False)
-    op.create_index(op.f('ix_movimento_conta_data'), 'movimento_conta', ['data'], unique=False)
     op.create_table('subcategoria',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('categoria_id', sa.Integer(), nullable=False),
     sa.Column('nome', sa.String(length=120), nullable=False),
+    sa.Column('ativo', sa.Boolean(), server_default=sa.text('1'), nullable=False),
     sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('codigo_legado', sa.Integer(), nullable=True),
@@ -459,6 +445,8 @@ def upgrade() -> None:
     sa.Column('pagamento', sa.Date(), nullable=True),
     sa.Column('comprovante_path', sa.String(length=500), nullable=True),
     sa.Column('motivo_cancelamento', sa.Text(), nullable=True),
+    sa.Column('descricao', sa.String(length=200), nullable=True),
+    sa.Column('recorrencia_grupo', sa.String(length=36), nullable=True),
     sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('codigo_legado', sa.Integer(), nullable=True),
@@ -469,6 +457,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_conta_pagar')),
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_conta_pagar_codigo_legado'))
     )
+    op.create_index(op.f('ix_conta_pagar_recorrencia_grupo'), 'conta_pagar', ['recorrencia_grupo'], unique=False)
     op.create_index('ix_conta_pagar_vencimento_status', 'conta_pagar', ['vencimento', 'status'], unique=False)
     op.create_table('horario_funcionamento_tipo_servico',
     sa.Column('horario_funcionamento_id', sa.Integer(), nullable=False),
@@ -816,6 +805,8 @@ def upgrade() -> None:
     sa.Column('competencia', sa.String(length=7), nullable=True),
     sa.Column('pagamento', sa.Date(), nullable=True),
     sa.Column('recibo_saude_gerado_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('forma_pagamento', sa.String(length=20), nullable=True),
+    sa.Column('motivo_cancelamento', sa.Text(), nullable=True),
     sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('codigo_legado', sa.Integer(), nullable=True),
@@ -853,6 +844,7 @@ def upgrade() -> None:
     sa.Column('valor_base', sa.Numeric(precision=15, scale=2), nullable=False),
     sa.Column('percentual', sa.Numeric(precision=5, scale=2), nullable=False),
     sa.Column('valor', sa.Numeric(precision=15, scale=2), nullable=False),
+    sa.Column('paga_em', sa.Date(), nullable=True),
     sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.ForeignKeyConstraint(['conta_receber_id'], ['conta_receber.id'], name=op.f('fk_comissao_conta_receber_id_conta_receber')),
@@ -862,6 +854,32 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_comissao_competencia'), 'comissao', ['competencia'], unique=False)
     op.create_index(op.f('ix_comissao_profissional_id'), 'comissao', ['profissional_id'], unique=False)
+    op.create_table('movimento_conta',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('conta_id', sa.Integer(), nullable=False),
+    sa.Column('tipo', sa.Enum('ENTRADA', 'SAIDA', name='tipomovimento', native_enum=False, length=10), nullable=False),
+    sa.Column('valor', sa.Numeric(precision=15, scale=2), nullable=False),
+    sa.Column('data', sa.Date(), nullable=False),
+    sa.Column('descricao', sa.String(length=200), nullable=True),
+    sa.Column('comprovante_path', sa.String(length=500), nullable=True),
+    sa.Column('conta_receber_id', sa.Integer(), nullable=True),
+    sa.Column('conta_pagar_id', sa.Integer(), nullable=True),
+    sa.Column('transferencia_id', sa.String(length=36), nullable=True),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('codigo_legado', sa.Integer(), nullable=True),
+    sa.CheckConstraint('valor >= 0', name=op.f('ck_movimento_conta_valor_nao_negativo')),
+    sa.ForeignKeyConstraint(['conta_id'], ['conta_bancaria.id'], name=op.f('fk_movimento_conta_conta_id_conta_bancaria')),
+    sa.ForeignKeyConstraint(['conta_pagar_id'], ['conta_pagar.id'], name=op.f('fk_movimento_conta_conta_pagar_id_conta_pagar'), ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['conta_receber_id'], ['conta_receber.id'], name=op.f('fk_movimento_conta_conta_receber_id_conta_receber'), ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_movimento_conta')),
+    sa.UniqueConstraint('codigo_legado', name=op.f('uq_movimento_conta_codigo_legado'))
+    )
+    op.create_index(op.f('ix_movimento_conta_conta_id'), 'movimento_conta', ['conta_id'], unique=False)
+    op.create_index(op.f('ix_movimento_conta_conta_pagar_id'), 'movimento_conta', ['conta_pagar_id'], unique=False)
+    op.create_index(op.f('ix_movimento_conta_conta_receber_id'), 'movimento_conta', ['conta_receber_id'], unique=False)
+    op.create_index(op.f('ix_movimento_conta_data'), 'movimento_conta', ['data'], unique=False)
+    op.create_index(op.f('ix_movimento_conta_transferencia_id'), 'movimento_conta', ['transferencia_id'], unique=False)
     op.create_index(
         'uq_aula_sessao_slot', 'aula_sessao',
         ['unidade_id', 'tipo_servico_id', sa.text('coalesce(profissional_id, 0)'), 'data', 'hora_inicio'],
@@ -873,6 +891,12 @@ def upgrade() -> None:
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_index('uq_aula_sessao_slot', table_name='aula_sessao')
+    op.drop_index(op.f('ix_movimento_conta_transferencia_id'), table_name='movimento_conta')
+    op.drop_index(op.f('ix_movimento_conta_data'), table_name='movimento_conta')
+    op.drop_index(op.f('ix_movimento_conta_conta_receber_id'), table_name='movimento_conta')
+    op.drop_index(op.f('ix_movimento_conta_conta_pagar_id'), table_name='movimento_conta')
+    op.drop_index(op.f('ix_movimento_conta_conta_id'), table_name='movimento_conta')
+    op.drop_table('movimento_conta')
     op.drop_index(op.f('ix_comissao_profissional_id'), table_name='comissao')
     op.drop_index(op.f('ix_comissao_competencia'), table_name='comissao')
     op.drop_table('comissao')
@@ -924,6 +948,7 @@ def downgrade() -> None:
     op.drop_table('plano')
     op.drop_table('horario_funcionamento_tipo_servico')
     op.drop_index('ix_conta_pagar_vencimento_status', table_name='conta_pagar')
+    op.drop_index(op.f('ix_conta_pagar_recorrencia_grupo'), table_name='conta_pagar')
     op.drop_table('conta_pagar')
     op.drop_index(op.f('ix_auditoria_criado_em'), table_name='auditoria')
     op.drop_index(op.f('ix_auditoria_acao'), table_name='auditoria')
@@ -939,9 +964,6 @@ def downgrade() -> None:
     op.drop_table('totalpass_config')
     op.drop_index(op.f('ix_subcategoria_categoria_id'), table_name='subcategoria')
     op.drop_table('subcategoria')
-    op.drop_index(op.f('ix_movimento_conta_data'), table_name='movimento_conta')
-    op.drop_index(op.f('ix_movimento_conta_conta_id'), table_name='movimento_conta')
-    op.drop_table('movimento_conta')
     op.drop_index(op.f('ix_horario_funcionamento_unidade_id'), table_name='horario_funcionamento')
     op.drop_table('horario_funcionamento')
     op.drop_index(op.f('ix_aluno_unidade_id'), table_name='aluno')

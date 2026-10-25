@@ -38,16 +38,16 @@ Fonte da verdade do sistema antigo: [`inventario-pilates-django.md`](inventario-
 
 ## Lista de paridade (marque ao concluir; cada item = tela + API + teste)
 
-**Acesso e base:** [ ] login e-mail/usuário · [ ] perfis e permissões (catálogo) · [ ] perfil Professor (R11) · [ ] profissional sem login · [ ] troca/recuperação de senha (e-mail e WhatsApp) · [ ] identidade white-label · [ ] auditoria · [ ] perfil do usuário
-**Cadastros:** [ ] unidades (capacidade, duração) · [ ] tipos de serviço · [ ] planos (+duplicar, avulso, modelo de contrato) · [ ] profissionais (+comissão, CREFITO) · [ ] profissões · [ ] fornecedores · [ ] categorias/subcategorias · [ ] horários de funcionamento (+gerar) · [ ] horários do studio · [ ] bloqueios · [ ] termos de uso · [ ] modelos de contrato (editor HTML) · [ ] modelos de evolução · [ ] tokens de integração
-**Alunos:** [ ] lista com chips (ativos/inativos/todos) · [ ] cadastro (endereço, vários telefones, CEP) · [ ] ficha com abas (Contratos, Aulas, Financeiro, WhatsApp, Documentos, Evolução, Avaliações, Uso da imagem) · [ ] foto · [ ] documentos (upload) · [ ] CPF do pagador · [ ] wizard de cadastro com IA
-**Agenda:** [ ] grade semanal (ocupação n/m, cores por status) · [ ] painel operacional (agrupado por horário > profissional, gaveta de evolução) · [ ] criar/editar/excluir aula · [ ] remarcar/desmarcar/faltou/chegou/finalizar · [ ] aula avulsa · [ ] aula avaliativa · [ ] reposição (consumir `reposicao_ate`: novo) · [ ] capacidade transacional (R3)
+**Acesso e base:** [x] login e-mail/usuário · [x] perfis e permissões (catálogo) · [x] perfil Professor (R11) · [x] profissional sem login · [~] troca/recuperação de senha (e-mail e WhatsApp) — e-mail e código prontos; envio real pelo WhatsApp na onda 3 · [x] identidade white-label · [x] auditoria · [x] perfil do usuário
+**Cadastros:** [x] unidades (capacidade, duração) · [x] tipos de serviço · [x] planos (+duplicar, avulso, modelo de contrato) · [x] profissionais (+comissão, CREFITO) · [x] profissões · [x] fornecedores · [x] categorias/subcategorias · [x] horários de funcionamento (+gerar) · [x] horários do studio · [x] bloqueios · [x] termos de uso · [x] modelos de contrato (editor HTML) · [x] modelos de evolução · [ ] tokens de integração
+**Alunos:** [x] lista com chips (ativos/inativos/todos) · [x] cadastro (endereço, vários telefones, CEP) · [~] ficha com abas (Contratos, Aulas, Financeiro, WhatsApp, Documentos, Evolução, Avaliações, Uso da imagem) — prontas Dados, Aulas, Financeiro, Evolução, Avaliações, Documentos e Uso da imagem; faltam Contratos e WhatsApp · [x] foto · [x] documentos (upload) · [x] CPF do pagador · [ ] wizard de cadastro com IA
+**Agenda:** [x] grade semanal (ocupação n/m, cores por status) · [x] painel operacional (agrupado por horário > profissional, gaveta de evolução) · [x] criar/editar/excluir aula · [x] remarcar/desmarcar/faltou/chegou/finalizar · [x] aula avulsa · [x] aula avaliativa · [x] reposição (consumir `reposicao_ate`: novo) · [x] capacidade transacional (R3)
 **Contratos:** [ ] criar com precificação (R1) e parcelas (R2) · [ ] agenda do contrato (1 horário por dia da semana) · [ ] gestão (ativos/vencendo/vencidos) · [ ] PDF · [ ] envio por e-mail e WhatsApp · [ ] assinatura por link (R10) e local · [ ] exclusão segura (R13) · [ ] recalcular
-**Financeiro:** [ ] contas a receber (baixar, cobrar por WhatsApp, recibo PDF, lançar avulso, exportar PDF/Excel) · [ ] contas a pagar (recorrência, pagar, cancelar, comprovante, exportar) · [ ] conta bancária e movimentos · [ ] fluxo de caixa (R7) · [ ] DRE (R7) · [ ] Receita Saúde (R8) · [ ] comissões (R17)
-**Evolução:** [ ] evolução e avaliação por reserva · [ ] melhoria de texto com IA · [ ] exportar PDF/Excel
+**Financeiro:** [x] contas a receber (baixar, cobrar por WhatsApp, recibo PDF, lançar avulso, exportar PDF/Excel) · [x] contas a pagar (recorrência, pagar, cancelar, comprovante, exportar) · [x] conta bancária e movimentos · [x] fluxo de caixa (R7) · [x] DRE (R7) · [x] Receita Saúde (R8) · [x] comissões (R17)
+**Evolução:** [x] evolução e avaliação por reserva · [~] melhoria de texto com IA — pronta; depende da chave cadastrada em Configurações > Integrações (onda 3) · [x] exportar PDF/Excel
 **Comunicação:** [ ] WhatsApp Wasender/Evolution por unidade · [ ] scheduler (R9) · [ ] comunicado geral · [ ] aviso ao aluno · [ ] histórico de mensagens · [ ] e-mail SMTP configurável
 **Integrações:** [ ] TotalPass webhook + sync (R14) · [ ] API de integração externa · [ ] App do aluno PWA (R15) · [ ] CEP (ViaCEP)
-**Dados:** [ ] ETL completo com conciliação · [ ] cópia da mídia (fotos, assinaturas, documentos, comprovantes) · [ ] senhas: usuários antigos entram com hash PBKDF2 do Django aceito no login (ou redefinição obrigatória)
+**Dados:** [x] ETL completo com conciliação · [x] cópia da mídia (fotos, assinaturas, documentos, comprovantes) · [x] senhas: usuários antigos entram com hash PBKDF2 do Django aceito no login (ou redefinição obrigatória)
 
 ## Segurança exigida (o antigo falhava nisto)
 
@@ -63,7 +63,7 @@ Login obrigatório global · JWT com `exp` · OTP com limite de pedidos/tentativ
 ## Ondas — andamento
 
 - **Onda 1 (concluída e integrada em `develop`):** fundação do core, domínio puro (R1–R17, 2.531 testes golden master), modelo de dados (40+ tabelas) e ETL com conciliação. Ensaio ponta a ponta com dados sintéticos OK.
-- **Onda 2a (em andamento):** cadastros, alunos, agenda/reservas, financeiro/Receita Saúde.
+- **Onda 2a (concluída e integrada em `develop`):** cadastros, alunos, agenda/reservas, financeiro/Receita Saúde.
 - **Onda 2b:** contratos (depende de agenda e financeiro).
 - **Onda 3:** WhatsApp (envio, scheduler R9, comunicado, aviso), TotalPass (R14, token pela tela), app do aluno (R15), API de integração, IA, telas de Configurações > Integrações.
 - **Onda 4:** hardening, hml, ensaio da carga em PostgreSQL com cópia anonimizada, conferência lado a lado, cutover.

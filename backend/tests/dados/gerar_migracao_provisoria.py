@@ -27,6 +27,16 @@ Revises:
 
 import sqlalchemy as sa
 from alembic import op
+
+import app.core.db  # noqa: F401  (UtcDateTime)
+
+revision = "0001_pilates_inicial"
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
 '''
 
 
