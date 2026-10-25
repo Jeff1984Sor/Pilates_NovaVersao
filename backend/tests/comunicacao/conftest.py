@@ -11,8 +11,10 @@ from app.modules import registrar_modelos
 
 registrar_modelos()
 
+from sqlalchemy import select  # noqa: E402
+
 from app.core import segredos  # noqa: E402
-from app.modules.agenda.models import Reserva  # noqa: E402
+from app.modules.agenda.models import AulaSessao, Reserva  # noqa: E402
 from app.modules.cadastros.models import Categoria, Plano, Subcategoria, TipoCategoria  # noqa: E402
 from app.modules.comunicacao import models as _modelos  # noqa: E402,F401
 from app.modules.comunicacao import provedores as prov  # noqa: E402
@@ -131,7 +133,10 @@ def ligar_avisos(db, cenario, *tipos: str, geral: bool = True) -> None:
 
 
 def reservar(db, cenario, aluno, dia=date(2026, 10, 26), inicio=time(9, 0), prof=True) -> Reserva:
-    s = fabrica.sessao(db, cenario.un, cenario.srv, cenario.prof if prof else None, dia=dia, inicio=inicio)
+    s = db.scalar(select(AulaSessao).where(AulaSessao.unidade_id == cenario.un.id, AulaSessao.data == dia,
+                                           AulaSessao.hora_inicio == inicio))
+    if s is None:
+        s = fabrica.sessao(db, cenario.un, cenario.srv, cenario.prof if prof else None, dia=dia, inicio=inicio)
     r = Reserva(aluno_id=aluno.id, aula_sessao_id=s.id)
     db.add(r)
     db.commit()

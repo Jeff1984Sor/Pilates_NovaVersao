@@ -27,6 +27,7 @@ from app.core import email as mail
 from app.core.db import SessionLocal, agora
 from app.core.models import PerfilAcesso, Usuario
 from app.domain import whatsapp_avisos as dom
+from app.domain.telefone import normalizar_telefone_br
 from app.modules.agenda.models import AulaSessao, Reserva, WhatsappAgendamentoLog
 from app.modules.alunos.models import Aluno, StatusAluno
 from app.modules.cadastros.models import Profissional, TipoServico, Unidade
@@ -206,7 +207,8 @@ def _avisar_gestores_por_email(db: Session, unidade: Unidade, motivo: str) -> No
 
 def _resumo_ao_gestor(db: Session, cfg: WhatsappConfig, unidade: Unidade, parcial: ResumoRodada, momento: datetime,
                       nome_unidade: str) -> None:
-    if not (cfg.acompanhar_envios and cfg.numero_acompanhamento):
+    destino = normalizar_telefone_br(cfg.numero_acompanhamento)
+    if not (cfg.acompanhar_envios and destino):
         return
     total = parcial.enviados + parcial.falhas
     if not total:
@@ -218,7 +220,7 @@ def _resumo_ao_gestor(db: Session, cfg: WhatsappConfig, unidade: Unidade, parcia
     if not _alerta_unico(db, chave, unidade.id, hoje, "resumo", texto, momento):
         return
     try:
-        res = svc._com_retry(lambda: svc.provedor_da_config(cfg).enviar_texto(cfg.numero_acompanhamento, texto))
+        res = svc._com_retry(lambda: svc.provedor_da_config(cfg).enviar_texto(destino, texto))
         if not res.ok:
             log.warning("Resumo ao gestor não enviado (%s)", res.erro)
     except Exception:  # noqa: BLE001
