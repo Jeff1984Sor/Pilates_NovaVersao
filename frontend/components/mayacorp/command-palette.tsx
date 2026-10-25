@@ -1,6 +1,7 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Moon, Sun, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -16,12 +17,22 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { Command } from "@/components/ui/command";
+import { useDebounce } from "@/hooks/use-debounce";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 import { navPara } from "./nav";
 
 const EVENTO = "maya:paleta";
 export const abrirPaleta = () => window.dispatchEvent(new Event(EVENTO));
+
+interface AlunoBusca {
+  id: number;
+  nome: string;
+  cpf_mascarado: string | null;
+  telefone: string | null;
+  status: string;
+}
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
@@ -53,7 +64,16 @@ export function CommandPalette() {
     };
   }, []);
 
-  const ativo = false; // busca por registros (alunos, contratos...) entra com cada módulo
+  // Busca de alunos (nome, CPF ou telefone) a partir de 2 letras; outros registros entram com cada módulo.
+  const termo = useDebounce(q.trim(), 250);
+  const podeBuscarAluno = pode("alunos.ver");
+  const { data: alunos = [] } = useQuery({
+    queryKey: ["paleta-alunos", termo],
+    queryFn: () => api.get<AlunoBusca[]>("/alunos/busca", { q: termo }),
+    enabled: open && podeBuscarAluno && termo.length >= 2,
+    staleTime: 15_000,
+  });
+  const ativo = false;
 
   const ir = (href: string) => {
     setOpen(false);
@@ -67,6 +87,17 @@ export function CommandPalette() {
         <CommandInput placeholder="Digite para navegar…" value={q} onValueChange={setQ} />
         <CommandList className="max-h-[420px]">
           <CommandEmpty>Nada encontrado.</CommandEmpty>
+          {alunos.length > 0 && (
+            <CommandGroup heading="Alunos">
+              {alunos.map((a) => (
+                <CommandItem key={`aluno-${a.id}`} forceMount value={`aluno ${a.id} ${a.nome}`} onSelect={() => ir(`/alunos/${a.id}`)}>
+                  <UserRound />
+                  <span className="truncate">{a.nome}</span>
+                  <CommandShortcut>{[a.cpf_mascarado, a.telefone].filter(Boolean).join(" · ")}</CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
           {!ativo &&
             navPara(usuario && pode).map((g) => (
               <CommandGroup key={g.titulo} heading={g.titulo}>
