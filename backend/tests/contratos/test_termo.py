@@ -129,13 +129,9 @@ def test_nao_gera_link_se_termo_ja_assinado(client, db, cen, secretaria, token):
 
 
 def test_ponto_de_extensao_substitui_a_funcao_do_modulo_alunos(cen, db, monkeypatch):
-    original = alunos_servico.gerar_link_assinatura_termo
-    with pytest.raises(NotImplementedError):
-        original(cen.aluno)
-    try:
-        termo_publico.registrar_no_modulo_alunos()
-        link = alunos_servico.gerar_link_assinatura_termo(cen.aluno)
-        assert link.startswith(settings.frontend_url + "/assinar/termo/")
-        assert tokens.ler_termo(link.rsplit("/", 1)[1]).sujeito_id == cen.aluno.id
-    finally:
-        alunos_servico.gerar_link_assinatura_termo = original
+    # o módulo de contratos já liga o link real ao ser carregado; registrar de novo é idempotente
+    monkeypatch.setattr(alunos_servico, "gerar_link_assinatura_termo", alunos_servico.gerar_link_assinatura_termo)
+    termo_publico.registrar_no_modulo_alunos()
+    link = alunos_servico.gerar_link_assinatura_termo(cen.aluno)
+    assert link.startswith(settings.frontend_url + "/assinar/termo/")
+    assert tokens.ler_termo(link.rsplit("/", 1)[1]).sujeito_id == cen.aluno.id

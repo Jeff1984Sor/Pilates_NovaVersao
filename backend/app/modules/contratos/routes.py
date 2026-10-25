@@ -236,3 +236,7 @@ def publico_termo(token: str, db: DB):
 def publico_termo_assinar(token: str, dados: sc.AssinarPublicoIn, request: Request, db: DB):
     with traduzir():
         return termo_publico.assinar(db, token, dados, ip_cliente(request))
+
+
+# Liga o link real de assinatura do termo de imagem no módulo de alunos (idempotente; roda quando o módulo é carregado).
+termo_publico.registrar_no_modulo_alunos()

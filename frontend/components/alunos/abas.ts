@@ -19,7 +19,8 @@ import { AbaAlunoAulas } from "../agenda/aba-aluno-aulas";
 import { AbaAlunoAvaliacao } from "../agenda/aba-aluno-avaliacao";
 import { AbaAlunoEvolucao } from "../agenda/aba-aluno-evolucao";
 import { AbaAlunoFinanceiro } from "../financeiro/aba-aluno-financeiro";
-import { AbaContratos, AbaWhatsapp } from "./abas-esqueleto";
+import { AbaAlunoContratos } from "../contratos/aba-aluno-contratos";
+import { AbaWhatsapp } from "./abas-esqueleto";
 
 export interface AbaAluno {
   /** Valor de `?aba=` na URL. */
@@ -43,7 +44,7 @@ export interface AbaAluno {
 export const ABAS_ALUNO: AbaAluno[] = [
   { id: "dados", rotulo: "Dados", icone: UserRound, componente: AbaDados, permissao: "alunos.ver", visivelProfessor: false },
   { id: "aulas", rotulo: "Aulas", icone: CalendarDays, componente: AbaAlunoAulas, permissao: "aulas.ver", visivelProfessor: false, atalho: true },
-  { id: "contratos", rotulo: "Contratos", icone: FileSignature, componente: AbaContratos, permissao: "contratos.ver", visivelProfessor: false, atalho: true },
+  { id: "contratos", rotulo: "Contratos", icone: FileSignature, componente: AbaAlunoContratos, permissao: "contratos.ver", visivelProfessor: false, atalho: true },
   { id: "financeiro", rotulo: "Financeiro", icone: ReceiptText, componente: AbaAlunoFinanceiro, permissao: "financeiro_receber.ver", visivelProfessor: false, atalho: true },
   { id: "whatsapp", rotulo: "WhatsApp", icone: MessageCircle, componente: AbaWhatsapp, permissao: "whatsapp.ver", visivelProfessor: false, atalho: true },
   { id: "evolucao", rotulo: "Evolução", icone: TrendingUp, componente: AbaAlunoEvolucao, permissao: "aulas.ver", visivelProfessor: true, atalho: true },
