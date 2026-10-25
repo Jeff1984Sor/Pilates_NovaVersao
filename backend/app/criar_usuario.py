@@ -56,7 +56,7 @@ def main() -> None:
         audit.registrar(db, usuario=None, acao="usuario.criar_terminal", entidade="usuario", entidade_id=u.id,
                         descricao=f"{'Criado' if novo else 'Atualizado'} pelo terminal: {email}")
         db.commit()
-        print(f"Usuário '{email}' {'criado' if novo else 'atualizado'} ({perfil.nome}).")
+        print(f"Usuário com login '{login}' {'criado' if novo else 'atualizado'} ({perfil.nome}). Entre com o login, não com o e-mail.")
 
 
 if __name__ == "__main__":

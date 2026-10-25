@@ -27,7 +27,7 @@ from app.core.security import (
     verificar_senha,
 )
 
-MSG_LOGIN = "Usuário/e-mail ou senha incorretos, ou acesso temporariamente bloqueado."
+MSG_LOGIN = "Login ou senha incorretos, ou acesso temporariamente bloqueado."
 MSG_SESSAO = "Sessão expirada. Entre novamente."
 MSG_RESET_INVALIDO = "Link ou código inválido ou expirado."
 JANELA_REUSO_REFRESH_S = 15  # duas abas renovando juntas não derrubam a sessão

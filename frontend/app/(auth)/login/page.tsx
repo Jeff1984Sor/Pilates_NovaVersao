@@ -121,7 +121,7 @@ export default function LoginPage() {
       <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
         <MarcaLogo className="mb-8 lg:hidden" />
         <h1 className="text-2xl font-semibold tracking-tight">Entrar</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Acesse com seu e-mail ou usuário.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Acesse com o seu login.</p>
       </div>
       <Login />
     </div>
