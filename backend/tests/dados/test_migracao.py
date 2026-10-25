@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, inspect
 from app.core.db import Base
 from app.modules import registrar_modelos
 
-ARQUIVO = Path(__file__).resolve().parents[2] / "alembic" / "versions" / "0001_pilates_esquema_inicial_provisorio.py"
+ARQUIVO = Path(__file__).resolve().parents[2] / "alembic" / "versions" / "0001_esquema_inicial.py"
 
 
 @pytest.fixture(scope="module")

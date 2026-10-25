@@ -15,12 +15,11 @@ from sqlalchemy import create_engine
 from app.core.db import Base
 from app.modules import registrar_modelos
 
-DESTINO = Path(__file__).resolve().parents[2] / "alembic" / "versions" / "0001_pilates_esquema_inicial_provisorio.py"
+DESTINO = Path(__file__).resolve().parents[2] / "alembic" / "versions" / "0001_esquema_inicial.py"
 
-CABECALHO = '''"""Esquema inicial do Pilates (PROVISÓRIO: regenerar após o merge com o core da FUNDAÇÃO).
+CABECALHO = '''"""Esquema inicial do Pilates: core (usuarios, perfis, auditoria, sessoes) e todos os modulos.
 
-Gerado por autogenerate contra SQLite vazio; conferido também para PostgreSQL (render offline).
-Inclui as tabelas do core do esqueleto atual (tenant, usuario, perfil_acesso...) para a cadeia de FKs ficar completa.
+Gerado por autogenerate (tests/dados/gerar_migracao_provisoria.py) e conferido para PostgreSQL em modo offline.
 
 Revision ID: 0001_pilates_inicial
 Revises:
@@ -28,16 +27,6 @@ Revises:
 
 import sqlalchemy as sa
 from alembic import op
-
-import app.core.db  # noqa: F401  (UtcDateTime)
-
-revision = "0001_pilates_inicial"
-down_revision = None
-branch_labels = None
-depends_on = None
-
-
-def upgrade() -> None:
 '''
 
 

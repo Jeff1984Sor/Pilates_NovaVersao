@@ -296,23 +296,18 @@ def test_nenhum_segredo_e_migrado(ensaio):
                 assert n == 0, (t, col)
 
 
-def test_email_adiado_quando_core_nao_tem_config_email(ensaio):
-    _, conc, *_ = ensaio
+def test_email_adiado_quando_destino_nao_tem_config_email(engine, tmp_path, master_key):
+    with engine.begin() as c:
+        c.execute(text("drop table config_email"))
+    conc, _ = _rodar(engine, tmp_path, master_key, midia=False)
     assert sum(conc.tabelas["config_email (core)"].adiados.values()) == 1
     assert any("E-mail SMTP NÃO migrado" in p for p in conc.alertas["pendencias"])
 
 
-def test_email_carregado_sem_a_senha_quando_config_email_existe(engine, tmp_path, master_key):
-    with engine.begin() as c:
-        c.execute(
-            text(
-                "create table config_email (id integer primary key, host varchar(200) not null, porta integer, usuario varchar(200), "
-                "senha_cifrado text, usar_tls boolean, remetente varchar(200), ativo boolean)"
-            )
-        )
+def test_email_carregado_sem_a_senha(engine, tmp_path, master_key):
     conc, _ = _rodar(engine, tmp_path, master_key, midia=False)
     assert conc.ok
-    host, senha, usuario = q(engine, "select host, senha_cifrado, usuario from config_email")[0]
+    host, senha, usuario = q(engine, "select smtp_host, smtp_senha_cifrada, smtp_usuario from config_email")[0]
     assert host == "smtp.exemplo.invalid" and senha is None and usuario == "envio@exemplo.invalid"
     assert not any("E-mail SMTP NÃO migrado" in p for p in conc.alertas.get("pendencias", []))
 
@@ -378,7 +373,7 @@ def test_idempotencia_rodar_duas_vezes_nao_duplica(engine, tmp_path, master_key)
 def test_simular_nao_grava_nada(engine, tmp_path, master_key):
     conc, _ = _rodar(engine, tmp_path, master_key, simular=True)
     assert conc.ok and "simulação" in conc.modo
-    for t in ("aluno", "contrato", "reserva", "conta_receber", "usuario", "perfil_acesso", "tenant", "contador_codigo"):
+    for t in ("aluno", "contrato", "reserva", "conta_receber", "usuario", "perfil_acesso", "contador_codigo"):
         assert escalar(engine, f"select count(*) from {t}") == 0, t
     assert not (tmp_path / "storage").exists()  # nenhuma mídia copiada
     assert conc.tabelas["aluno"].destino == 62  # mas a conciliação enxerga o que seria gravado

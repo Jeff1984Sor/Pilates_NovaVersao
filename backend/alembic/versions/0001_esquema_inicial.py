@@ -1,7 +1,6 @@
-"""Esquema inicial do Pilates (PROVISÓRIO: regenerar após o merge com o core da FUNDAÇÃO).
+"""Esquema inicial do Pilates: core (usuarios, perfis, auditoria, sessoes) e todos os modulos.
 
-Gerado por autogenerate contra SQLite vazio; conferido também para PostgreSQL (render offline).
-Inclui as tabelas do core do esqueleto atual (tenant, usuario, perfil_acesso...) para a cadeia de FKs ficar completa.
+Gerado por autogenerate (tests/dados/gerar_migracao_provisoria.py) e conferido para PostgreSQL em modo offline.
 
 Revision ID: 0001_pilates_inicial
 Revises:
@@ -30,6 +29,29 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_categoria')),
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_categoria_codigo_legado'))
     )
+    op.create_table('config_email',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('remetente_nome', sa.String(length=150), nullable=False),
+    sa.Column('remetente_email', sa.String(length=200), nullable=False),
+    sa.Column('smtp_host', sa.String(length=200), nullable=True),
+    sa.Column('smtp_porta', sa.Integer(), nullable=False),
+    sa.Column('smtp_usuario', sa.String(length=200), nullable=True),
+    sa.Column('smtp_senha_cifrada', sa.LargeBinary(), nullable=True),
+    sa.Column('copia_padrao', sa.JSON(), nullable=False),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_config_email'))
+    )
+    op.create_table('config_ia',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('ativo', sa.Boolean(), nullable=False),
+    sa.Column('provedor', sa.String(length=10), nullable=False),
+    sa.Column('modelo', sa.String(length=100), nullable=True),
+    sa.Column('chave_cifrada', sa.LargeBinary(), nullable=True),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_config_ia'))
+    )
     op.create_table('conta_bancaria',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('banco', sa.String(length=120), nullable=False),
@@ -56,6 +78,16 @@ def upgrade() -> None:
     sa.Column('codigo_legado', sa.Integer(), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_fornecedor')),
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_fornecedor_codigo_legado'))
+    )
+    op.create_table('identidade',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('nome_exibicao', sa.String(length=200), nullable=False),
+    sa.Column('logo_path', sa.String(length=500), nullable=True),
+    sa.Column('cor_destaque', sa.String(length=9), nullable=True),
+    sa.Column('assinatura_email', sa.Text(), nullable=True),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_identidade'))
     )
     op.create_table('integracao_token',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -94,6 +126,20 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_modelo_evolucao')),
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_modelo_evolucao_codigo_legado'))
     )
+    op.create_table('perfil_acesso',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('nome', sa.String(length=80), nullable=False),
+    sa.Column('descricao', sa.String(length=300), nullable=True),
+    sa.Column('cor', sa.String(length=7), nullable=True),
+    sa.Column('administrador', sa.Boolean(), nullable=False),
+    sa.Column('sistema', sa.Boolean(), nullable=False),
+    sa.Column('somente_proprias_aulas', sa.Boolean(), server_default='0', nullable=False),
+    sa.Column('permissoes', sa.JSON(), nullable=False),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_perfil_acesso')),
+    sa.UniqueConstraint('nome', name=op.f('uq_perfil_acesso_nome'))
+    )
     op.create_table('profissao',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('nome', sa.String(length=120), nullable=False),
@@ -103,6 +149,14 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_profissao')),
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_profissao_codigo_legado'))
     )
+    op.create_table('rate_limit_evento',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('chave', sa.String(length=200), nullable=False),
+    sa.Column('em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_rate_limit_evento'))
+    )
+    op.create_index(op.f('ix_rate_limit_evento_chave'), 'rate_limit_evento', ['chave'], unique=False)
+    op.create_index(op.f('ix_rate_limit_evento_em'), 'rate_limit_evento', ['em'], unique=False)
     op.create_table('receita_saude_config',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('cpf_profissional', sa.String(length=11), nullable=False),
@@ -112,16 +166,6 @@ def upgrade() -> None:
     sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_receita_saude_config'))
-    )
-    op.create_table('tenant',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('slug', sa.String(length=60), nullable=False),
-    sa.Column('nome', sa.String(length=200), nullable=False),
-    sa.Column('status', sa.String(length=20), nullable=False),
-    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_tenant')),
-    sa.UniqueConstraint('slug', name=op.f('uq_tenant_slug'))
     )
     op.create_table('termo_uso',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -210,76 +254,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_aluno_nome'), 'aluno', ['nome'], unique=False)
     op.create_index(op.f('ix_aluno_status'), 'aluno', ['status'], unique=False)
     op.create_index(op.f('ix_aluno_unidade_id'), 'aluno', ['unidade_id'], unique=False)
-    op.create_table('cargo',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('tenant_id', sa.Integer(), nullable=False),
-    sa.Column('nome', sa.String(length=100), nullable=False),
-    sa.Column('ordem', sa.Integer(), nullable=False),
-    sa.Column('ativo', sa.Boolean(), nullable=False),
-    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['tenant_id'], ['tenant.id'], name=op.f('fk_cargo_tenant_id_tenant')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_cargo'))
-    )
-    op.create_index(op.f('ix_cargo_tenant_id'), 'cargo', ['tenant_id'], unique=False)
-    op.create_table('certificado',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('tenant_id', sa.Integer(), nullable=False),
-    sa.Column('titular', sa.String(length=300), nullable=False),
-    sa.Column('cnpj', sa.String(length=14), nullable=True),
-    sa.Column('emissor', sa.String(length=300), nullable=False),
-    sa.Column('valido_de', sa.Date(), nullable=False),
-    sa.Column('valido_ate', sa.Date(), nullable=False),
-    sa.Column('serial', sa.String(length=80), nullable=False),
-    sa.Column('pfx_cifrado', sa.LargeBinary(), nullable=False),
-    sa.Column('senha_cifrada', sa.LargeBinary(), nullable=False),
-    sa.Column('ativo', sa.Boolean(), nullable=False),
-    sa.Column('ultimo_teste_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
-    sa.Column('ultimo_teste_ok', sa.Boolean(), nullable=True),
-    sa.Column('ultimo_teste_msg', sa.Text(), nullable=True),
-    sa.Column('alertas_enviados', sa.JSON(), nullable=False),
-    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['tenant_id'], ['tenant.id'], name=op.f('fk_certificado_tenant_id_tenant')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_certificado'))
-    )
-    op.create_index(op.f('ix_certificado_tenant_id'), 'certificado', ['tenant_id'], unique=False)
-    op.create_table('config_ia',
-    sa.Column('tenant_id', sa.Integer(), nullable=False),
-    sa.Column('ativo', sa.Boolean(), nullable=False),
-    sa.Column('provedor', sa.String(length=10), nullable=False),
-    sa.Column('modelo', sa.String(length=100), nullable=True),
-    sa.Column('chave_cifrada', sa.LargeBinary(), nullable=True),
-    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['tenant_id'], ['tenant.id'], name=op.f('fk_config_ia_tenant_id_tenant')),
-    sa.PrimaryKeyConstraint('tenant_id', name=op.f('pk_config_ia'))
-    )
-    op.create_table('config_notificacao',
-    sa.Column('tenant_id', sa.Integer(), nullable=False),
-    sa.Column('remetente_nome', sa.String(length=150), nullable=False),
-    sa.Column('remetente_email', sa.String(length=200), nullable=False),
-    sa.Column('smtp_host', sa.String(length=200), nullable=True),
-    sa.Column('smtp_porta', sa.Integer(), nullable=False),
-    sa.Column('smtp_usuario', sa.String(length=200), nullable=True),
-    sa.Column('smtp_senha_cifrada', sa.LargeBinary(), nullable=True),
-    sa.Column('assunto_modelo', sa.String(length=300), nullable=False),
-    sa.Column('corpo_modelo', sa.Text(), nullable=False),
-    sa.Column('anexar_pdf', sa.Boolean(), nullable=False),
-    sa.Column('anexar_xml', sa.Boolean(), nullable=False),
-    sa.Column('envio_automatico', sa.Boolean(), nullable=False),
-    sa.Column('avisos_destinatarios', sa.JSON(), nullable=False),
-    sa.Column('email_cc_padrao', sa.JSON(), nullable=False),
-    sa.Column('email_cco_padrao', sa.JSON(), nullable=False),
-    sa.Column('email_logo', sa.Boolean(), server_default='0', nullable=False),
-    sa.Column('aviso_fim_lote', sa.Boolean(), nullable=False),
-    sa.Column('aviso_rejeicoes', sa.Boolean(), nullable=False),
-    sa.Column('aviso_certificado', sa.Boolean(), nullable=False),
-    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['tenant_id'], ['tenant.id'], name=op.f('fk_config_notificacao_tenant_id_tenant')),
-    sa.PrimaryKeyConstraint('tenant_id', name=op.f('pk_config_notificacao'))
-    )
     op.create_table('horario_funcionamento',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('unidade_id', sa.Integer(), nullable=False),
@@ -297,17 +271,6 @@ def upgrade() -> None:
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_horario_funcionamento_codigo_legado'))
     )
     op.create_index(op.f('ix_horario_funcionamento_unidade_id'), 'horario_funcionamento', ['unidade_id'], unique=False)
-    op.create_table('identidade',
-    sa.Column('tenant_id', sa.Integer(), nullable=False),
-    sa.Column('nome_exibicao', sa.String(length=200), nullable=False),
-    sa.Column('logo_path', sa.String(length=500), nullable=True),
-    sa.Column('cor_destaque', sa.String(length=9), nullable=True),
-    sa.Column('assinatura_email', sa.Text(), nullable=True),
-    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['tenant_id'], ['tenant.id'], name=op.f('fk_identidade_tenant_id_tenant')),
-    sa.PrimaryKeyConstraint('tenant_id', name=op.f('pk_identidade'))
-    )
     op.create_table('movimento_conta',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('conta_id', sa.Integer(), nullable=False),
@@ -326,21 +289,6 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_movimento_conta_conta_id'), 'movimento_conta', ['conta_id'], unique=False)
     op.create_index(op.f('ix_movimento_conta_data'), 'movimento_conta', ['data'], unique=False)
-    op.create_table('perfil_acesso',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('tenant_id', sa.Integer(), nullable=False),
-    sa.Column('nome', sa.String(length=80), nullable=False),
-    sa.Column('descricao', sa.String(length=300), nullable=True),
-    sa.Column('cor', sa.String(length=7), nullable=True),
-    sa.Column('administrador', sa.Boolean(), nullable=False),
-    sa.Column('sistema', sa.Boolean(), nullable=False),
-    sa.Column('permissoes', sa.JSON(), nullable=False),
-    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['tenant_id'], ['tenant.id'], name=op.f('fk_perfil_acesso_tenant_id_tenant')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_perfil_acesso'))
-    )
-    op.create_index(op.f('ix_perfil_acesso_tenant_id'), 'perfil_acesso', ['tenant_id'], unique=False)
     op.create_table('subcategoria',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('categoria_id', sa.Integer(), nullable=False),
@@ -371,6 +319,31 @@ def upgrade() -> None:
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_totalpass_config_codigo_legado')),
     sa.UniqueConstraint('unidade_id', name=op.f('uq_totalpass_config_unidade_id'))
     )
+    op.create_table('usuario',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('nome', sa.String(length=150), nullable=False),
+    sa.Column('email', sa.String(length=200), nullable=False),
+    sa.Column('login', sa.String(length=60), nullable=True),
+    sa.Column('telefone', sa.String(length=20), nullable=True),
+    sa.Column('foto_path', sa.String(length=500), nullable=True),
+    sa.Column('preferencias', sa.JSON(), nullable=False),
+    sa.Column('senha_hash', sa.String(length=255), nullable=True),
+    sa.Column('perfil_acesso_id', sa.Integer(), nullable=True),
+    sa.Column('ativo', sa.Boolean(), nullable=False),
+    sa.Column('acesso_sistema', sa.Boolean(), server_default='1', nullable=False),
+    sa.Column('token_version', sa.Integer(), server_default='0', nullable=False),
+    sa.Column('convite_pendente', sa.Boolean(), nullable=False),
+    sa.Column('ultimo_acesso', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('ultima_atividade', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('tentativas_falhas', sa.Integer(), nullable=False),
+    sa.Column('bloqueado_ate', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['perfil_acesso_id'], ['perfil_acesso.id'], name=op.f('fk_usuario_perfil_acesso_id_perfil_acesso')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_usuario')),
+    sa.UniqueConstraint('login', name=op.f('uq_usuario_login'))
+    )
+    op.create_index(op.f('ix_usuario_email'), 'usuario', ['email'], unique=True)
     op.create_table('whatsapp_config',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('unidade_id', sa.Integer(), nullable=False),
@@ -456,6 +429,23 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id', name=op.f('pk_app_codigo'))
     )
     op.create_index(op.f('ix_app_codigo_aluno_id'), 'app_codigo', ['aluno_id'], unique=False)
+    op.create_table('auditoria',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('usuario_id', sa.Integer(), nullable=True),
+    sa.Column('usuario_nome', sa.String(length=150), nullable=True),
+    sa.Column('acao', sa.String(length=60), nullable=False),
+    sa.Column('entidade', sa.String(length=60), nullable=False),
+    sa.Column('entidade_id', sa.String(length=60), nullable=True),
+    sa.Column('descricao', sa.String(length=500), nullable=True),
+    sa.Column('antes_json', sa.JSON(), nullable=True),
+    sa.Column('depois_json', sa.JSON(), nullable=True),
+    sa.Column('ip', sa.String(length=64), nullable=True),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['usuario_id'], ['usuario.id'], name=op.f('fk_auditoria_usuario_id_usuario')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_auditoria'))
+    )
+    op.create_index(op.f('ix_auditoria_acao'), 'auditoria', ['acao'], unique=False)
+    op.create_index(op.f('ix_auditoria_criado_em'), 'auditoria', ['criado_em'], unique=False)
     op.create_table('conta_pagar',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('fornecedor_id', sa.Integer(), nullable=False),
@@ -513,67 +503,6 @@ def upgrade() -> None:
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_plano_codigo_legado'))
     )
     op.create_index(op.f('ix_plano_tipo_servico_id'), 'plano', ['tipo_servico_id'], unique=False)
-    op.create_table('usuario',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('tenant_id', sa.Integer(), nullable=False),
-    sa.Column('nome', sa.String(length=150), nullable=False),
-    sa.Column('email', sa.String(length=200), nullable=False),
-    sa.Column('login', sa.String(length=60), nullable=True),
-    sa.Column('foto_path', sa.String(length=500), nullable=True),
-    sa.Column('equipe_mayacorp', sa.Boolean(), nullable=False),
-    sa.Column('preferencias', sa.JSON(), nullable=False),
-    sa.Column('senha_hash', sa.String(length=255), nullable=True),
-    sa.Column('perfil', sa.Enum('admin', 'operador', 'visualizador', name='perfil', native_enum=False, length=20), nullable=False),
-    sa.Column('ativo', sa.Boolean(), nullable=False),
-    sa.Column('acesso_sistema', sa.Boolean(), server_default='1', nullable=False),
-    sa.Column('cargo_id', sa.Integer(), nullable=True),
-    sa.Column('perfil_acesso_id', sa.Integer(), nullable=True),
-    sa.Column('cpf', sa.String(length=11), nullable=True),
-    sa.Column('oab', sa.String(length=20), nullable=True),
-    sa.Column('telefone', sa.String(length=20), nullable=True),
-    sa.Column('data_admissao', sa.Date(), nullable=True),
-    sa.Column('cep', sa.String(length=8), nullable=True),
-    sa.Column('logradouro', sa.String(length=150), nullable=True),
-    sa.Column('numero_endereco', sa.String(length=10), nullable=True),
-    sa.Column('complemento', sa.String(length=60), nullable=True),
-    sa.Column('bairro', sa.String(length=80), nullable=True),
-    sa.Column('cidade', sa.String(length=80), nullable=True),
-    sa.Column('uf', sa.String(length=2), nullable=True),
-    sa.Column('convite_pendente', sa.Boolean(), nullable=False),
-    sa.Column('ultimo_acesso', app.core.db.UtcDateTime(timezone=True), nullable=True),
-    sa.Column('ultima_atividade', app.core.db.UtcDateTime(timezone=True), nullable=True),
-    sa.Column('tentativas_falhas', sa.Integer(), nullable=False),
-    sa.Column('bloqueado_ate', app.core.db.UtcDateTime(timezone=True), nullable=True),
-    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.Column('atualizado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['cargo_id'], ['cargo.id'], name=op.f('fk_usuario_cargo_id_cargo')),
-    sa.ForeignKeyConstraint(['perfil_acesso_id'], ['perfil_acesso.id'], name=op.f('fk_usuario_perfil_acesso_id_perfil_acesso')),
-    sa.ForeignKeyConstraint(['tenant_id'], ['tenant.id'], name=op.f('fk_usuario_tenant_id_tenant')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_usuario')),
-    sa.UniqueConstraint('login', name=op.f('uq_usuario_login'))
-    )
-    op.create_index(op.f('ix_usuario_email'), 'usuario', ['email'], unique=True)
-    op.create_index(op.f('ix_usuario_tenant_id'), 'usuario', ['tenant_id'], unique=False)
-    op.create_table('auditoria',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('tenant_id', sa.Integer(), nullable=False),
-    sa.Column('usuario_id', sa.Integer(), nullable=True),
-    sa.Column('usuario_nome', sa.String(length=150), nullable=True),
-    sa.Column('acao', sa.String(length=60), nullable=False),
-    sa.Column('entidade', sa.String(length=60), nullable=False),
-    sa.Column('entidade_id', sa.String(length=60), nullable=True),
-    sa.Column('descricao', sa.String(length=500), nullable=True),
-    sa.Column('antes_json', sa.JSON(), nullable=True),
-    sa.Column('depois_json', sa.JSON(), nullable=True),
-    sa.Column('ip', sa.String(length=64), nullable=True),
-    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['tenant_id'], ['tenant.id'], name=op.f('fk_auditoria_tenant_id_tenant')),
-    sa.ForeignKeyConstraint(['usuario_id'], ['usuario.id'], name=op.f('fk_auditoria_usuario_id_usuario')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_auditoria'))
-    )
-    op.create_index(op.f('ix_auditoria_acao'), 'auditoria', ['acao'], unique=False)
-    op.create_index(op.f('ix_auditoria_criado_em'), 'auditoria', ['criado_em'], unique=False)
-    op.create_index(op.f('ix_auditoria_tenant_id'), 'auditoria', ['tenant_id'], unique=False)
     op.create_table('profissional',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('nome', sa.String(length=150), nullable=False),
@@ -595,6 +524,30 @@ def upgrade() -> None:
     sa.UniqueConstraint('codigo_legado', name=op.f('uq_profissional_codigo_legado')),
     sa.UniqueConstraint('usuario_id', name=op.f('uq_profissional_usuario_id'))
     )
+    op.create_table('recuperacao_senha',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('usuario_id', sa.Integer(), nullable=False),
+    sa.Column('canal', sa.String(length=10), nullable=False),
+    sa.Column('digest', sa.String(length=64), nullable=False),
+    sa.Column('expira_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('tentativas', sa.Integer(), nullable=False),
+    sa.Column('usado_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['usuario_id'], ['usuario.id'], name=op.f('fk_recuperacao_senha_usuario_id_usuario'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_recuperacao_senha'))
+    )
+    op.create_index(op.f('ix_recuperacao_senha_digest'), 'recuperacao_senha', ['digest'], unique=False)
+    op.create_index(op.f('ix_recuperacao_senha_usuario_id'), 'recuperacao_senha', ['usuario_id'], unique=False)
+    op.create_table('refresh_token',
+    sa.Column('jti', sa.String(length=64), nullable=False),
+    sa.Column('usuario_id', sa.Integer(), nullable=False),
+    sa.Column('expira_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.Column('usado_em', app.core.db.UtcDateTime(timezone=True), nullable=True),
+    sa.Column('criado_em', app.core.db.UtcDateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['usuario_id'], ['usuario.id'], name=op.f('fk_refresh_token_usuario_id_usuario'), ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('jti', name=op.f('pk_refresh_token'))
+    )
+    op.create_index(op.f('ix_refresh_token_usuario_id'), 'refresh_token', ['usuario_id'], unique=False)
     op.create_table('aula_avulsa',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('aluno_id', sa.Integer(), nullable=False),
@@ -961,42 +914,36 @@ def downgrade() -> None:
     op.drop_table('aula_sessao')
     op.drop_index(op.f('ix_aula_avulsa_aluno_id'), table_name='aula_avulsa')
     op.drop_table('aula_avulsa')
+    op.drop_index(op.f('ix_refresh_token_usuario_id'), table_name='refresh_token')
+    op.drop_table('refresh_token')
+    op.drop_index(op.f('ix_recuperacao_senha_usuario_id'), table_name='recuperacao_senha')
+    op.drop_index(op.f('ix_recuperacao_senha_digest'), table_name='recuperacao_senha')
+    op.drop_table('recuperacao_senha')
     op.drop_table('profissional')
-    op.drop_index(op.f('ix_auditoria_tenant_id'), table_name='auditoria')
-    op.drop_index(op.f('ix_auditoria_criado_em'), table_name='auditoria')
-    op.drop_index(op.f('ix_auditoria_acao'), table_name='auditoria')
-    op.drop_table('auditoria')
-    op.drop_index(op.f('ix_usuario_tenant_id'), table_name='usuario')
-    op.drop_index(op.f('ix_usuario_email'), table_name='usuario')
-    op.drop_table('usuario')
     op.drop_index(op.f('ix_plano_tipo_servico_id'), table_name='plano')
     op.drop_table('plano')
     op.drop_table('horario_funcionamento_tipo_servico')
     op.drop_index('ix_conta_pagar_vencimento_status', table_name='conta_pagar')
     op.drop_table('conta_pagar')
+    op.drop_index(op.f('ix_auditoria_criado_em'), table_name='auditoria')
+    op.drop_index(op.f('ix_auditoria_acao'), table_name='auditoria')
+    op.drop_table('auditoria')
     op.drop_index(op.f('ix_app_codigo_aluno_id'), table_name='app_codigo')
     op.drop_table('app_codigo')
     op.drop_index(op.f('ix_aluno_telefone_aluno_id'), table_name='aluno_telefone')
     op.drop_table('aluno_telefone')
     op.drop_table('aluno_endereco')
     op.drop_table('whatsapp_config')
+    op.drop_index(op.f('ix_usuario_email'), table_name='usuario')
+    op.drop_table('usuario')
     op.drop_table('totalpass_config')
     op.drop_index(op.f('ix_subcategoria_categoria_id'), table_name='subcategoria')
     op.drop_table('subcategoria')
-    op.drop_index(op.f('ix_perfil_acesso_tenant_id'), table_name='perfil_acesso')
-    op.drop_table('perfil_acesso')
     op.drop_index(op.f('ix_movimento_conta_data'), table_name='movimento_conta')
     op.drop_index(op.f('ix_movimento_conta_conta_id'), table_name='movimento_conta')
     op.drop_table('movimento_conta')
-    op.drop_table('identidade')
     op.drop_index(op.f('ix_horario_funcionamento_unidade_id'), table_name='horario_funcionamento')
     op.drop_table('horario_funcionamento')
-    op.drop_table('config_notificacao')
-    op.drop_table('config_ia')
-    op.drop_index(op.f('ix_certificado_tenant_id'), table_name='certificado')
-    op.drop_table('certificado')
-    op.drop_index(op.f('ix_cargo_tenant_id'), table_name='cargo')
-    op.drop_table('cargo')
     op.drop_index(op.f('ix_aluno_unidade_id'), table_name='aluno')
     op.drop_index(op.f('ix_aluno_status'), table_name='aluno')
     op.drop_index(op.f('ix_aluno_nome'), table_name='aluno')
@@ -1008,14 +955,20 @@ def downgrade() -> None:
     op.drop_table('totalpass_evento')
     op.drop_table('tipo_servico')
     op.drop_table('termo_uso')
-    op.drop_table('tenant')
     op.drop_table('receita_saude_config')
+    op.drop_index(op.f('ix_rate_limit_evento_em'), table_name='rate_limit_evento')
+    op.drop_index(op.f('ix_rate_limit_evento_chave'), table_name='rate_limit_evento')
+    op.drop_table('rate_limit_evento')
     op.drop_table('profissao')
+    op.drop_table('perfil_acesso')
     op.drop_table('modelo_evolucao')
     op.drop_table('modelo_contrato')
     op.drop_table('integracao_token')
+    op.drop_table('identidade')
     op.drop_table('fornecedor')
     op.drop_table('contador_codigo')
     op.drop_table('conta_bancaria')
+    op.drop_table('config_ia')
+    op.drop_table('config_email')
     op.drop_table('categoria')
     # ### end Alembic commands ###

@@ -2,13 +2,12 @@ from logging.config import fileConfig
 
 from alembic import context
 
-import app.core.models  # noqa: F401  (registra os modelos)
-import app.comunicador.models  # noqa: F401
-import app.modules.faturamento.models  # noqa: F401
-import app.modules.financas.models  # noqa: F401
-import app.modules.rpa_nfse.models  # noqa: F401
+import app.core.models  # noqa: F401  (registra os modelos do core)
 from app.core.config import settings
 from app.core.db import Base, engine
+from app.modules import registrar_modelos
+
+registrar_modelos()  # importa os models de todos os modulos para o autogenerate enxergar
 
 config = context.config
 if config.config_file_name is not None and config.attributes.get("configure_logger", True):
