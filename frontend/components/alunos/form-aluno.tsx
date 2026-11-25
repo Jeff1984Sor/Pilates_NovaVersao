@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { DadosAssistenteIA } from "@/lib/tipos-app-aluno";
 import type { AlunoEntrada, AlunoOut, OpcoesAluno } from "@/lib/tipos-alunos";
 import { cpfValido } from "@/lib/validacao";
@@ -89,12 +90,15 @@ export function FormAluno({
   sugestao,
   onSalvo,
   onCancelar,
+  emModal = false,
 }: {
   aluno: AlunoOut | null;
   /** Rascunho do assistente de IA: preenche só os campos informados; nada é salvo até o usuário clicar em Salvar. */
   sugestao?: DadosAssistenteIA | null;
   onSalvo: (a: AlunoOut) => void;
   onCancelar?: () => void;
+  /** Dentro de um modal com rolagem: a barra de Salvar fica presa embaixo, sempre visível. */
+  emModal?: boolean;
 }) {
   const qc = useQueryClient();
   const opcoes = useOpcoesAluno();
@@ -388,7 +392,12 @@ export function FormAluno({
         </div>
       </FormSection>
 
-      <div className="flex items-center justify-end gap-2 pt-5">
+      <div
+        className={cn(
+          "flex items-center justify-end gap-2 pt-5",
+          emModal && "sticky bottom-0 z-10 -mx-5 mt-5 border-t bg-popover px-5 py-4",
+        )}
+      >
         {onCancelar && (
           <Button type="button" variant="outline" onClick={onCancelar}>
             Cancelar

@@ -216,13 +216,13 @@ export function AbaDados({ alunoId }: { alunoId: number }) {
       </div>
 
       <Dialog open={editando} onOpenChange={setEditando}>
-        <DialogContent className="max-h-[92dvh] gap-0 overflow-hidden p-0 sm:max-w-4xl">
+        <DialogContent className="flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
           <DialogHeader className="border-b p-5">
             <DialogTitle className="text-lg">Editar cadastro</DialogTitle>
             <DialogDescription>Altere só o que mudou; os telefones são atualizados no lugar, sem recriar.</DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto p-5">
-            {editando && <FormAluno aluno={a} onSalvo={() => setEditando(false)} onCancelar={() => setEditando(false)} />}
+          <div className="min-h-0 flex-1 overflow-y-auto p-5 pb-0">
+            {editando && <FormAluno aluno={a} emModal onSalvo={() => setEditando(false)} onCancelar={() => setEditando(false)} />}
           </div>
         </DialogContent>
       </Dialog>

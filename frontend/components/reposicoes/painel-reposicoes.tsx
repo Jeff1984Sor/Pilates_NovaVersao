@@ -133,7 +133,7 @@ function RecusarDialog({ pedido, onFechar }: { pedido: PedidoReposicaoEquipe; on
   });
   return (
     <Dialog open onOpenChange={(o) => !o && !recusar.isPending && onFechar()}>
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+      <DialogContent className="max-h-[92dvh] gap-0 overflow-y-auto p-0 sm:max-w-md">
         <DialogHeader className="border-b p-5">
           <DialogTitle>Recusar reposição de {pedido.aluno?.nome}</DialogTitle>
           <DialogDescription>O motivo aparece no app do aluno e na mensagem de WhatsApp.</DialogDescription>

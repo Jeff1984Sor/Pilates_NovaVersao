@@ -35,7 +35,7 @@ function PedirDialog({ r, aberto, onFechar }: { r: ReposicaoAluno; aberto: boole
 
   return (
     <Dialog open={aberto} onOpenChange={(o) => !o && !pedir.isPending && onFechar()}>
-      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+      <DialogContent className="max-h-[92dvh] gap-0 overflow-y-auto p-0 sm:max-w-md">
         <DialogHeader className="border-b p-4">
           <DialogTitle>{atualizando ? "Atualizar preferência" : "Pedir reposição"}</DialogTitle>
           <DialogDescription>
