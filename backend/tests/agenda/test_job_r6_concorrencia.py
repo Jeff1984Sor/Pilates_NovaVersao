@@ -210,7 +210,7 @@ def test_contador_sempre_igual_as_reservas_reservadas_depois_de_muita_mexida(db,
     db.commit()
     servico.aplicar_acao_presenca(db, rs[0].id, "faltou")
     servico.aplicar_acao_presenca(db, rs[1].id, "finalizar")
-    servico.desmarcar_reserva(db, rs[2].id)
+    servico.desmarcar_reserva(db, rs[2].id, agora=HOJE_MANHA)  # data fixa: o relógio real passaria do prazo de 6 h
     servico.aplicar_acao_presenca(db, rs[0].id, "chegou")
     servico.excluir_reserva(db, rs[3].id)
     db.commit()

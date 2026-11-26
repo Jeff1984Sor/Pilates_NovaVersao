@@ -68,7 +68,10 @@ def test_salvar_config_formata_cpf_e_audita(client, adm, db):
 
 
 # -------------------------------------------------------------------------------------------------- por aluno
-def test_arquivo_por_aluno_formato_16_colunas_crlf_e_marca_gerado(client, adm, db, cenario, config):
+def test_arquivo_por_aluno_formato_16_colunas_crlf_e_marca_gerado(client, adm, db, cenario, config, monkeypatch):
+    from app.modules.financeiro import recibos_saude
+
+    monkeypatch.setattr(recibos_saude, "agora", lambda: datetime(2026, 10, 25, 15, 0, tzinfo=UTC))  # nome do arquivo leva a data
     c1 = _paga(db, cenario.aluno.id, "300.00", date(2026, 10, 12), "Mensalidade; outubro / Pilates")
     c2 = _paga(db, cenario.aluno.id, "1234.5", date(2026, 9, 3))
     db.commit()
