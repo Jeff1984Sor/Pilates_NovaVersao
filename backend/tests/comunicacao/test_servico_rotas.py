@@ -1,11 +1,12 @@
 """Serviço de envio, histórico, cobrança, enviador de contrato/termo, notificador real e permissões por perfil."""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
 
 from app.core import notificador as notif
 from app.core.models import Auditoria
+from app.domain.status_aula import FUSO_NEGOCIO
 from app.modules.alunos.models import WhatsappMensagem
 from app.modules.comunicacao import servico as svc
 from app.modules.financeiro.servico import ErroDeNegocio, cobrador_disponivel
@@ -66,9 +67,10 @@ def test_historico_com_filtros(client, full, cenario, falso, db):
     assert client.get(f"/api/whatsapp/mensagens?aluno_id={cenario.joao.id}", headers=full).json()["total"] == 1
     assert client.get("/api/whatsapp/mensagens?status=failed", headers=full).json()["total"] == 1
     assert client.get("/api/whatsapp/mensagens?tipo=comunicado", headers=full).json()["total"] == 0
-    hoje = date.today().isoformat()
+    hoje_sp = datetime.now(FUSO_NEGOCIO).date()  # o filtro usa o dia de Brasília; o servidor roda em UTC
+    hoje = hoje_sp.isoformat()
     assert client.get(f"/api/whatsapp/mensagens?de={hoje}&ate={hoje}", headers=full).json()["total"] == 3
-    amanha = (date.today() + timedelta(days=2)).isoformat()
+    amanha = (hoje_sp + timedelta(days=2)).isoformat()
     assert client.get(f"/api/whatsapp/mensagens?de={amanha}", headers=full).json()["total"] == 0
     assert client.get("/api/whatsapp/mensagens?q=Lima", headers=full).json()["total"] == 1
     falha = next(i for i in tudo["itens"] if i["status"] == "failed")
