@@ -14,6 +14,8 @@ import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 import type { ConfigIAOut } from "@/lib/types";
 
+const OUTRO = "__outro__";
+
 const AVISO =
   "Os textos enviados à IA (melhoria de evoluções, preenchimento de cadastros) vão ao provedor escolhido. Use uma conta empresarial com retenção de dados desligada e não envie mais do que o necessário.";
 
@@ -29,6 +31,11 @@ function Formulario({ cfg }: { cfg: ConfigIAOut }) {
     enabled: cfg.chave_definida && provedor === cfg.provedor,
     retry: false,
   });
+  const [digitar, setDigitar] = useState(false);
+  const opcoes = lista.data ?? [];
+  // lista de verdade (não <datalist>: o Chrome só sugere o que combina com o texto já digitado)
+  const usarLista = provedor === cfg.provedor && opcoes.length > 0 && !digitar;
+  const foraDaLista = usarLista && !!modelo && !opcoes.includes(modelo);
   const salvar = useMutation({
     mutationFn: () => api.put<ConfigIAOut>("/config/ia", { ativo, provedor, modelo: modelo || null, chave: chave || null }),
     onSuccess: (novo) => {
@@ -51,7 +58,16 @@ function Formulario({ cfg }: { cfg: ConfigIAOut }) {
       </SwitchRow>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Provedor">
-          <NativeSelect value={provedor} onChange={(e) => setProvedor(e.target.value as ConfigIAOut["provedor"])}>
+          <NativeSelect
+            value={provedor}
+            onChange={(e) => {
+              const novo = e.target.value as ConfigIAOut["provedor"];
+              setProvedor(novo);
+              // o modelo de um provedor não existe no outro; volta ao salvo só se voltar ao provedor salvo
+              setModelo(novo === cfg.provedor ? (cfg.modelo ?? "") : "");
+              setDigitar(false);
+            }}
+          >
             {Object.entries(cfg.provedores).map(([id, nome]) => (
               <option key={id} value={id}>
                 {nome}
@@ -62,24 +78,42 @@ function Formulario({ cfg }: { cfg: ConfigIAOut }) {
         <Field
           label="Modelo"
           dica={
-            lista.isError
-              ? `${(lista.error as Error).message} Você também pode digitar o nome (ex.: gpt-4o-mini, gemini-2.0-flash).`
-              : lista.data
-                ? "Escolha na lista ou digite outro nome."
-                : "Salve a chave para listar os modelos, ou digite o nome (ex.: gpt-4o-mini, gemini-2.0-flash)."
+            provedor !== cfg.provedor || !cfg.chave_definida
+              ? "Cole a chave e clique em Salvar para carregar a lista de modelos deste provedor."
+              : lista.isError
+                ? `${(lista.error as Error).message} Você pode digitar o nome do modelo.`
+                : lista.isLoading
+                  ? "Carregando os modelos do provedor…"
+                  : foraDaLista
+                    ? `O modelo salvo (${modelo}) não existe neste provedor. Escolha um da lista.`
+                    : "Escolha na lista. Se não achar, use “Outro (digitar o nome)”."
           }
         >
-          <Input
-            list="modelos-ia"
-            value={modelo}
-            onChange={(e) => setModelo(e.target.value)}
-            placeholder={lista.isLoading ? "carregando modelos…" : "nome do modelo"}
-          />
-          <datalist id="modelos-ia">
-            {(lista.data ?? []).map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
+          {usarLista ? (
+            <NativeSelect
+              value={modelo && opcoes.includes(modelo) ? modelo : ""}
+              onChange={(e) => {
+                if (e.target.value === OUTRO) {
+                  setDigitar(true);
+                  setModelo("");
+                } else setModelo(e.target.value);
+              }}
+            >
+              <option value="">Escolha o modelo…</option>
+              {opcoes.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+              <option value={OUTRO}>Outro (digitar o nome)</option>
+            </NativeSelect>
+          ) : (
+            <Input
+              value={modelo}
+              onChange={(e) => setModelo(e.target.value)}
+              placeholder={provedor === "openai" ? "ex.: gpt-4o-mini" : "ex.: gemini-2.0-flash"}
+            />
+          )}
         </Field>
       </div>
       <Field

@@ -59,6 +59,12 @@ def _erro_http(p: str, r: httpx.Response) -> IAIndisponivel:
     return IAIndisponivel(f"A {PROVEDORES[p]} respondeu com erro ({r.status_code}). Tente novamente.")
 
 
+def modelo_de_outro_provedor(provedor: str, modelo: str) -> bool:
+    """True quando o nome é claramente de outro provedor (ex.: "gemini-2.5-pro" com a OpenAI)."""
+    eh_gemini = "gemini" in modelo.strip().lower()
+    return eh_gemini if provedor == "openai" else not eh_gemini
+
+
 def listar_modelos(provedor: str, chave: str) -> list[str]:
     try:
         if provedor == "openai":

@@ -387,6 +387,8 @@ def salvar_ia(dados: ConfigIAIn, ctx: Ctx):
     cfg.provedor, cfg.modelo = dados.provedor, dados.modelo
     if dados.chave:
         cfg.chave_cifrada = segredos.cifrar_texto(dados.chave.strip())
+    if cfg.modelo and ia.modelo_de_outro_provedor(cfg.provedor, cfg.modelo):
+        raise HTTPException(400, f"O modelo “{cfg.modelo}” não é da {ia.PROVEDORES[cfg.provedor]}. Escolha um modelo deste provedor.")
     if dados.ativo and not (cfg.chave_cifrada and cfg.modelo):
         raise HTTPException(400, "Para ativar, informe a chave e escolha o modelo.")
     cfg.ativo = dados.ativo

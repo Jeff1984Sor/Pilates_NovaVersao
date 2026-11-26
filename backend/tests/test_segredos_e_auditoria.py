@@ -73,6 +73,17 @@ def test_chave_da_ia_cifrada(client, db, token_admin):
     assert r.json()["chave_final"] == "1234" and "sk-segredo" not in r.text
 
 
+def test_ia_recusa_modelo_de_outro_provedor(client, db, token_admin):
+    """Caso real: trocaram Gemini -> OpenAI e o modelo "gemini-2.5-pro" ficou salvo com a OpenAI ativa."""
+    h = auth(token_admin)
+    r = client.put("/api/config/ia", headers=h, json={"ativo": True, "provedor": "openai", "modelo": "gemini-2.5-pro", "chave": "sk-x-1234"})
+    assert r.status_code == 400 and "gemini-2.5-pro" in r.json()["detail"]
+    r = client.put("/api/config/ia", headers=h, json={"ativo": True, "provedor": "gemini", "modelo": "gpt-4o-mini", "chave": "AIza-x-1234"})
+    assert r.status_code == 400
+    r = client.put("/api/config/ia", headers=h, json={"ativo": True, "provedor": "gemini", "modelo": "gemini-2.0-flash", "chave": "AIza-x-1234"})
+    assert r.status_code == 200 and r.json()["modelo"] == "gemini-2.0-flash"
+
+
 # ---------------------------------------------------------------------------------------------- configuração segura
 def _base(**kw):
     d = dict(ambiente="hml", jwt_secret="x" * 40, master_key=Fernet.generate_key().decode(), debug=False,
