@@ -36,6 +36,17 @@ function fabricaDeVoz(): FabricaReconhecimento | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+/** Erros do reconhecimento de voz do navegador, em português claro. */
+const ERROS_VOZ: Record<string, string> = {
+  "not-allowed": "O navegador bloqueou o microfone. Clique no cadeado ao lado do endereço do site, permita o microfone e tente de novo.",
+  "service-not-allowed": "O navegador bloqueou o microfone. Clique no cadeado ao lado do endereço do site, permita o microfone e tente de novo.",
+  "audio-capture": "Nenhum microfone encontrado. Verifique se o microfone está conectado e liberado no computador.",
+  "no-speech": "Nenhuma fala foi detectada. Tente de novo, falando perto do microfone.",
+  network: "A transcrição precisa de internet e não conseguiu se conectar ao serviço de voz do navegador. Tente de novo.",
+  aborted: "A gravação foi interrompida.",
+  "language-not-supported": "O navegador não oferece transcrição em português. Use o Chrome ou o Edge atualizado.",
+};
+
 const ROTULOS = {
   evolucao: { titulo: "Evolução", placeholder: "Escreva a evolução…", salvo: "Evolução salva" },
   avaliacao: { titulo: "Avaliação", placeholder: "Escreva a avaliação…", salvo: "Avaliação salva" },
@@ -85,19 +96,27 @@ export function EditorRegistro({
     rec.lang = "pt-BR";
     rec.continuous = true;
     rec.interimResults = false;
+    // O onend sempre vem depois do onerror: guardamos o que aconteceu para não trocar o erro por "sucesso".
+    let erro = "";
+    let captou = false;
     rec.onstart = () => {
       setGravando(true);
-      setAviso("Gravando… fale o texto.");
+      setAviso("Gravando… fale o texto. Clique em “Parar gravação” ao terminar.");
     };
     rec.onresult = (e) => {
       let falado = "";
       for (let i = e.resultIndex; i < e.results.length; i += 1) if (e.results[i].isFinal) falado += `${e.results[i][0].transcript} `;
+      if (falado.trim()) captou = true;
       acrescentar(falado);
     };
-    rec.onerror = (e) => setAviso(`Não foi possível gravar o áudio: ${e.error ?? "erro desconhecido"}.`);
+    rec.onerror = (e) => {
+      erro = ERROS_VOZ[e.error ?? ""] ?? `Não foi possível gravar o áudio (${e.error ?? "erro desconhecido"}).`;
+      setAviso(erro);
+    };
     rec.onend = () => {
       setGravando(false);
-      setAviso("Transcrição adicionada ao campo.");
+      if (erro) setAviso(erro);
+      else setAviso(captou ? "Transcrição adicionada ao campo." : "Nenhuma fala foi reconhecida. Tente de novo, falando perto do microfone.");
     };
     voz.current = rec;
     rec.start();
